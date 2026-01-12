@@ -1,13 +1,7 @@
-const router = require("express").Router();
+const express = require("express");
+const { otpLogin } = require("../controllers/auth.controller");
 
-router.post("/login", (req, res) => {
-  const { phone, role } = req.body;
-  res.json({ message: "OTP sent", phone, role });
-});
-
-router.post("/verify-otp", (req, res) => {
-  const { phone, role } = req.body;
-  res.json({ token: "FAKE_JWT_TOKEN", role });
-});
+const router = express.Router();
+router.post("/otp-login", otpLogin);
 
 module.exports = router;
