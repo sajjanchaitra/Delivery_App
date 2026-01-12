@@ -1,7 +1,13 @@
-const { Pool } = require("pg");
+const mongoose = require("mongoose");
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const connectMongo = async () => {
+  try {
+    await mongoose.connect("mongodb+srv://Naimo:RUOzNB1vSPK4XgkG@cluster0.zd1zrhk.mongodb.net/?appName=Cluster0");
+    console.log("MongoDB Atlas Connected Successfully 🚀");
+  } catch (error) {
+    console.error("MongoDB Connection Failed ❌", error.message);
+    process.exit(1);
+  }
+};
 
-module.exports = pool;
+module.exports = connectMongo;
