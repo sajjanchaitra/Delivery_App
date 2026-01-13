@@ -1,2 +1,3 @@
 backend/src/config/firebase.json.json
 backend/src/config/*.json
+mobile/firebase.js
