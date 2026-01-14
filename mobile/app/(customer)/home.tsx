@@ -353,7 +353,7 @@ export default function CustomerHome() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
           <Ionicons name="grid-outline" size={22} color="#94A3B8" />
-          <Text style={styles.navLabel}           onPress={() => router.push("../(customer)/categories")}>Categories</Text>
+          <Text style={styles.navLabel}  onPress={() => router.push("../(customer)/categories")}>Categories</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItemCart} activeOpacity={0.8}>
           <LinearGradient
