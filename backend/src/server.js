@@ -21,7 +21,7 @@ mongoose
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // Import Routes
-const authRoutes = require("./routes/auth");
+const authRoutes = require("./routes/auth.routes");
 const storeRoutes = require("./routes/stores");
 const productRoutes = require("./routes/products");
 const orderRoutes = require("./routes/orders");
