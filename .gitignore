@@ -1,3 +1,7 @@
 backend/src/config/firebase.json.json
 backend/src/config/*.json
 Delivery_App/.gitignore
+# Environment files
+.env
+.env.local
+.env.*.local
