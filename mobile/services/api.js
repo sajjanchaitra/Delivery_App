@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // For Android Emulator: http://10.0.2.2:5000
 // For iOS Simulator: http://localhost:5000
 // For Physical Device: http://YOUR_COMPUTER_IP:5000
-const API_BASE_URL = "http://192.168.1.100:5000/api";
+const API_BASE_URL = "http://192.168.1.36:5000/api";
 
 // Helper function to get auth token
 const getAuthToken = async () => {
