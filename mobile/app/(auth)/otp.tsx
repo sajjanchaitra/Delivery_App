@@ -99,6 +99,7 @@ export default function Otp() {
         case "delivery":
           router.replace("/(delivery)/home");
           break;
+        
         default:
           router.replace("/(customer)/home");
       }
