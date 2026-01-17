@@ -1,13 +1,18 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-require("dotenv").config();
+
+// Load env ONLY ONCE, with correct path
+require("dotenv").config({ path: "../.env" });
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Debug (temporary – remove later)
+console.log("MONGODB_URI:", process.env.MONGODB_URI);
 
 // MongoDB Connection
 mongoose
@@ -16,17 +21,11 @@ mongoose
   .catch((err) => console.error("❌ MongoDB Error:", err.message));
 
 // Routes
-const authRoutes = require("./routes/auth.routes");
-const storeRoutes = require("./routes/stores");
-const productRoutes = require("./routes/products");
-const orderRoutes = require("./routes/orders");
-const cartRoutes = require("./routes/cart");
-
-app.use("/api/auth", authRoutes);
-app.use("/api/stores", storeRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/cart", cartRoutes);
+app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/stores", require("./routes/stores"));
+app.use("/api/products", require("./routes/products"));
+app.use("/api/orders", require("./routes/orders"));
+app.use("/api/cart", require("./routes/cart"));
 
 // Health check
 app.get("/", (req, res) => {
