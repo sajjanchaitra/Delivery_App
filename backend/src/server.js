@@ -1,4 +1,9 @@
-require("dotenv").config({ path: "../.env" });
+// backend/src/server.js
+const path = require('path');
+
+// Load environment variables from parent directory
+require("dotenv").config({ path: path.resolve(__dirname, '../.env') });
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -16,11 +21,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB Connection
+// Verify .env loaded
+if (!process.env.MONGODB_URI) {
+  console.error("❌ ERROR: MONGODB_URI not found in .env file");
+  console.error("📁 Looking for .env at:", path.resolve(__dirname, '../.env'));
+  process.exit(1);
+}
+
+// MongoDB Connection - SIMPLIFIED (no deprecated options)
 console.log("🔄 Connecting to MongoDB...");
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
+  .then(() => {
+    console.log("✅ MongoDB Connected");
+    console.log(`📊 Database: ${mongoose.connection.name}`);
+  })
   .catch((err) => {
     console.error("❌ MongoDB Error:", err.message);
     process.exit(1);
@@ -34,6 +49,7 @@ app.get("/", (req, res) => {
   res.json({
     message: "QuickMart API is running! 🚀",
     auth: "Firebase",
+    mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
     endpoints: {
       firebaseLogin: "POST /api/auth/firebase-login",
       getProfile: "GET /api/auth/me",
