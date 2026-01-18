@@ -1,3 +1,4 @@
+// app/(customer)/product-details.tsx
 import {
   View,
   Text,
@@ -7,12 +8,22 @@ import {
   Image,
   Dimensions,
   StatusBar,
+  Alert,
 } from "react-native";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useCart } from "../../context/CartContext";
 
 const { width, height } = Dimensions.get("window");
+
+// Size pricing multipliers
+const sizeMultipliers: { [key: string]: number } = {
+  "500 g": 0.5,
+  "1 kg": 1,
+  "2 kg": 1.9,
+  "5 kg": 4.5,
+};
 
 // Mock related products
 const relatedProducts = [
@@ -45,28 +56,111 @@ const relatedProducts = [
 export default function ProductDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { addItem, isInCart, getItemCount } = useCart();
   
+  const productId = params.productId as string;
   const productName = params.productName as string;
-  const productPrice = Number(params.productPrice);
+  const basePrice = Number(params.productPrice);
   const productUnit = params.productUnit as string;
   const productImage = params.productImage as string;
   const productRating = Number(params.productRating);
-  const productDiscount = Number(params.productDiscount);
+  const productDiscount = Number(params.productDiscount) || 0;
 
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [selectedSize, setSelectedSize] = useState("1 kg");
+  const [selectedSize, setSelectedSize] = useState(productUnit || "1 kg");
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   const sizes = ["500 g", "1 kg", "2 kg", "5 kg"];
 
   const increaseQuantity = () => setQuantity(prev => prev + 1);
   const decreaseQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1);
 
-  const originalPrice = productDiscount > 0 
-    ? Math.round(productPrice / (1 - productDiscount / 100))
-    : productPrice;
+  // Calculate price based on selected size
+  const getSizePrice = () => {
+    const multiplier = sizeMultipliers[selectedSize] || 1;
+    return Math.round(basePrice * multiplier);
+  };
 
-  const totalPrice = productPrice * quantity;
+  const currentPrice = getSizePrice();
+  
+  const originalPrice = productDiscount > 0 
+    ? Math.round(currentPrice / (1 - productDiscount / 100))
+    : currentPrice;
+
+  const totalPrice = currentPrice * quantity;
+  const totalSavings = productDiscount > 0 
+    ? (originalPrice - currentPrice) * quantity 
+    : 0;
+
+  const handleAddToCart = () => {
+    setIsAddingToCart(true);
+    
+    // Add item to cart
+    addItem({
+      productId,
+      name: productName,
+      price: currentPrice,
+      quantity,
+      size: selectedSize,
+      unit: selectedSize,
+      image: productImage,
+      discount: productDiscount,
+    });
+
+    // Show success feedback
+    setTimeout(() => {
+      setIsAddingToCart(false);
+      Alert.alert(
+        "Added to Cart! 🎉",
+        `${quantity}x ${productName} (${selectedSize}) has been added to your cart.\n\nTotal items in cart: ${getItemCount() + quantity}`,
+        [
+          {
+            text: "Continue Shopping",
+            style: "cancel"
+          },
+          {
+            text: "View Cart",
+            onPress: () => router.push("/(customer)/cart")
+          }
+        ]
+      );
+      
+      // Reset quantity after adding
+      setQuantity(1);
+    }, 500);
+  };
+
+  const handleBuyNow = () => {
+    // Add to cart first
+    addItem({
+      productId,
+      name: productName,
+      price: currentPrice,
+      quantity,
+      size: selectedSize,
+      unit: selectedSize,
+      image: productImage,
+      discount: productDiscount,
+    });
+
+    // Navigate directly to checkout
+    setTimeout(() => {
+      router.push("/(customer)/checkout");
+    }, 100);
+  };
+
+  const toggleFavorite = () => {
+    setIsFavorite(!isFavorite);
+    Alert.alert(
+      isFavorite ? "Removed from Favorites" : "Added to Favorites",
+      isFavorite 
+        ? `${productName} has been removed from your favorites.`
+        : `${productName} has been added to your favorites.`
+    );
+  };
+
+  const inCart = isInCart(productId, selectedSize);
 
   return (
     <View style={styles.container}>
@@ -94,17 +188,32 @@ export default function ProductDetailsScreen() {
               <Ionicons name="arrow-back" size={24} color="#1E293B" />
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.headerButton} 
-              activeOpacity={0.7}
-              onPress={() => setIsFavorite(!isFavorite)}
-            >
-              <Ionicons 
-                name={isFavorite ? "heart" : "heart-outline"} 
-                size={24} 
-                color={isFavorite ? "#EF4444" : "#1E293B"} 
-              />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                style={styles.headerButton} 
+                activeOpacity={0.7}
+                onPress={toggleFavorite}
+              >
+                <Ionicons 
+                  name={isFavorite ? "heart" : "heart-outline"} 
+                  size={24} 
+                  color={isFavorite ? "#EF4444" : "#1E293B"} 
+                />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.headerButton} 
+                activeOpacity={0.7}
+                onPress={() => router.push("/(customer)/cart")}
+              >
+                <Ionicons name="cart-outline" size={24} color="#1E293B" />
+                {getItemCount() > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>{getItemCount()}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
           {productDiscount > 0 && (
@@ -121,6 +230,7 @@ export default function ProductDetailsScreen() {
             <View style={styles.nameAndBadge}>
               <Text style={styles.productName}>{productName}</Text>
               <View style={styles.stockBadge}>
+                <View style={styles.stockDot} />
                 <Text style={styles.stockText}>In Stock</Text>
               </View>
             </View>
@@ -131,46 +241,110 @@ export default function ProductDetailsScreen() {
             </View>
           </View>
 
+          {/* Already in Cart Badge */}
+          {inCart && (
+            <View style={styles.inCartBanner}>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={styles.inCartText}>
+                This item (size: {selectedSize}) is already in your cart
+              </Text>
+            </View>
+          )}
+
           {/* Price Section */}
           <View style={styles.priceSection}>
             <View style={styles.priceRow}>
-              <Text style={styles.currentPrice}>₹{productPrice}</Text>
+              <Text style={styles.currentPrice}>₹{currentPrice}</Text>
               {productDiscount > 0 && (
-                <Text style={styles.originalPrice}>₹{originalPrice}</Text>
-              )}
-              {productDiscount > 0 && (
-                <View style={styles.saveBadge}>
-                  <Text style={styles.saveText}>Save ₹{originalPrice - productPrice}</Text>
-                </View>
+                <>
+                  <Text style={styles.originalPrice}>₹{originalPrice}</Text>
+                  <View style={styles.saveBadge}>
+                    <Text style={styles.saveText}>Save ₹{originalPrice - currentPrice}</Text>
+                  </View>
+                </>
               )}
             </View>
-            <Text style={styles.priceUnit}>per {productUnit}</Text>
+            <Text style={styles.priceUnit}>per {selectedSize}</Text>
           </View>
 
           {/* Size Selection */}
           <View style={styles.sizeSection}>
             <Text style={styles.sectionTitle}>Select Size</Text>
             <View style={styles.sizesContainer}>
-              {sizes.map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  style={[
-                    styles.sizeButton,
-                    selectedSize === size && styles.sizeButtonActive
-                  ]}
-                  activeOpacity={0.7}
-                  onPress={() => setSelectedSize(size)}
-                >
-                  <Text style={[
-                    styles.sizeText,
-                    selectedSize === size && styles.sizeTextActive
-                  ]}>
-                    {size}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {sizes.map((size) => {
+                const sizePrice = Math.round(basePrice * (sizeMultipliers[size] || 1));
+                return (
+                  <TouchableOpacity
+                    key={size}
+                    style={[
+                      styles.sizeButton,
+                      selectedSize === size && styles.sizeButtonActive
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => setSelectedSize(size)}
+                  >
+                    <Text style={[
+                      styles.sizeText,
+                      selectedSize === size && styles.sizeTextActive
+                    ]}>
+                      {size}
+                    </Text>
+                    <Text style={[
+                      styles.sizePriceText,
+                      selectedSize === size && styles.sizePriceTextActive
+                    ]}>
+                      ₹{sizePrice}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
+
+          {/* Quantity Selector */}
+          <View style={styles.quantitySection}>
+            <Text style={styles.sectionTitle}>Quantity</Text>
+            <View style={styles.quantityControls}>
+              <TouchableOpacity 
+                style={[styles.quantityBtn, quantity === 1 && styles.quantityBtnDisabled]} 
+                activeOpacity={0.7}
+                onPress={decreaseQuantity}
+                disabled={quantity === 1}
+              >
+                <Ionicons name="remove" size={20} color={quantity === 1 ? "#CBD5E1" : "#1E293B"} />
+              </TouchableOpacity>
+              <View style={styles.quantityDisplay}>
+                <Text style={styles.quantityNumber}>{quantity}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.quantityBtn} 
+                activeOpacity={0.7}
+                onPress={increaseQuantity}
+              >
+                <Ionicons name="add" size={20} color="#1E293B" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Price Summary Card */}
+          {(quantity > 1 || totalSavings > 0) && (
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal ({quantity} items)</Text>
+                <Text style={styles.summaryValue}>₹{currentPrice * quantity}</Text>
+              </View>
+              {totalSavings > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Your Savings</Text>
+                  <Text style={styles.savingsValue}>-₹{totalSavings}</Text>
+                </View>
+              )}
+              <View style={[styles.summaryRow, styles.summaryTotal]}>
+                <Text style={styles.totalLabel}>Total Amount</Text>
+                <Text style={styles.totalValue}>₹{totalPrice}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Description */}
           <View style={styles.descriptionSection}>
@@ -178,7 +352,8 @@ export default function ProductDetailsScreen() {
             <Text style={styles.descriptionText}>
               High-quality {productName.toLowerCase()} sourced from trusted suppliers. 
               Perfect for everyday use with premium quality guaranteed. Rich in nutrients 
-              and carefully packaged to maintain freshness.
+              and carefully packaged to maintain freshness. Ideal for cooking, baking, 
+              and various culinary applications.
             </Text>
           </View>
 
@@ -186,20 +361,40 @@ export default function ProductDetailsScreen() {
           <View style={styles.detailsSection}>
             <Text style={styles.sectionTitle}>Product Details</Text>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Brand</Text>
-              <Text style={styles.detailValue}>Premium Choice</Text>
+              <View style={styles.detailIcon}>
+                <Ionicons name="ribbon-outline" size={18} color="#22C55E" />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Brand</Text>
+                <Text style={styles.detailValue}>Premium Choice</Text>
+              </View>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Weight</Text>
-              <Text style={styles.detailValue}>{productUnit}</Text>
+              <View style={styles.detailIcon}>
+                <Ionicons name="scale-outline" size={18} color="#22C55E" />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Weight</Text>
+                <Text style={styles.detailValue}>{selectedSize}</Text>
+              </View>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Storage</Text>
-              <Text style={styles.detailValue}>Cool & Dry Place</Text>
+              <View style={styles.detailIcon}>
+                <Ionicons name="thermometer-outline" size={18} color="#22C55E" />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Storage</Text>
+                <Text style={styles.detailValue}>Cool & Dry Place</Text>
+              </View>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Shelf Life</Text>
-              <Text style={styles.detailValue}>6 months</Text>
+              <View style={styles.detailIcon}>
+                <Ionicons name="calendar-outline" size={18} color="#22C55E" />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Shelf Life</Text>
+                <Text style={styles.detailValue}>6 months from mfg.</Text>
+              </View>
             </View>
           </View>
 
@@ -243,38 +438,45 @@ export default function ProductDetailsScreen() {
             </ScrollView>
           </View>
 
-          <View style={{ height: 120 }} />
+          <View style={{ height: 160 }} />
         </View>
       </ScrollView>
 
       {/* Bottom Action Bar */}
       <View style={styles.bottomBar}>
-        <View style={styles.quantityContainer}>
-          <TouchableOpacity 
-            style={styles.quantityButton} 
-            activeOpacity={0.7}
-            onPress={decreaseQuantity}
-          >
-            <Ionicons name="remove" size={20} color="#1E293B" />
-          </TouchableOpacity>
-          <Text style={styles.quantityText}>{quantity}</Text>
-          <TouchableOpacity 
-            style={styles.quantityButton} 
-            activeOpacity={0.7}
-            onPress={increaseQuantity}
-          >
-            <Ionicons name="add" size={20} color="#1E293B" />
-          </TouchableOpacity>
+        <View style={styles.bottomPriceInfo}>
+          <Text style={styles.bottomPriceLabel}>Total Price</Text>
+          <Text style={styles.bottomPrice}>₹{totalPrice}</Text>
         </View>
 
-        <TouchableOpacity 
-          style={styles.addToCartButton} 
-          activeOpacity={0.8}
-        >
-          <Ionicons name="cart" size={20} color="#FFFFFF" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
-          <Text style={styles.totalPriceText}>₹{totalPrice}</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomActions}>
+          <TouchableOpacity 
+            style={styles.buyNowButton} 
+            activeOpacity={0.8}
+            onPress={handleBuyNow}
+          >
+            <Ionicons name="flash" size={20} color="#1E293B" />
+            <Text style={styles.buyNowText}>Buy Now</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.addToCartButton, isAddingToCart && styles.addToCartButtonDisabled]} 
+            activeOpacity={0.8}
+            onPress={handleAddToCart}
+            disabled={isAddingToCart}
+          >
+            {isAddingToCart ? (
+              <>
+                <Text style={styles.addToCartText}>Adding...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="cart" size={20} color="#FFFFFF" />
+                <Text style={styles.addToCartText}>Add to Cart</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -308,7 +510,12 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
+  },
+  headerRight: {
+    flexDirection: "row",
+    gap: 12,
   },
   headerButton: {
     width: 40,
@@ -322,6 +529,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   discountBadge: {
     position: "absolute",
@@ -358,10 +583,19 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   stockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#DCFCE7",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 6,
+    gap: 4,
+  },
+  stockDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#16A34A",
   },
   stockText: {
     fontSize: 11,
@@ -382,6 +616,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#94A3B8",
     marginLeft: 4,
+  },
+  inCartBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DCFCE7",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  inCartText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#16A34A",
   },
   priceSection: {
     marginBottom: 24,
@@ -431,15 +680,18 @@ const styles = StyleSheet.create({
   },
   sizesContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   sizeButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: "#E2E8F0",
     backgroundColor: "#FFFFFF",
+    minWidth: 80,
+    alignItems: "center",
   },
   sizeButtonActive: {
     borderColor: "#22C55E",
@@ -449,8 +701,96 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#64748B",
+    marginBottom: 2,
   },
   sizeTextActive: {
+    color: "#22C55E",
+  },
+  sizePriceText: {
+    fontSize: 12,
+    color: "#94A3B8",
+  },
+  sizePriceTextActive: {
+    color: "#16A34A",
+    fontWeight: "600",
+  },
+  quantitySection: {
+    marginBottom: 20,
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  quantityBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  quantityBtnDisabled: {
+    backgroundColor: "#F1F5F9",
+  },
+  quantityDisplay: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  quantityNumber: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  summaryCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  summaryTotal: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    marginBottom: 0,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  savingsValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#22C55E",
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  totalValue: {
+    fontSize: 20,
+    fontWeight: "700",
     color: "#22C55E",
   },
   descriptionSection: {
@@ -463,20 +803,35 @@ const styles = StyleSheet.create({
   },
   detailsSection: {
     marginBottom: 24,
-    backgroundColor: "#F8FAFC",
-    padding: 16,
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   detailRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 10,
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#F1F5F9",
+  },
+  detailIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F0FDF4",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  detailContent: {
+    flex: 1,
   },
   detailLabel: {
-    fontSize: 14,
-    color: "#64748B",
+    fontSize: 12,
+    color: "#94A3B8",
+    marginBottom: 2,
   },
   detailValue: {
     fontSize: 14,
@@ -495,7 +850,7 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: "#22C55E",
   },
   relatedScroll: {
     paddingRight: 20,
@@ -558,37 +913,51 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
-    gap: 12,
     elevation: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  quantityContainer: {
+  bottomPriceInfo: {
+    marginBottom: 12,
+  },
+  bottomPriceLabel: {
+    fontSize: 12,
+    color: "#94A3B8",
+    marginBottom: 2,
+  },
+  bottomPrice: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#22C55E",
+  },
+  bottomActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  buyNowButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    paddingHorizontal: 4,
-  },
-  quantityButton: {
-    width: 36,
-    height: 36,
     justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: "#F59E0B",
   },
-  quantityText: {
-    fontSize: 16,
+  buyNowText: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#1E293B",
-    paddingHorizontal: 16,
   },
   addToCartButton: {
     flex: 1,
@@ -600,15 +969,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 8,
   },
-  addToCartText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
+  addToCartButtonDisabled: {
+    backgroundColor: "#94A3B8",
   },
-  totalPriceText: {
-    fontSize: 16,
+  addToCartText: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#FFFFFF",
-    marginLeft: 4,
   },
 });
