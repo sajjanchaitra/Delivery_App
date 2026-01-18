@@ -1,18 +1,12 @@
-const admin = require("firebase-admin");
+// backend/src/config/firebase.js
+const admin = require('firebase-admin');
+const path = require('path');
 
-try {
-  // Initialize with service account
-  const serviceAccount = require("./firebase-service-account.json");
+// Load service account from config folder
+const serviceAccount = require(path.join(__dirname, './firebase.json.json'));
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
-  console.log("✅ Firebase Admin initialized");
-} catch (error) {
-  console.error("❌ Firebase Admin initialization error:", error.message);
-  console.log("⚠️ Make sure firebase-service-account.json exists in config folder");
-  process.exit(1);
-}
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 module.exports = admin;
