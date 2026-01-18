@@ -3,21 +3,19 @@ const crypto = require("crypto");
 
 /**
  * Fast2SMS OTP Service
- * Sign up at: https://www.fast2sms.com
- * Get API key from: Dashboard → Dev API
+ * Using Quick Transactional SMS (doesn't require OTP verification)
  */
 
 class OTPService {
   constructor() {
     this.apiKey = process.env.FAST2SMS_API_KEY;
-    this.baseUrl = "https://www.fast2sms.com/dev/bulkV2";
     
     // OTP Settings
     this.otpLength = 6;
     this.otpExpiry = 5 * 60 * 1000; // 5 minutes
     this.maxAttempts = 3;
     
-    // In-memory store (use Redis in production)
+    // In-memory store
     this.otpStore = new Map();
     
     console.log("📱 OTP Service initialized");
@@ -28,61 +26,59 @@ class OTPService {
    * Generate a random OTP
    */
   generateOTP() {
-    const otp = crypto.randomInt(100000, 999999).toString();
-    return otp;
+    return crypto.randomInt(100000, 999999).toString();
   }
 
   /**
-   * Send OTP via Fast2SMS
-   * @param {string} phone - 10 digit phone number
-   * @returns {Promise<{success: boolean, message: string, otp?: string}>}
+   * Send OTP via Fast2SMS Quick SMS
    */
   async sendOTP(phone) {
     try {
-      // Validate phone
       const cleanPhone = phone.replace(/\D/g, "").slice(-10);
       if (cleanPhone.length !== 10) {
         return { success: false, message: "Invalid phone number" };
       }
 
-      // Check if API key is configured
       if (!this.apiKey) {
-        console.error("❌ FAST2SMS_API_KEY not configured in .env");
+        console.error("❌ FAST2SMS_API_KEY not configured");
         return { success: false, message: "SMS service not configured" };
       }
 
-      // Check rate limiting (max 3 OTPs per 10 minutes)
+      // Rate limiting
       const existing = this.otpStore.get(cleanPhone);
-      if (existing && existing.count >= 3) {
+      if (existing && existing.count >= 5) {
         const timePassed = Date.now() - existing.firstSent;
         if (timePassed < 10 * 60 * 1000) {
-          return { 
-            success: false, 
-            message: "Too many attempts. Please wait 10 minutes." 
-          };
+          return { success: false, message: "Too many attempts. Please wait 10 minutes." };
         }
       }
 
-      // Generate OTP
       const otp = this.generateOTP();
-      
+      const message = `Your QuickMart verification code is ${otp}. Valid for 5 minutes. Do not share with anyone.`;
+
       console.log(`📤 Sending OTP ${otp} to ${cleanPhone}...`);
 
-      // Send via Fast2SMS
-      const response = await axios.get(this.baseUrl, {
-        params: {
-          authorization: this.apiKey,
-          route: "otp",
-          variables_values: otp,
+      // Use Quick Transactional SMS route (doesn't need OTP verification)
+      const response = await axios.post(
+        "https://www.fast2sms.com/dev/bulkV2",
+        {
+          route: "q", // Quick transactional route
+          message: message,
+          language: "english",
           flash: 0,
           numbers: cleanPhone,
         },
-      });
+        {
+          headers: {
+            "authorization": this.apiKey,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      console.log("📱 Fast2SMS Response:", response.data);
+      console.log("📱 Fast2SMS Response:", JSON.stringify(response.data));
 
       if (response.data.return === true) {
-        // Store OTP
         this.otpStore.set(cleanPhone, {
           otp,
           expiresAt: Date.now() + this.otpExpiry,
@@ -96,7 +92,6 @@ class OTPService {
         return { 
           success: true, 
           message: "OTP sent successfully",
-          // Return OTP in development for testing
           ...(process.env.NODE_ENV !== "production" && { otp })
         };
       } else {
@@ -108,81 +103,60 @@ class OTPService {
       }
     } catch (error) {
       console.error("❌ OTP Send Error:", error.response?.data || error.message);
-      return { 
-        success: false, 
-        message: "Failed to send OTP. Please try again." 
-      };
+      
+      // Return more specific error
+      const errorMsg = error.response?.data?.message || error.message || "Failed to send OTP";
+      return { success: false, message: errorMsg };
     }
   }
 
   /**
    * Verify OTP
-   * @param {string} phone - 10 digit phone number
-   * @param {string} otp - 6 digit OTP
-   * @returns {{success: boolean, message: string}}
    */
   verifyOTP(phone, otp) {
     const cleanPhone = phone.replace(/\D/g, "").slice(-10);
     const stored = this.otpStore.get(cleanPhone);
 
     console.log(`🔐 Verifying OTP for ${cleanPhone}...`);
-    console.log(`   Entered: ${otp}`);
-    console.log(`   Stored: ${stored?.otp || 'none'}`);
 
     if (!stored) {
       return { success: false, message: "OTP not found. Please request a new one." };
     }
 
-    // Check expiry
     if (Date.now() > stored.expiresAt) {
       this.otpStore.delete(cleanPhone);
       return { success: false, message: "OTP expired. Please request a new one." };
     }
 
-    // Check attempts
     if (stored.attempts >= this.maxAttempts) {
       this.otpStore.delete(cleanPhone);
       return { success: false, message: "Too many wrong attempts. Please request a new OTP." };
     }
 
-    // Verify OTP
     if (stored.otp !== otp) {
       stored.attempts += 1;
-      const remaining = this.maxAttempts - stored.attempts;
       return { 
         success: false, 
-        message: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` 
+        message: `Invalid OTP. ${this.maxAttempts - stored.attempts} attempts remaining.` 
       };
     }
 
-    // Success - clear OTP
     this.otpStore.delete(cleanPhone);
-    console.log(`✅ OTP verified successfully for ${cleanPhone}`);
+    console.log(`✅ OTP verified for ${cleanPhone}`);
     return { success: true, message: "OTP verified successfully" };
   }
 
-  /**
-   * Clear expired OTPs (call periodically)
-   */
   cleanupExpired() {
     const now = Date.now();
-    let cleaned = 0;
     for (const [phone, data] of this.otpStore.entries()) {
       if (now > data.expiresAt) {
         this.otpStore.delete(phone);
-        cleaned++;
       }
-    }
-    if (cleaned > 0) {
-      console.log(`🧹 Cleaned ${cleaned} expired OTPs`);
     }
   }
 }
 
-// Singleton instance
 const otpService = new OTPService();
-
-// Cleanup every 5 minutes
 setInterval(() => otpService.cleanupExpired(), 5 * 60 * 1000);
 
 module.exports = otpService;

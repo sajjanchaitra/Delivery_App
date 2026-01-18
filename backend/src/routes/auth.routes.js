@@ -1,23 +1,32 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const admin = require("../config/firebase");
 const User = require("../models/User");
-const otpService = require("../services/otpService");
 const { auth } = require("../middleware/auth");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "quickmart-secret-123";
 
 /**
- * POST /api/auth/send-otp
- * Send OTP to phone number
+ * POST /api/auth/firebase-login
+ * Verify Firebase token and login/register user
  */
-router.post("/send-otp", async (req, res) => {
+router.post("/firebase-login", async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { firebaseToken, phone, role = "customer" } = req.body;
 
-    console.log("📱 Send OTP Request:", phone);
+    console.log("🔐 Firebase Login Request:");
+    console.log("   Phone:", phone);
+    console.log("   Role:", role);
 
-    // Validate phone
+    // Validation
+    if (!firebaseToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Firebase token is required",
+      });
+    }
+
     if (!phone) {
       return res.status(400).json({
         success: false,
@@ -25,85 +34,32 @@ router.post("/send-otp", async (req, res) => {
       });
     }
 
-    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-    if (cleanPhone.length !== 10) {
-      return res.status(400).json({
-        success: false,
-        error: "Please enter a valid 10-digit phone number",
-      });
-    }
-
-    // Send OTP via Fast2SMS
-    const result = await otpService.sendOTP(cleanPhone);
-
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: result.message,
-        // Only return OTP in development
-        ...(process.env.NODE_ENV !== "production" && { otp: result.otp }),
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.message,
-      });
-    }
-  } catch (error) {
-    console.error("❌ Send OTP Error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to send OTP. Please try again.",
-    });
-  }
-});
-
-/**
- * POST /api/auth/verify-otp
- * Verify OTP and login/register user
- */
-router.post("/verify-otp", async (req, res) => {
-  try {
-    const { phone, otp, role = "customer" } = req.body;
-
-    console.log("🔐 Verify OTP Request:");
-    console.log("   Phone:", phone);
-    console.log("   OTP:", otp);
-    console.log("   Role:", role);
-
-    // Validate inputs
-    if (!phone || !otp) {
-      return res.status(400).json({
-        success: false,
-        error: "Phone and OTP are required",
-      });
-    }
-
-    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-    
-    // Validate role
     const validRoles = ["customer", "vendor", "delivery"];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+        error: `Invalid role. Must be: ${validRoles.join(", ")}`,
       });
     }
 
-    // Verify OTP
-    const verifyResult = otpService.verifyOTP(cleanPhone, otp);
-
-    if (!verifyResult.success) {
-      return res.status(400).json({
+    // Verify Firebase Token
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+      console.log("✅ Firebase token verified for UID:", decodedToken.uid);
+    } catch (error) {
+      console.error("❌ Firebase verification failed:", error.message);
+      return res.status(401).json({
         success: false,
-        error: verifyResult.message,
+        error: "Invalid or expired Firebase token",
       });
     }
 
-    console.log("✅ OTP verified successfully");
-
-    // Normalize phone with country code for storage
+    // Normalize phone number
+    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
     const normalizedPhone = `+91${cleanPhone}`;
+
+    console.log("📱 Processing phone:", normalizedPhone);
 
     // Find or Create User
     let user = await User.findOne({ phone: normalizedPhone });
@@ -111,16 +67,19 @@ router.post("/verify-otp", async (req, res) => {
 
     if (user) {
       console.log("👤 Found existing user:", user._id);
-      // Update existing user
       user.role = role;
       user.isPhoneVerified = true;
       user.lastLogin = new Date();
+      if (!user.firebaseUid) {
+        user.firebaseUid = decodedToken.uid;
+      }
       await user.save();
     } else {
       console.log("🆕 Creating new user");
       isNewUser = true;
       user = new User({
         phone: normalizedPhone,
+        firebaseUid: decodedToken.uid,
         role: role,
         isPhoneVerified: true,
         lastLogin: new Date(),
@@ -131,7 +90,7 @@ router.post("/verify-otp", async (req, res) => {
     }
 
     // Generate JWT Token
-    const token = jwt.sign(
+    const jwtToken = jwt.sign(
       {
         userId: user._id,
         phone: user.phone,
@@ -145,12 +104,13 @@ router.post("/verify-otp", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: isNewUser ? "Account created successfully" : "Login successful",
+      message: isNewUser ? "Account created" : "Login successful",
       data: {
-        token,
+        token: jwtToken,
         user: {
           _id: user._id,
           phone: user.phone,
+          firebaseUid: user.firebaseUid,
           role: user.role,
           name: user.name,
           email: user.email || "",
@@ -162,56 +122,16 @@ router.post("/verify-otp", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Verify OTP Error:", error);
+    console.error("❌ Firebase Login Error:", error);
     res.status(500).json({
       success: false,
-      error: "Server error. Please try again.",
-    });
-  }
-});
-
-/**
- * POST /api/auth/resend-otp
- * Resend OTP to phone number
- */
-router.post("/resend-otp", async (req, res) => {
-  try {
-    const { phone } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({
-        success: false,
-        error: "Phone number is required",
-      });
-    }
-
-    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-    const result = await otpService.sendOTP(cleanPhone);
-
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: "OTP resent successfully",
-        ...(process.env.NODE_ENV !== "production" && { otp: result.otp }),
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.message,
-      });
-    }
-  } catch (error) {
-    console.error("❌ Resend OTP Error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to resend OTP",
+      error: error.message || "Server error",
     });
   }
 });
 
 /**
  * GET /api/auth/me
- * Get current user profile
  */
 router.get("/me", auth, async (req, res) => {
   try {
@@ -229,7 +149,6 @@ router.get("/me", auth, async (req, res) => {
       data: user,
     });
   } catch (error) {
-    console.error("❌ Get User Error:", error);
     res.status(500).json({
       success: false,
       error: "Server error",
@@ -239,7 +158,6 @@ router.get("/me", auth, async (req, res) => {
 
 /**
  * POST /api/auth/update-profile
- * Update user profile
  */
 router.post("/update-profile", auth, async (req, res) => {
   try {
@@ -258,21 +176,19 @@ router.post("/update-profile", auth, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Profile updated successfully",
+      message: "Profile updated",
       data: user,
     });
   } catch (error) {
-    console.error("❌ Update Profile Error:", error);
     res.status(500).json({
       success: false,
-      error: error.message || "Server error",
+      error: "Server error",
     });
   }
 });
 
 /**
  * POST /api/auth/logout
- * Logout user
  */
 router.post("/logout", auth, async (req, res) => {
   try {
@@ -282,7 +198,7 @@ router.post("/logout", auth, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Logged out successfully",
+      message: "Logged out",
     });
   } catch (error) {
     res.status(500).json({
@@ -294,7 +210,6 @@ router.post("/logout", auth, async (req, res) => {
 
 /**
  * POST /api/auth/change-role
- * Change user role
  */
 router.post("/change-role", auth, async (req, res) => {
   try {
@@ -304,7 +219,7 @@ router.post("/change-role", auth, async (req, res) => {
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+        error: `Invalid role`,
       });
     }
 
@@ -333,7 +248,6 @@ router.post("/change-role", auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Change Role Error:", error);
     res.status(500).json({
       success: false,
       error: "Server error",
