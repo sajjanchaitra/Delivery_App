@@ -330,7 +330,7 @@ export default function Profile() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("../(customer)/orders")}
+          onPress={() => router.push("/(customer)/orders")}
         >
           <Ionicons name="receipt-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
@@ -339,7 +339,7 @@ export default function Profile() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("../(customer)/cart")}
+          onPress={() => router.push("/(customer)/cart")}
         >
           <Ionicons name="cart-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Cart</Text>

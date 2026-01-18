@@ -218,7 +218,7 @@ export default function Cart() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("../(customer)/categories")}
+          onPress={() => router.push("/(customer)/orders")}
         >
           <Ionicons name="receipt-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
@@ -237,7 +237,7 @@ export default function Cart() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("../(customer)/profile")}
+          onPress={() => router.push("/(customer)/profile")}
         >
           <Ionicons name="person-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Profile</Text>

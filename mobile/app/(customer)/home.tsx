@@ -157,6 +157,7 @@ export default function CustomerHome() {
                 key={category.id}
                 style={styles.categoryItem}
                 activeOpacity={0.7}
+                onPress={() => router.push("/(customer)/categories")}
               >
                 <View style={styles.categoryImageContainer}>
                   <Image
