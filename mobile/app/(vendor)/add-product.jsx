@@ -71,56 +71,70 @@ export default function AddProduct() {
     setProduct({ ...product, [key]: value });
   };
 
-  const handleSave = async () => {
-    // Validation
-    if (!product.name.trim()) {
-      Alert.alert("Error", "Please enter product name");
-      return;
+const handleSave = async () => {
+  if (!product.name.trim()) {
+    Alert.alert("Error", "Please enter product name");
+    return;
+  }
+  if (!product.category) {
+    Alert.alert("Error", "Please select a category");
+    return;
+  }
+  if (!product.price) {
+    Alert.alert("Error", "Please enter price");
+    return;
+  }
+  if (images.length === 0) {
+    Alert.alert("Error", "Please add at least one image");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const formData = new FormData();
+
+    formData.append("name", product.name.trim());
+    formData.append("description", product.description.trim());
+    formData.append("category", product.category);
+    formData.append("price", product.price.toString());
+    formData.append(
+      "discountPrice",
+      product.discountPrice ? product.discountPrice.toString() : ""
+    );
+    formData.append("quantity", product.quantity.toString());
+    formData.append("unit", product.unit);
+    formData.append("inStock", product.inStock ? "true" : "false");
+
+    // ✅ IMPORTANT: append images correctly
+    images.forEach((uri, index) => {
+      formData.append("image", {
+        uri,
+        name: `product_${index}.jpg`,
+        type: "image/jpeg",
+      });
+    });
+
+    console.log("🧪 FORMDATA:", [...formData]);
+
+    const response = await productAPI.createProduct(formData, true);
+
+
+    if (response.success) {
+      Alert.alert("Success! ✅", "Product added successfully!", [
+        { text: "Add Another", onPress: resetForm },
+        { text: "View Products", onPress: () => router.push("/(vendor)/products") },
+      ]);
+    } else {
+      Alert.alert("Error", response.error || "Failed to add product");
     }
-    if (!product.category) {
-      Alert.alert("Error", "Please select a category");
-      return;
-    }
-    if (!product.price) {
-      Alert.alert("Error", "Please enter price");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Prepare product data
-      const productData = {
-        name: product.name.trim(),
-        description: product.description.trim(),
-        category: product.category,
-        price: parseFloat(product.price),
-        discountPrice: product.discountPrice ? parseFloat(product.discountPrice) : null,
-        quantity: product.quantity,
-        unit: product.unit,
-        inStock: product.inStock,
-        images: images, // In production, upload to cloud storage first
-      };
-
-      console.log("📦 Creating product:", productData);
-
-      const response = await productAPI.createProduct(productData);
-
-      if (response.success) {
-        Alert.alert("Success! ✅", "Product added successfully!", [
-          { text: "Add Another", onPress: resetForm },
-          { text: "View Products", onPress: () => router.push("/(vendor)/products") },
-        ]);
-      } else {
-        Alert.alert("Error", response.error || "Failed to add product");
-      }
-    } catch (error) {
-      console.error("Add product error:", error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    console.error("Add product error:", err);
+    Alert.alert("Error", "Something went wrong");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const resetForm = () => {
     setProduct({

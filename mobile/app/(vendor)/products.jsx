@@ -8,71 +8,13 @@ import {
   StatusBar,
   Image,
   Alert,
-  Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
-const { width } = Dimensions.get("window");
-
-const dummyProducts = [
-  {
-    id: "1",
-    name: "Fresh Tomatoes",
-    category: "vegetables",
-    price: 40,
-    discountPrice: 35,
-    quantity: "1",
-    unit: "kg",
-    inStock: true,
-    image: "https://images.unsplash.com/photo-1546470427-227c7369a9b0?w=200",
-  },
-  {
-    id: "2",
-    name: "Organic Bananas",
-    category: "fruits",
-    price: 60,
-    discountPrice: null,
-    quantity: "12",
-    unit: "pcs",
-    inStock: true,
-    image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=200",
-  },
-  {
-    id: "3",
-    name: "Fresh Milk",
-    category: "dairy",
-    price: 65,
-    discountPrice: 58,
-    quantity: "1",
-    unit: "L",
-    inStock: false,
-    image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200",
-  },
-  {
-    id: "4",
-    name: "Brown Eggs",
-    category: "dairy",
-    price: 80,
-    discountPrice: null,
-    quantity: "12",
-    unit: "pcs",
-    inStock: true,
-    image: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=200",
-  },
-  {
-    id: "5",
-    name: "Whole Wheat Bread",
-    category: "bakery",
-    price: 45,
-    discountPrice: 40,
-    quantity: "1",
-    unit: "pack",
-    inStock: true,
-    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200",
-  },
-];
+import { productAPI } from "../../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const categories = [
   { id: "all", label: "All" },
@@ -86,20 +28,129 @@ export default function Products() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [products, setProducts] = useState(dummyProducts);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    checkAuthAndFetch();
+  }, []);
+
+  const checkAuthAndFetch = async () => {
+    try {
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem("authToken");
+      const userRole = await AsyncStorage.getItem("userRole");
+      
+      console.log("🔐 Auth Check:");
+      console.log("  - Token exists:", !!token);
+      console.log("  - Token (first 20 chars):", token?.substring(0, 20));
+      console.log("  - User role:", userRole);
+      
+      if (!token) {
+        Alert.alert(
+          "Not Authenticated",
+          "Please login first",
+          [{ text: "OK", onPress: () => router.replace("/(auth)/login") }]
+        );
+        return;
+      }
+
+      if (userRole !== "vendor") {
+        Alert.alert(
+          "Access Denied",
+          "This section is only for vendors",
+          [{ text: "OK", onPress: () => router.back() }]
+        );
+        return;
+      }
+
+      fetchProducts();
+    } catch (error) {
+      console.error("💥 Auth check error:", error);
+      Alert.alert("Error", "Authentication check failed");
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      console.log("🔍 Fetching products...");
+      console.log("⏰ Time:", new Date().toISOString());
+      
+      const response = await productAPI.getMyProducts();
+      
+      console.log("📦 API Response:");
+      console.log("  - Success:", response.success);
+      console.log("  - Has data:", !!response.data);
+      console.log("  - Response:", JSON.stringify(response, null, 2));
+      
+      if (response.success) {
+        const productsList = response.data.products || [];
+        console.log("✅ Products received:", productsList.length);
+        
+        if (productsList.length > 0) {
+          console.log("📝 First product:", JSON.stringify(productsList[0], null, 2));
+        }
+        
+        setProducts(productsList);
+      } else {
+        console.error("❌ API Error:", response.error);
+        Alert.alert(
+          "Error Loading Products", 
+          response.error || "Failed to fetch products"
+        );
+      }
+    } catch (error) {
+      console.error("💥 Fetch Exception:");
+      console.error("  - Name:", error.name);
+      console.error("  - Message:", error.message);
+      console.error("  - Stack:", error.stack);
+      
+      Alert.alert(
+        "Connection Error", 
+        `Failed to load products.\n\nError: ${error.message}\n\nPlease check your internet connection.`
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    console.log("🔄 Manual refresh triggered");
+    setRefreshing(true);
+    fetchProducts();
+  };
 
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "all" || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const toggleStock = (productId) => {
-    setProducts(
-      products.map((p) =>
-        p.id === productId ? { ...p, inStock: !p.inStock } : p
-      )
-    );
+  const toggleStock = async (productId) => {
+    try {
+      console.log("🔄 Toggling stock for product:", productId);
+      const response = await productAPI.toggleStock(productId);
+      
+      console.log("📦 Toggle Response:", JSON.stringify(response, null, 2));
+      
+      if (response.success) {
+        setProducts(
+          products.map((p) =>
+            p._id === productId ? { ...p, inStock: !p.inStock } : p
+          )
+        );
+        console.log("✅ Stock toggled successfully");
+      } else {
+        console.error("❌ Toggle failed:", response.error);
+        Alert.alert("Error", response.error || "Failed to update stock");
+      }
+    } catch (error) {
+      console.error("💥 Toggle stock error:", error);
+      Alert.alert("Error", "Failed to update stock status");
+    }
   };
 
   const deleteProduct = (productId) => {
@@ -111,13 +162,39 @@ export default function Products() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => {
-            setProducts(products.filter((p) => p.id !== productId));
+          onPress: async () => {
+            try {
+              console.log("🗑️ Deleting product:", productId);
+              const response = await productAPI.deleteProduct(productId);
+              
+              console.log("📦 Delete Response:", JSON.stringify(response, null, 2));
+              
+              if (response.success) {
+                setProducts(products.filter((p) => p._id !== productId));
+                console.log("✅ Product deleted successfully");
+                Alert.alert("Success", "Product deleted successfully");
+              } else {
+                console.error("❌ Delete failed:", response.error);
+                Alert.alert("Error", response.error || "Failed to delete product");
+              }
+            } catch (error) {
+              console.error("💥 Delete product error:", error);
+              Alert.alert("Error", "Failed to delete product");
+            }
           },
         },
       ]
     );
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text style={styles.loadingText}>Loading products...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -184,7 +261,16 @@ export default function Products() {
 
       {/* Products Count */}
       <View style={styles.countContainer}>
-        <Text style={styles.countText}>{filteredProducts.length} Products</Text>
+        <Text style={styles.countText}>
+          {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''}
+        </Text>
+        <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+          <Ionicons 
+            name="refresh" 
+            size={20} 
+            color={refreshing ? "#94A3B8" : "#64748B"} 
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Products List */}
@@ -194,13 +280,28 @@ export default function Products() {
             <Ionicons name="cube-outline" size={64} color="#E2E8F0" />
             <Text style={styles.emptyTitle}>No products found</Text>
             <Text style={styles.emptySubtitle}>
-              {searchQuery ? "Try a different search term" : "Add your first product"}
+              {searchQuery 
+                ? "Try a different search term" 
+                : products.length === 0 
+                ? "Add your first product" 
+                : "No products in this category"}
             </Text>
+            {products.length === 0 && (
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => router.push("/(vendor)/add-product")}
+              >
+                <Text style={styles.emptyButtonText}>Add Product</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           filteredProducts.map((product) => (
-            <View key={product.id} style={styles.productCard}>
-              <Image source={{ uri: product.image }} style={styles.productImage} />
+            <View key={product._id} style={styles.productCard}>
+              <Image 
+                source={{ uri: product.image || 'https://via.placeholder.com/80' }} 
+                style={styles.productImage} 
+              />
               
               <View style={styles.productInfo}>
                 <View style={styles.productHeader}>
@@ -219,7 +320,9 @@ export default function Products() {
                 </Text>
 
                 <View style={styles.priceRow}>
-                  <Text style={styles.price}>₹{product.discountPrice || product.price}</Text>
+                  <Text style={styles.price}>
+                    ₹{product.discountPrice || product.price}
+                  </Text>
                   {product.discountPrice && (
                     <Text style={styles.originalPrice}>₹{product.price}</Text>
                   )}
@@ -228,7 +331,7 @@ export default function Products() {
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.stockBtn]}
-                    onPress={() => toggleStock(product.id)}
+                    onPress={() => toggleStock(product._id)}
                   >
                     <Ionicons
                       name={product.inStock ? "pause" : "play"}
@@ -238,13 +341,13 @@ export default function Products() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.editBtn]}
-                    onPress={() => router.push(`/(vendor)/edit-product?id=${product.id}`)}
+                    onPress={() => router.push(`/(vendor)/edit-product?id=${product._id}`)}
                   >
                     <Ionicons name="pencil" size={16} color="#3B82F6" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.deleteBtn]}
-                    onPress={() => deleteProduct(product.id)}
+                    onPress={() => deleteProduct(product._id)}
                   >
                     <Ionicons name="trash" size={16} color="#EF4444" />
                   </TouchableOpacity>
@@ -268,10 +371,20 @@ export default function Products() {
   );
 }
 
+// Styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#64748B",
   },
   header: {
     flexDirection: "row",
@@ -352,6 +465,9 @@ const styles = StyleSheet.create({
     color: "#FFF",
   },
   countContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
@@ -379,6 +495,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#94A3B8",
     marginTop: 4,
+    textAlign: "center",
+  },
+  emptyButton: {
+    marginTop: 20,
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    color: "#FFF",
+    fontSize: 15,
+    fontWeight: "600",
   },
   productCard: {
     flexDirection: "row",

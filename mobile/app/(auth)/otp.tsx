@@ -1,11 +1,10 @@
+// app/(auth)/otp.tsx
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   StatusBar,
   ActivityIndicator,
   Alert,
@@ -14,16 +13,15 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const OTP_LENGTH = 6;
-
-// ⚠️ TEST MODE - Set to false for production
-const TEST_MODE = true;
-const TEST_OTP = "123456";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function Otp() {
   const params = useLocalSearchParams();
   const phone = (params.phone as string) || "";
+  const devOtp = params.devOtp as string; // Development OTP for testing
   const router = useRouter();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -34,7 +32,15 @@ export default function Otp() {
 
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
-  // Resend timer countdown
+  useEffect(() => {
+    console.log("📱 OTP Screen loaded");
+    console.log("   Phone:", phone);
+    console.log("   API URL:", API_URL);
+    if (devOtp) {
+      console.log("   Dev OTP:", devOtp);
+    }
+  }, []);
+
   useEffect(() => {
     if (resendTimer > 0) {
       const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
@@ -42,7 +48,6 @@ export default function Otp() {
     }
   }, [resendTimer]);
 
-  // Auto-focus first input
   useEffect(() => {
     setTimeout(() => {
       inputRefs.current[0]?.focus();
@@ -50,7 +55,6 @@ export default function Otp() {
   }, []);
 
   const handleOtpChange = (value: string, index: number) => {
-    // Only allow numbers
     if (value && !/^\d+$/.test(value)) return;
 
     const newOtp = [...otp];
@@ -71,7 +75,6 @@ export default function Otp() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto move to next input
     if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -86,11 +89,7 @@ export default function Otp() {
     }
   };
 
-  // Navigate based on role
   const navigateToHome = (role: string) => {
-    console.log("Navigating to:", role);
-    
-    // Use setTimeout to ensure navigation happens
     setTimeout(() => {
       switch (role) {
         case "vendor":
@@ -99,19 +98,14 @@ export default function Otp() {
         case "delivery":
           router.replace("/(delivery)/home");
           break;
-        
         default:
           router.replace("/(customer)/home");
       }
     }, 100);
   };
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     const otpCode = otp.join("");
-    
-    console.log("Entered OTP:", otpCode);
-    console.log("Expected OTP:", TEST_OTP);
-    console.log("Selected Role:", selectedRole);
 
     if (otpCode.length !== OTP_LENGTH) {
       Alert.alert("Error", "Please enter complete 6-digit OTP");
@@ -120,41 +114,99 @@ export default function Otp() {
 
     setLoading(true);
 
-    // Simulate API delay
-    setTimeout(() => {
-      if (TEST_MODE) {
-        if (otpCode === TEST_OTP) {
-          setLoading(false);
-          Alert.alert(
-            "Success! ✅",
-            `Login successful as ${selectedRole}!`,
-            [
-              {
-                text: "Continue",
-                onPress: () => navigateToHome(selectedRole),
-              },
-            ]
-          );
-        } else {
-          setLoading(false);
-          Alert.alert(
-            "Wrong OTP",
-            `Please enter: ${TEST_OTP}`,
-            [{ text: "OK" }]
-          );
-          setOtp(["", "", "", "", "", ""]);
-          inputRefs.current[0]?.focus();
-        }
+    try {
+      console.log("🔐 Verifying OTP...");
+      console.log("   Phone:", phone);
+      console.log("   OTP:", otpCode);
+      console.log("   Role:", selectedRole);
+
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone,
+          otp: otpCode,
+          role: selectedRole,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("📨 Response:", data);
+
+      if (data.success) {
+        const { token, user, isNewUser } = data.data;
+
+        // Save auth data locally
+        await AsyncStorage.setItem("authToken", token);
+        await AsyncStorage.setItem("user", JSON.stringify(user));
+        await AsyncStorage.setItem("userRole", user.role);
+
+        console.log("✅ Login successful!");
+
+        setLoading(false);
+        Alert.alert(
+          isNewUser ? "Welcome! 🎉" : "Welcome back! 👋",
+          isNewUser 
+            ? "Your account has been created successfully!" 
+            : `Logged in as ${user.name || user.phone}`,
+          [
+            {
+              text: "Continue",
+              onPress: () => navigateToHome(user.role),
+            },
+          ]
+        );
+      } else {
+        setLoading(false);
+        Alert.alert("Error", data.error || "Invalid OTP");
+        
+        // Clear OTP on error
+        setOtp(["", "", "", "", "", ""]);
+        inputRefs.current[0]?.focus();
       }
-    }, 1000);
+    } catch (error: any) {
+      setLoading(false);
+      console.error("❌ Error:", error);
+      Alert.alert(
+        "Connection Error",
+        "Could not connect to server. Please try again."
+      );
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (resendTimer > 0) return;
-    setResendTimer(30);
-    setOtp(["", "", "", "", "", ""]);
-    inputRefs.current[0]?.focus();
-    Alert.alert("OTP Sent", "A new OTP has been sent to your phone");
+
+    try {
+      console.log("🔄 Resending OTP...");
+
+      const response = await fetch(`${API_URL}/api/auth/resend-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResendTimer(30);
+        Alert.alert("Success", "OTP sent again!");
+        
+        if (data.otp) {
+          console.log("🔑 New Dev OTP:", data.otp);
+        }
+      } else {
+        Alert.alert("Error", data.error || "Failed to resend OTP");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to resend OTP. Please try again.");
+    }
   };
 
   const isOtpComplete = otp.every((digit) => digit !== "");
@@ -170,12 +222,11 @@ export default function Otp() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Back Button */}
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
@@ -184,26 +235,22 @@ export default function Otp() {
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
 
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Verify OTP</Text>
           <Text style={styles.subtitle}>
             Enter the 6-digit code sent to{"\n"}
             <Text style={styles.phoneText}>+91 {maskedPhone}</Text>
           </Text>
+          
+          {/* Development hint */}
+          {devOtp && (
+            <View style={styles.devHint}>
+              <Ionicons name="information-circle" size={16} color="#F59E0B" />
+              <Text style={styles.devHintText}>Dev OTP: {devOtp}</Text>
+            </View>
+          )}
         </View>
 
-        {/* Test Mode Indicator */}
-        {TEST_MODE && (
-          <View style={styles.testModeContainer}>
-            <Ionicons name="information-circle" size={16} color="#F59E0B" />
-            <Text style={styles.testModeText}>
-              Test Mode: Use OTP "{TEST_OTP}"
-            </Text>
-          </View>
-        )}
-
-        {/* OTP Input */}
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <TextInput
@@ -227,7 +274,6 @@ export default function Otp() {
           ))}
         </View>
 
-        {/* Role Selection */}
         <View style={styles.roleSection}>
           <Text style={styles.roleLabel}>Continue as:</Text>
           <View style={styles.roleContainer}>
@@ -259,7 +305,6 @@ export default function Otp() {
           </View>
         </View>
 
-        {/* Resend Section */}
         <View style={styles.resendContainer}>
           <Text style={styles.resendText}>Didn't receive the code?</Text>
           <TouchableOpacity
@@ -278,7 +323,6 @@ export default function Otp() {
           </TouchableOpacity>
         </View>
 
-        {/* Verify Button */}
         <TouchableOpacity
           style={[styles.button, !isOtpComplete && styles.buttonDisabled]}
           onPress={verifyOtp}
@@ -291,13 +335,6 @@ export default function Otp() {
             <Text style={styles.buttonText}>Verify & Continue</Text>
           )}
         </TouchableOpacity>
-
-        {/* Debug Info */}
-        {TEST_MODE && (
-          <Text style={styles.debugText}>
-            Entered: {otp.join("")} | Complete: {isOtpComplete ? "Yes" : "No"}
-          </Text>
-        )}
       </ScrollView>
     </View>
   );
@@ -343,19 +380,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1E293B",
   },
-  testModeContainer: {
+  devHint: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FEF3C7",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 20,
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 12,
     gap: 8,
   },
-  testModeText: {
-    fontSize: 13,
+  devHintText: {
+    fontSize: 14,
     color: "#D97706",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   otpContainer: {
     flexDirection: "row",
@@ -452,11 +489,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
-  },
-  debugText: {
-    marginTop: 20,
-    textAlign: "center",
-    fontSize: 12,
-    color: "#94A3B8",
   },
 });

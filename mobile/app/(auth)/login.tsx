@@ -1,3 +1,4 @@
+// app/(auth)/login.tsx
 import {
   View,
   Text,
@@ -7,23 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Dimensions,
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-// Firebase imports - uncomment when ready for production
-// import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
-// import { PhoneAuthProvider } from "firebase/auth";
-// import { auth, firebaseConfig } from "../../firebase";
-
-const { width, height } = Dimensions.get("window");
-
-// ⚠️ SET TO false FOR PRODUCTION
-const TEST_MODE = true;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function Login() {
   const router = useRouter();
@@ -31,77 +23,71 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  // Firebase Recaptcha ref - uncomment for production
-  // const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
-
   const handleSendOtp = async () => {
-    if (phone.length < 10) {
+    // Validate phone
+    const cleanPhone = phone.replace(/\D/g, "");
+    
+    if (cleanPhone.length !== 10) {
       Alert.alert("Error", "Please enter a valid 10-digit phone number");
       return;
     }
 
-    // TEST MODE - Skip Firebase and go directly to OTP screen
-    if (TEST_MODE) {
-      router.push({
-        pathname: "/(auth)/otp",
-        params: {
-          phone: phone,
-          verificationId: "test-verification-id",
-          testMode: "true",
-        },
-      });
-      return;
-    }
-
-    // PRODUCTION MODE - Uncomment below when ready
-    /*
     setLoading(true);
+
     try {
-      const phoneNumber = `+91${phone}`;
-      const phoneProvider = new PhoneAuthProvider(auth);
+      console.log("📱 Sending OTP to:", cleanPhone);
+      console.log("🔗 API URL:", `${API_URL}/api/auth/send-otp`);
 
-      const verificationId = await phoneProvider.verifyPhoneNumber(
-        phoneNumber,
-        recaptchaVerifier.current!
-      );
-
-      setLoading(false);
-      router.push({
-        pathname: "/(auth)/otp",
-        params: {
-          phone: phone,
-          verificationId: verificationId,
-          testMode: "false",
+      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ phone: cleanPhone }),
       });
+
+      const data = await response.json();
+      console.log("📨 Response:", data);
+
+      if (data.success) {
+        console.log("✅ OTP sent successfully!");
+        
+        // In development, show OTP for testing
+        if (data.otp) {
+          console.log("🔑 Development OTP:", data.otp);
+        }
+
+        setLoading(false);
+        router.push({
+          pathname: "/(auth)/otp",
+          params: { 
+            phone: cleanPhone,
+            // Pass OTP in dev mode for easy testing
+            ...(data.otp && { devOtp: data.otp }),
+          },
+        });
+      } else {
+        setLoading(false);
+        Alert.alert("Error", data.error || "Failed to send OTP");
+      }
     } catch (error: any) {
       setLoading(false);
-      console.error("Error sending OTP:", error);
-      Alert.alert("Error", error.message || "Failed to send OTP. Please try again.");
+      console.error("❌ Error:", error);
+      Alert.alert(
+        "Connection Error", 
+        "Could not connect to server. Please check your internet connection."
+      );
     }
-    */
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Firebase Recaptcha Modal - Uncomment for production */}
-      {/* 
-      {!TEST_MODE && (
-        <FirebaseRecaptchaVerifierModal
-          ref={recaptchaVerifier}
-          firebaseConfig={firebaseConfig}
-          attemptInvisibleVerification={true}
-        />
-      )}
-      */}
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.content}
       >
-        {/* Back Button */}
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
@@ -110,7 +96,6 @@ export default function Login() {
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
 
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Enter your mobile{"\n"}number</Text>
           <Text style={styles.subtitle}>
@@ -118,7 +103,6 @@ export default function Login() {
           </Text>
         </View>
 
-        {/* Phone Input */}
         <View style={styles.inputSection}>
           <Text style={styles.label}>Phone Number</Text>
           <View style={[styles.inputContainer, focused && styles.inputFocused]}>
@@ -137,7 +121,7 @@ export default function Login() {
               keyboardType="phone-pad"
               maxLength={10}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(text) => setPhone(text.replace(/\D/g, ""))}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
             />
@@ -148,17 +132,6 @@ export default function Login() {
           </View>
         </View>
 
-        {/* Test Mode Indicator */}
-        {TEST_MODE && (
-          <View style={styles.testModeContainer}>
-            <Ionicons name="information-circle" size={16} color="#F59E0B" />
-            <Text style={styles.testModeText}>
-              Test Mode: OTP verification will be skipped
-            </Text>
-          </View>
-        )}
-
-        {/* Send OTP Button */}
         <TouchableOpacity
           style={[styles.button, phone.length < 10 && styles.buttonDisabled]}
           onPress={handleSendOtp}
@@ -172,7 +145,6 @@ export default function Login() {
           )}
         </TouchableOpacity>
 
-        {/* Terms */}
         <Text style={styles.termsText}>
           By continuing, you agree to our{" "}
           <Text style={styles.termsLink}>Terms of Service</Text>
@@ -263,20 +235,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#1E293B",
-    fontWeight: "500",
-  },
-  testModeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 24,
-    gap: 8,
-  },
-  testModeText: {
-    fontSize: 13,
-    color: "#D97706",
     fontWeight: "500",
   },
   button: {

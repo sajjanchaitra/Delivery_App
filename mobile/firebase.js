@@ -1,20 +1,21 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
-// Replace with your Firebase config from Firebase Console
-export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBOromLcZVwgSct17OUdA5-CM7zUIAax5Y",
+  authDomain: "naimoapp-8b457.firebaseapp.com",
+  projectId: "naimoapp-8b457",
+  storageBucket: "naimoapp-8b457.firebasestorage.app",
+  messagingSenderId: "799891724635",
+  appId: "1:799891724635:web:44382ab0c0ae6ef0f5627e",
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+console.log("✅ Firebase initialized successfully");
 
-// Initialize Firebase Auth
-export const auth = getAuth(app);
+const auth = getAuth(app);
+console.log("✅ Firebase Auth initialized");
 
-export default app;
+export { app, auth, firebaseConfig };
