@@ -1,3 +1,4 @@
+// app/(customer)/orders.tsx
 import {
   View,
   Text,
@@ -6,314 +7,128 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Dimensions,
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-const { width } = Dimensions.get("window");
-
-// Order status types
-type OrderStatus = "delivered" | "in_progress" | "cancelled" | "pending";
-
-type OrderItem = {
-  id: string;
-  name: string;
-  quantity: number;
-  image: string;
-};
-
 type Order = {
   id: string;
-  orderNumber: string;
+  status: string;
   date: string;
-  status: OrderStatus;
-  totalAmount: number;
-  items: OrderItem[];
-  deliveryAddress: string;
-  estimatedDelivery?: string;
+  items: number;
+  total: number;
+  storeName: string;
+  storeImage: string;
 };
 
-// Dummy orders data
-const ordersData: Order[] = [
+const orders: Order[] = [
   {
-    id: "1",
-    orderNumber: "ORD-2024-001",
-    date: "14 Jan, 2025",
-    status: "in_progress",
-    totalAmount: 156,
-    estimatedDelivery: "Today, 4:30 PM",
-    deliveryAddress: "Home - Bengaluru",
-    items: [
-      {
-        id: "1",
-        name: "Bell Pepper Red",
-        quantity: 2,
-        image: "https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=200",
-      },
-      {
-        id: "2",
-        name: "Organic Bananas",
-        quantity: 1,
-        image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=200",
-      },
-    ],
-  },
-  {
-    id: "2",
-    orderNumber: "ORD-2024-002",
-    date: "12 Jan, 2025",
+    id: "ORD12345",
     status: "delivered",
-    totalAmount: 289,
-    deliveryAddress: "Office - Whitefield",
-    items: [
-      {
-        id: "3",
-        name: "Fresh Vegetables",
-        quantity: 1,
-        image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200",
-      },
-      {
-        id: "4",
-        name: "Dairy Products",
-        quantity: 3,
-        image: "https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=200",
-      },
-      {
-        id: "5",
-        name: "Bread",
-        quantity: 2,
-        image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200",
-      },
-    ],
+    date: "Jan 15, 2026",
+    items: 3,
+    total: 1299,
+    storeName: "Westside Market",
+    storeImage: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=300",
   },
   {
-    id: "3",
-    orderNumber: "ORD-2024-003",
-    date: "10 Jan, 2025",
-    status: "delivered",
-    totalAmount: 432,
-    deliveryAddress: "Home - Bengaluru",
-    items: [
-      {
-        id: "6",
-        name: "Chicken",
-        quantity: 2,
-        image: "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=200",
-      },
-    ],
+    id: "ORD12344",
+    status: "confirmed",
+    date: "Jan 19, 2026",
+    items: 5,
+    total: 899,
+    storeName: "Green Mart",
+    storeImage: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=300",
   },
   {
-    id: "4",
-    orderNumber: "ORD-2024-004",
-    date: "8 Jan, 2025",
+    id: "ORD12343",
+    status: "preparing",
+    date: "Jan 18, 2026",
+    items: 2,
+    total: 549,
+    storeName: "Fresh Basket",
+    storeImage: "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=300",
+  },
+  {
+    id: "ORD12342",
     status: "cancelled",
-    totalAmount: 178,
-    deliveryAddress: "Home - Bengaluru",
-    items: [
-      {
-        id: "7",
-        name: "Snacks Pack",
-        quantity: 4,
-        image: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=200",
-      },
-    ],
+    date: "Jan 14, 2026",
+    items: 4,
+    total: 1099,
+    storeName: "Daily Needs",
+    storeImage: "https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=300",
   },
 ];
 
-const tabs = [
-  { id: "all", label: "All" },
-  { id: "in_progress", label: "In Progress" },
-  { id: "delivered", label: "Delivered" },
-  { id: "cancelled", label: "Cancelled" },
-];
+const tabs: string[] = ["All", "Ongoing", "Completed", "Cancelled"];
 
-const getStatusConfig = (status: OrderStatus) => {
-  switch (status) {
-    case "delivered":
-      return {
-        label: "Delivered",
-        color: "#22C55E",
-        bg: "#DCFCE7",
-        icon: "checkmark-circle",
-      };
-    case "in_progress":
-      return {
-        label: "In Progress",
-        color: "#F59E0B",
-        bg: "#FEF3C7",
-        icon: "time",
-      };
-    case "cancelled":
-      return {
-        label: "Cancelled",
-        color: "#EF4444",
-        bg: "#FEE2E2",
-        icon: "close-circle",
-      };
-    case "pending":
-      return {
-        label: "Pending",
-        color: "#64748B",
-        bg: "#F1F5F9",
-        icon: "hourglass",
-      };
-    default:
-      return {
-        label: "Unknown",
-        color: "#64748B",
-        bg: "#F1F5F9",
-        icon: "help-circle",
-      };
-  }
-};
-
-export default function Orders() {
+export default function OrdersScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState<string>("All");
 
-  const filteredOrders =
-    activeTab === "all"
-      ? ordersData
-      : ordersData.filter((order) => order.status === activeTab);
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "delivered":
+        return "#22C55E";
+      case "confirmed":
+        return "#3B82F6";
+      case "preparing":
+        return "#F59E0B";
+      case "cancelled":
+        return "#EF4444";
+      default:
+        return "#94A3B8";
+    }
+  };
 
-  const renderOrderCard = (order: Order) => {
-    const statusConfig = getStatusConfig(order.status);
+  const getStatusText = (status: string): string => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
 
-    return (
-      <TouchableOpacity
-        key={order.id}
-        style={styles.orderCard}
-        activeOpacity={0.8}
-        onPress={() => {
-          // Navigate to order details
-          // router.push(`/(customer)/order/${order.id}`);
-        }}
-      >
-        {/* Order Header */}
-        <View style={styles.orderHeader}>
-          <View>
-            <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-            <Text style={styles.orderDate}>{order.date}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
-            <Ionicons
-              name={statusConfig.icon as any}
-              size={14}
-              color={statusConfig.color}
-            />
-            <Text style={[styles.statusText, { color: statusConfig.color }]}>
-              {statusConfig.label}
-            </Text>
-          </View>
-        </View>
-
-        {/* Order Items Preview */}
-        <View style={styles.itemsPreview}>
-          <View style={styles.itemImages}>
-            {order.items.slice(0, 3).map((item, index) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.itemImageContainer,
-                  { marginLeft: index > 0 ? -12 : 0, zIndex: 3 - index },
-                ]}
-              >
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
-              </View>
-            ))}
-            {order.items.length > 3 && (
-              <View style={[styles.itemImageContainer, styles.moreItems]}>
-                <Text style={styles.moreItemsText}>+{order.items.length - 3}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.itemsInfo}>
-            <Text style={styles.itemsCount}>
-              {order.items.reduce((sum, item) => sum + item.quantity, 0)} items
-            </Text>
-            <Text style={styles.itemsList} numberOfLines={1}>
-              {order.items.map((item) => item.name).join(", ")}
-            </Text>
-          </View>
-        </View>
-
-        {/* Estimated Delivery (for in-progress orders) */}
-        {order.status === "in_progress" && order.estimatedDelivery && (
-          <View style={styles.deliveryInfo}>
-            <Ionicons name="bicycle" size={16} color="#F59E0B" />
-            <Text style={styles.deliveryText}>
-              Expected: {order.estimatedDelivery}
-            </Text>
-          </View>
-        )}
-
-        {/* Order Footer */}
-        <View style={styles.orderFooter}>
-          <View style={styles.totalContainer}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalAmount}>₹{order.totalAmount}</Text>
-          </View>
-          <View style={styles.actionButtons}>
-            {order.status === "delivered" && (
-              <TouchableOpacity style={styles.reorderButton} activeOpacity={0.7}>
-                <Ionicons name="refresh" size={16} color="#4A90FF" />
-                <Text style={styles.reorderText}>Reorder</Text>
-              </TouchableOpacity>
-            )}
-            {order.status === "in_progress" && (
-              <TouchableOpacity style={styles.trackButton} activeOpacity={0.7}>
-                <Ionicons name="location" size={16} color="#FFFFFF" />
-                <Text style={styles.trackText}>Track</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
+  const getFilteredOrders = (): Order[] => {
+    if (activeTab === "All") return orders;
+    if (activeTab === "Ongoing") return orders.filter(o => 
+      ["confirmed", "preparing"].includes(o.status)
     );
+    if (activeTab === "Completed") return orders.filter(o => o.status === "delivered");
+    if (activeTab === "Cancelled") return orders.filter(o => o.status === "cancelled");
+    return orders;
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
+      
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+        <TouchableOpacity 
+          style={styles.backButton} 
           activeOpacity={0.7}
+          onPress={() => router.back()}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E293B" />
+          <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Orders</Text>
-        <TouchableOpacity style={styles.searchButton} activeOpacity={0.7}>
-          <Ionicons name="search" size={22} color="#64748B" />
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        <ScrollView
-          horizontal
+        <ScrollView 
+          horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsContent}
+          contentContainerStyle={styles.tabs}
         >
           {tabs.map((tab) => (
             <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
               activeOpacity={0.7}
+              onPress={() => setActiveTab(tab)}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.id && styles.tabTextActive,
-                ]}
-              >
-                {tab.label}
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab}
               </Text>
             </TouchableOpacity>
           ))}
@@ -321,68 +136,82 @@ export default function Orders() {
       </View>
 
       {/* Orders List */}
-      {filteredOrders.length > 0 ? (
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {filteredOrders.map(renderOrderCard)}
-          <View style={{ height: 100 }} />
-        </ScrollView>
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="receipt-outline" size={80} color="#E2E8F0" />
-          <Text style={styles.emptyTitle}>No orders found</Text>
-          <Text style={styles.emptySubtitle}>
-            {activeTab === "all"
-              ? "You haven't placed any orders yet"
-              : `No ${tabs.find((t) => t.id === activeTab)?.label.toLowerCase()} orders`}
-          </Text>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {getFilteredOrders().map((order) => (
           <TouchableOpacity
-            style={styles.shopButton}
-            onPress={() => router.push("/(customer)/home")}
+            key={order.id}
+            style={styles.orderCard}
             activeOpacity={0.8}
+            onPress={() => router.push({
+              pathname: "/(customer)/order-details",
+              params: { orderId: order.id }
+            })}
           >
-            <Text style={styles.shopButtonText}>Start Shopping</Text>
+            <View style={styles.orderHeader}>
+              <View style={styles.orderIdContainer}>
+                <Ionicons name="receipt-outline" size={16} color="#1E293B" />
+                <Text style={styles.orderId}>{order.id}</Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.status)}20` }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+                  {getStatusText(order.status)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.orderBody}>
+              <Image source={{ uri: order.storeImage }} style={styles.storeImage} />
+              
+              <View style={styles.orderInfo}>
+                <Text style={styles.storeName}>{order.storeName}</Text>
+                <Text style={styles.orderDate}>{order.date}</Text>
+                <Text style={styles.itemCount}>{order.items} items</Text>
+              </View>
+
+              <View style={styles.orderAmount}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalAmount}>₹{order.total}</Text>
+              </View>
+            </View>
+
+            <View style={styles.orderFooter}>
+              <TouchableOpacity 
+                style={styles.reorderButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="refresh" size={16} color="#22C55E" />
+                <Text style={styles.reorderText}>Reorder</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.detailsButton}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.detailsText}>View Details</Text>
+                <Ionicons name="chevron-forward" size={16} color="#1E293B" />
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-        </View>
-      )}
+        ))}
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/home")}
-        >
-          <Ionicons name="home-outline" size={24} color="#94A3B8" />
-          <Text style={styles.navLabel}>Home</Text>
-        </TouchableOpacity>
+        {getFilteredOrders().length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="receipt-outline" size={80} color="#CBD5E1" />
+            <Text style={styles.emptyTitle}>No orders found</Text>
+            <Text style={styles.emptyText}>
+              {activeTab === "All" 
+                ? "You haven't placed any orders yet" 
+                : `No ${activeTab.toLowerCase()} orders`}
+            </Text>
+          </View>
+        )}
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Ionicons name="receipt" size={24} color="#22C55E" />
-          <Text style={[styles.navLabel, styles.navLabelActive]}>Orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/cart")}
-        >
-          <Ionicons name="cart-outline" size={24} color="#94A3B8" />
-          <Text style={styles.navLabel}>Cart</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/profile")}
-        >
-          <Ionicons name="person-outline" size={24} color="#94A3B8" />
-          <Text style={styles.navLabel}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={{ height: 20 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -390,14 +219,14 @@ export default function Orders() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FBFF",
+    backgroundColor: "#F8FAFC",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 20,
     paddingTop: 50,
-    paddingHorizontal: 16,
     paddingBottom: 16,
     backgroundColor: "#FFFFFF",
   },
@@ -411,263 +240,178 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
+    flex: 1,
+    textAlign: "center",
   },
-  searchButton: {
+  placeholder: {
     width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
   },
   tabsContainer: {
     backgroundColor: "#FFFFFF",
-    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
-  tabsContent: {
-    paddingHorizontal: 16,
-    gap: 10,
+  tabs: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
   },
   tab: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
   },
   tabActive: {
     backgroundColor: "#22C55E",
-    borderColor: "#22C55E",
   },
   tabText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#64748B",
   },
   tabTextActive: {
     color: "#FFFFFF",
-    fontWeight: "600",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   orderCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
     elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   orderHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
+    alignItems: "center",
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  orderNumber: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 2,
-  },
-  orderDate: {
-    fontSize: 13,
-    color: "#94A3B8",
-  },
-  statusBadge: {
+  orderIdContainer: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
+  },
+  orderId: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  statusBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
     fontSize: 12,
     fontWeight: "600",
   },
-  itemsPreview: {
+  orderBody: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    marginBottom: 12,
   },
-  itemImages: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  itemImageContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#F8FAFC",
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  itemImage: {
-    width: "100%",
-    height: "100%",
+  storeImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
     resizeMode: "cover",
   },
-  moreItems: {
-    backgroundColor: "#E2E8F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: -12,
-  },
-  moreItemsText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-  itemsInfo: {
+  orderInfo: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 12,
+    justifyContent: "center",
   },
-  itemsCount: {
-    fontSize: 14,
+  storeName: {
+    fontSize: 15,
     fontWeight: "600",
     color: "#1E293B",
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  itemsList: {
+  orderDate: {
     fontSize: 12,
     color: "#94A3B8",
+    marginBottom: 2,
   },
-  deliveryInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 12,
-    gap: 8,
+  itemCount: {
+    fontSize: 12,
+    color: "#64748B",
   },
-  deliveryText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#D97706",
-  },
-  orderFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 16,
-  },
-  totalContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  orderAmount: {
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
   totalLabel: {
-    fontSize: 14,
-    color: "#64748B",
+    fontSize: 11,
+    color: "#94A3B8",
+    marginBottom: 4,
   },
   totalAmount: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#22C55E",
   },
-  actionButtons: {
+  orderFooter: {
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
   },
   reorderButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
+    borderRadius: 8,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#F0F7FF",
     gap: 6,
   },
   reorderText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#4A90FF",
+    color: "#22C55E",
   },
-  trackButton: {
+  detailsButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
+    justifyContent: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#22C55E",
     gap: 6,
   },
-  trackText: {
-    fontSize: 13,
+  detailsText: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: "#1E293B",
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
+  emptyContainer: {
     alignItems: "center",
-    paddingHorizontal: 40,
-    paddingBottom: 100,
+    justifyContent: "center",
+    paddingVertical: 80,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
-    marginTop: 20,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  emptySubtitle: {
+  emptyText: {
     fontSize: 14,
     color: "#94A3B8",
     textAlign: "center",
-    marginTop: 8,
-  },
-  shopButton: {
-    marginTop: 24,
-    backgroundColor: "#22C55E",
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  shopButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    paddingTop: 12,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  navItem: {
-    alignItems: "center",
-    gap: 4,
-  },
-  navLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#94A3B8",
-  },
-  navLabelActive: {
-    color: "#22C55E",
-    fontWeight: "600",
   },
 });

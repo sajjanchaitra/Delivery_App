@@ -1,3 +1,4 @@
+// app/(customer)/home.tsx
 import {
   View,
   Text,
@@ -16,62 +17,86 @@ import { Ionicons } from "@expo/vector-icons";
 const { width } = Dimensions.get("window");
 const SHOP_CARD_WIDTH = (width - 52) / 2;
 
-// Dummy data - Replace with API data
-const categories = [
+type Category = {
+  id: string;
+  name: string;
+  image: string;
+  itemCount: number;
+};
+
+type Shop = {
+  id: string;
+  name: string;
+  distance: string;
+  rating: number;
+  reviews: number;
+  image: string;
+  deliveryTime: string;
+};
+
+const categories: Category[] = [
   {
     id: "1",
     name: "Grocery",
     image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200",
+    itemCount: 150,
   },
   {
     id: "2",
     name: "Food",
     image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200",
+    itemCount: 89,
   },
   {
     id: "3",
     name: "Vegetables",
     image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200",
+    itemCount: 75,
   },
   {
     id: "4",
     name: "Dairy",
     image: "https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=200",
+    itemCount: 45,
   },
 ];
 
-const nearbyShops = [
+const nearbyShops: Shop[] = [
   {
     id: "1",
     name: "Westside Market",
     distance: "1.0 km",
     rating: 4.8,
-    reviews: "reviews",
+    reviews: 234,
     image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=300",
+    deliveryTime: "25-30 min",
   },
   {
     id: "2",
     name: "Green Mart",
     distance: "500 m",
     rating: 4.6,
-    reviews: "reviews",
+    reviews: 189,
     image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=300",
+    deliveryTime: "15-20 min",
   },
   {
     id: "3",
     name: "Fresh Basket",
     distance: "1.2 km",
     rating: 4.5,
-    reviews: "reviews",
+    reviews: 156,
     image: "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=300",
+    deliveryTime: "30-35 min",
   },
   {
     id: "4",
     name: "Daily Needs",
     distance: "800 m",
     rating: 4.7,
-    reviews: "reviews",
+    reviews: 201,
     image: "https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=300",
+    deliveryTime: "20-25 min",
   },
 ];
 
@@ -88,7 +113,6 @@ export default function CustomerHome() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header / Location */}
         <View style={styles.header}>
           <View style={styles.locationContainer}>
             <View style={styles.locationIcon}>
@@ -109,7 +133,6 @@ export default function CustomerHome() {
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#94A3B8" />
           <TextInput
@@ -124,7 +147,6 @@ export default function CustomerHome() {
           </TouchableOpacity>
         </View>
 
-        {/* Promotion Banner */}
         <TouchableOpacity style={styles.promoBanner} activeOpacity={0.9}>
           <View style={styles.promoContent}>
             <Text style={styles.promoTitle}>
@@ -140,7 +162,6 @@ export default function CustomerHome() {
             }}
             style={styles.promoImage}
           />
-          {/* Pagination dots */}
           <View style={styles.promoDots}>
             <View style={[styles.dot, styles.dotActive]} />
             <View style={styles.dot} />
@@ -148,7 +169,6 @@ export default function CustomerHome() {
           </View>
         </TouchableOpacity>
 
-        {/* Top Categories */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Categories</Text>
           <View style={styles.categoriesContainer}>
@@ -157,7 +177,13 @@ export default function CustomerHome() {
                 key={category.id}
                 style={styles.categoryItem}
                 activeOpacity={0.7}
-                onPress={() => router.push("/(customer)/categories")}
+                onPress={() => router.push({
+                  pathname: "/(customer)/categories",
+                  params: { 
+                    categoryId: category.id,
+                    categoryName: category.name 
+                  }
+                })}
               >
                 <View style={styles.categoryImageContainer}>
                   <Image
@@ -166,12 +192,12 @@ export default function CustomerHome() {
                   />
                 </View>
                 <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={styles.categoryCount}>{category.itemCount}+ items</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Shops Near You */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Shops Near You</Text>
@@ -187,14 +213,18 @@ export default function CustomerHome() {
                 activeOpacity={0.8}
               >
                 <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                <View style={styles.deliveryBadge}>
+                  <Ionicons name="bicycle" size={12} color="#FFFFFF" />
+                  <Text style={styles.deliveryText}>{shop.deliveryTime}</Text>
+                </View>
                 <View style={styles.shopInfo}>
-                  <Text style={styles.shopName}>{shop.name}</Text>
+                  <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
                   <View style={styles.shopMeta}>
                     <Text style={styles.shopDistance}>{shop.distance}</Text>
                     <Text style={styles.shopDot}>•</Text>
                     <Ionicons name="star" size={12} color="#F59E0B" />
                     <Text style={styles.shopRating}>{shop.rating}</Text>
-                    <Text style={styles.shopReviews}>{shop.reviews}</Text>
+                    <Text style={styles.shopReviews}>({shop.reviews})</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -202,11 +232,9 @@ export default function CustomerHome() {
           </View>
         </View>
 
-        {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
           <Ionicons name="home" size={24} color="#22C55E" />
@@ -420,8 +448,13 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#1E293B",
+  },
+  categoryCount: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 2,
   },
   shopsGrid: {
     flexDirection: "row",
@@ -434,15 +467,37 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#FFFFFF",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   shopImage: {
     width: "100%",
     height: 120,
     resizeMode: "cover",
-    borderRadius: 12,
+  },
+  deliveryBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  deliveryText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   shopInfo: {
     paddingVertical: 10,
+    paddingHorizontal: 8,
   },
   shopName: {
     fontSize: 14,
@@ -470,9 +525,9 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   shopReviews: {
-    fontSize: 12,
-    color: "#64748B",
-    marginLeft: 4,
+    fontSize: 11,
+    color: "#94A3B8",
+    marginLeft: 2,
   },
   bottomNav: {
     position: "absolute",

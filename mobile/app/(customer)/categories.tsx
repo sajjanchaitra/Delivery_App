@@ -4,192 +4,273 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
-  TextInput,
+  Image,
   Dimensions,
+  StatusBar,
 } from "react-native";
-import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
-const CARD_SIZE = (width - 60) / 3;
+const ITEM_WIDTH = (width - 56) / 2;
 
-const allCategories = [
-  // Main Categories
-  { id: "1", name: "Grocery", icon: "cart", color: "#22C55E", bg: "#DCFCE7" },
-  { id: "2", name: "Food", icon: "fast-food", color: "#F59E0B", bg: "#FEF3C7" },
-  { id: "3", name: "Pharmacy", icon: "medical", color: "#EF4444", bg: "#FEE2E2" },
-  { id: "4", name: "Electronics", icon: "phone-portrait", color: "#3B82F6", bg: "#DBEAFE" },
-  { id: "5", name: "Fashion", icon: "shirt", color: "#EC4899", bg: "#FCE7F3" },
-  { id: "6", name: "Beauty", icon: "sparkles", color: "#8B5CF6", bg: "#EDE9FE" },
-  // Additional Categories
-  { id: "7", name: "Home & Living", icon: "home", color: "#06B6D4", bg: "#CFFAFE" },
-  { id: "8", name: "Sports", icon: "football", color: "#14B8A6", bg: "#CCFBF1" },
-  { id: "9", name: "Books", icon: "book", color: "#6366F1", bg: "#E0E7FF" },
-  { id: "10", name: "Toys", icon: "game-controller", color: "#F43F5E", bg: "#FFE4E6" },
-  { id: "11", name: "Pet Care", icon: "paw", color: "#84CC16", bg: "#ECFCCB" },
-  { id: "12", name: "Baby Care", icon: "happy", color: "#FB923C", bg: "#FED7AA" },
-  { id: "13", name: "Stationery", icon: "pencil", color: "#0EA5E9", bg: "#E0F2FE" },
-  { id: "14", name: "Beverages", icon: "wine", color: "#A855F7", bg: "#F3E8FF" },
-  { id: "15", name: "Bakery", icon: "cafe", color: "#D97706", bg: "#FEF3C7" },
-  { id: "16", name: "Dairy", icon: "water", color: "#0284C7", bg: "#E0F2FE" },
-  { id: "17", name: "Meat & Fish", icon: "fish", color: "#DC2626", bg: "#FEE2E2" },
-  { id: "18", name: "Fruits", icon: "nutrition", color: "#16A34A", bg: "#DCFCE7" },
-];
+// Type definitions
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  image: string;
+  rating: number;
+  discount: number;
+};
 
-const popularSearches = [
-  "Milk",
-  "Bread",
-  "Eggs",
-  "Rice",
-  "Vegetables",
-  "Chicken",
-  "Snacks",
-  "Juice",
-];
+type ProductsData = {
+  [key: string]: Product[];
+};
 
-export default function Categories() {
+// Mock products data
+const products: ProductsData = {
+  "1": [ // Grocery
+    {
+      id: "g1",
+      name: "Basmati Rice",
+      price: 599,
+      unit: "5 kg",
+      image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300",
+      rating: 4.5,
+      discount: 10,
+    },
+    {
+      id: "g2",
+      name: "Wheat Flour",
+      price: 299,
+      unit: "5 kg",
+      image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300",
+      rating: 4.3,
+      discount: 0,
+    },
+    {
+      id: "g3",
+      name: "Sugar",
+      price: 45,
+      unit: "1 kg",
+      image: "https://images.unsplash.com/photo-1587735243615-c03f25aaff15?w=300",
+      rating: 4.7,
+      discount: 5,
+    },
+    {
+      id: "g4",
+      name: "Cooking Oil",
+      price: 189,
+      unit: "1 L",
+      image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=300",
+      rating: 4.4,
+      discount: 15,
+    },
+  ],
+  "2": [ // Food
+    {
+      id: "f1",
+      name: "Fresh Bread",
+      price: 40,
+      unit: "500 g",
+      image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300",
+      rating: 4.6,
+      discount: 0,
+    },
+    {
+      id: "f2",
+      name: "Cookies Pack",
+      price: 120,
+      unit: "400 g",
+      image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=300",
+      rating: 4.8,
+      discount: 20,
+    },
+  ],
+  "3": [ // Vegetables
+    {
+      id: "v1",
+      name: "Fresh Tomatoes",
+      price: 60,
+      unit: "1 kg",
+      image: "https://images.unsplash.com/photo-1546470427-e26264959c0e?w=300",
+      rating: 4.5,
+      discount: 0,
+    },
+    {
+      id: "v2",
+      name: "Potatoes",
+      price: 30,
+      unit: "1 kg",
+      image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=300",
+      rating: 4.4,
+      discount: 0,
+    },
+    {
+      id: "v3",
+      name: "Onions",
+      price: 40,
+      unit: "1 kg",
+      image: "https://images.unsplash.com/photo-1508747703725-719777637510?w=300",
+      rating: 4.3,
+      discount: 0,
+    },
+    {
+      id: "v4",
+      name: "Carrots",
+      price: 50,
+      unit: "500 g",
+      image: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=300",
+      rating: 4.6,
+      discount: 0,
+    },
+  ],
+  "4": [ // Dairy
+    {
+      id: "d1",
+      name: "Fresh Milk",
+      price: 60,
+      unit: "1 L",
+      image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=300",
+      rating: 4.7,
+      discount: 0,
+    },
+    {
+      id: "d2",
+      name: "Cheddar Cheese",
+      price: 180,
+      unit: "200 g",
+      image: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=300",
+      rating: 4.8,
+      discount: 10,
+    },
+    {
+      id: "d3",
+      name: "Greek Yogurt",
+      price: 90,
+      unit: "400 g",
+      image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300",
+      rating: 4.6,
+      discount: 5,
+    },
+  ],
+};
+
+const categoryNames: { [key: string]: string } = {
+  "1": "Grocery",
+  "2": "Food",
+  "3": "Vegetables",
+  "4": "Dairy",
+};
+
+export default function CategoriesScreen() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
+  const params = useLocalSearchParams();
+  const categoryId = (params.categoryId as string) || "1";
+  const categoryName = (params.categoryName as string) || categoryNames[categoryId];
+  
+  const categoryProducts: Product[] = products[categoryId] || products["1"];
 
-  const filteredCategories = allCategories.filter((cat) =>
-    cat.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleProductPress = (product: Product) => {
+    router.push({
+      pathname: "/(customer)/product-details",
+      params: {
+        productId: product.id,
+        productName: product.name,
+        productPrice: product.price,
+        productUnit: product.unit,
+        productImage: product.image,
+        productRating: product.rating,
+        productDiscount: product.discount,
+      }
+    });
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FBFF" />
-
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={22} color="#334155" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Categories</Text>
-          <View style={{ width: 44 }} />
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#94A3B8" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search categories..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery("")}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close-circle" size={20} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
-        </View>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          activeOpacity={0.7}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{categoryName}</Text>
+        <TouchableOpacity style={styles.searchButton} activeOpacity={0.7}>
+          <Ionicons name="search" size={24} color="#1E293B" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
+      {/* Products Grid */}
+      <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Popular Searches */}
-        {searchQuery.length === 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Popular Searches</Text>
-            <View style={styles.tagsContainer}>
-              {popularSearches.map((tag, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.tag}
-                  activeOpacity={0.7}
-                  onPress={() => setSearchQuery(tag)}
-                >
-                  <Text style={styles.tagText}>{tag}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+        <Text style={styles.resultText}>
+          {categoryProducts.length} Products Found
+        </Text>
 
-        {/* Featured Category Banner */}
-        {searchQuery.length === 0 && (
-          <TouchableOpacity style={styles.featuredBanner} activeOpacity={0.9}>
-            <LinearGradient
-              colors={["#4A90FF", "#357ABD"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bannerGradient}
+        <View style={styles.productsGrid}>
+          {categoryProducts.map((product) => (
+            <TouchableOpacity
+              key={product.id}
+              style={styles.productCard}
+              activeOpacity={0.8}
+              onPress={() => handleProductPress(product)}
             >
-              <View style={styles.bannerContent}>
-                <Text style={styles.bannerLabel}>TODAY'S SPECIAL</Text>
-                <Text style={styles.bannerTitle}>Fresh Groceries</Text>
-                <Text style={styles.bannerSubtitle}>Up to 40% off on daily essentials</Text>
-                <View style={styles.bannerButton}>
-                  <Text style={styles.bannerButtonText}>Shop Now</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#4A90FF" />
+              <View style={styles.productImageContainer}>
+                <Image 
+                  source={{ uri: product.image }} 
+                  style={styles.productImage}
+                />
+                {product.discount > 0 && (
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountText}>{product.discount}% OFF</Text>
+                  </View>
+                )}
+                <TouchableOpacity style={styles.favoriteButton} activeOpacity={0.7}>
+                  <Ionicons name="heart-outline" size={20} color="#1E293B" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.productInfo}>
+                <Text style={styles.productName} numberOfLines={2}>
+                  {product.name}
+                </Text>
+                <Text style={styles.productUnit}>{product.unit}</Text>
+                
+                <View style={styles.productFooter}>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.productPrice}>₹{product.price}</Text>
+                    {product.discount > 0 && (
+                      <Text style={styles.originalPrice}>
+                        ₹{Math.round(product.price / (1 - product.discount / 100))}
+                      </Text>
+                    )}
+                  </View>
+                  
+                  <TouchableOpacity style={styles.addButton} activeOpacity={0.7}>
+                    <Ionicons name="add" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.ratingContainer}>
+                  <Ionicons name="star" size={12} color="#F59E0B" />
+                  <Text style={styles.ratingText}>{product.rating}</Text>
                 </View>
               </View>
-              <View style={styles.bannerIcon}>
-                <Ionicons name="cart" size={60} color="rgba(255,255,255,0.3)" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
-        {/* All Categories Grid */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {searchQuery.length > 0
-              ? `Results for "${searchQuery}"`
-              : "All Categories"}
-          </Text>
-          
-          {filteredCategories.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>No categories found</Text>
-              <Text style={styles.emptySubtitle}>
-                Try searching with a different term
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.categoriesGrid}>
-              {filteredCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.categoryCard}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[styles.categoryIcon, { backgroundColor: category.bg }]}
-                  >
-                    <Ionicons
-                      name={category.icon as any}
-                      size={28}
-                      color={category.color}
-                    />
-                  </View>
-                  <Text style={styles.categoryName} numberOfLines={2}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );
@@ -198,32 +279,22 @@ export default function Categories() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FBFF",
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    backgroundColor: "#FFFFFF",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  headerTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "#F8FAFC",
+    width: 40,
+    height: 40,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -231,151 +302,131 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  searchInput: {
     flex: 1,
-    fontSize: 15,
-    color: "#1E293B",
-    marginLeft: 10,
+    textAlign: "center",
+  },
+  searchButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 20,
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  section: {
-    marginBottom: 24,
+  resultText: {
+    fontSize: 14,
+    color: "#64748B",
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 14,
-  },
-  tagsContainer: {
+  productsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    justifyContent: "space-between",
   },
-  tag: {
+  productCard: {
+    width: ITEM_WIDTH,
+    marginBottom: 20,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  tagText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#64748B",
-  },
-  featuredBanner: {
-    marginBottom: 24,
-    borderRadius: 20,
     overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  bannerGradient: {
-    flexDirection: "row",
-    padding: 20,
-    minHeight: 140,
+  productImageContainer: {
+    width: "100%",
+    height: 150,
+    position: "relative",
   },
-  bannerContent: {
-    flex: 1,
+  productImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
-  bannerLabel: {
-    fontSize: 11,
+  discountBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  discountText: {
+    fontSize: 10,
     fontWeight: "700",
-    color: "rgba(255,255,255,0.8)",
-    letterSpacing: 1,
-    marginBottom: 6,
+    color: "#FFFFFF",
   },
-  bannerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#FFF",
+  favoriteButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  productInfo: {
+    padding: 12,
+  },
+  productName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E293B",
     marginBottom: 4,
+    minHeight: 36,
   },
-  bannerSubtitle: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
-    marginBottom: 14,
+  productUnit: {
+    fontSize: 12,
+    color: "#94A3B8",
+    marginBottom: 8,
   },
-  bannerButton: {
+  productFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  priceContainer: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "#FFF",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
     gap: 6,
   },
-  bannerButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4A90FF",
+  productPrice: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#22C55E",
   },
-  bannerIcon: {
+  originalPrice: {
+    fontSize: 12,
+    color: "#94A3B8",
+    textDecorationLine: "line-through",
+  },
+  addButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#22C55E",
     justifyContent: "center",
     alignItems: "center",
   },
-  categoriesGrid: {
+  ratingContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  categoryCard: {
-    width: CARD_SIZE,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 14,
     alignItems: "center",
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    gap: 4,
   },
-  categoryIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  categoryName: {
+  ratingText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#334155",
-    textAlign: "center",
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 48,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#64748B",
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#94A3B8",
-    marginTop: 4,
+    color: "#1E293B",
   },
 });
