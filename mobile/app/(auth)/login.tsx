@@ -11,11 +11,12 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { PhoneAuthProvider } from "firebase/auth";
+import { auth, firebaseConfig } from "../../firebase";
 
 export default function Login() {
   const router = useRouter();
@@ -23,8 +24,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
 
+  // Fix: Properly type the recaptcha verifier ref - use any to avoid ApplicationVerifier type mismatch
+  const recaptchaVerifier = useRef<any>(null);
+
   const handleSendOtp = async () => {
-    // Validate phone
     const cleanPhone = phone.replace(/\D/g, "");
     
     if (cleanPhone.length !== 10) {
@@ -35,54 +38,59 @@ export default function Login() {
     setLoading(true);
 
     try {
-      console.log("📱 Sending OTP to:", cleanPhone);
-      console.log("🔗 API URL:", `${API_URL}/api/auth/send-otp`);
+      const phoneNumber = `+91${cleanPhone}`;
+      console.log("📱 Sending OTP to:", phoneNumber);
 
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone: cleanPhone }),
-      });
-
-      const data = await response.json();
-      console.log("📨 Response:", data);
-
-      if (data.success) {
-        console.log("✅ OTP sent successfully!");
-        
-        // In development, show OTP for testing
-        if (data.otp) {
-          console.log("🔑 Development OTP:", data.otp);
-        }
-
-        setLoading(false);
-        router.push({
-          pathname: "/(auth)/otp",
-          params: { 
-            phone: cleanPhone,
-            // Pass OTP in dev mode for easy testing
-            ...(data.otp && { devOtp: data.otp }),
-          },
-        });
-      } else {
-        setLoading(false);
-        Alert.alert("Error", data.error || "Failed to send OTP");
-      }
-    } catch (error: any) {
-      setLoading(false);
-      console.error("❌ Error:", error);
-      Alert.alert(
-        "Connection Error", 
-        "Could not connect to server. Please check your internet connection."
+      const phoneProvider = new PhoneAuthProvider(auth);
+      
+      const verificationId = await phoneProvider.verifyPhoneNumber(
+        phoneNumber,
+        recaptchaVerifier.current
       );
+
+      console.log("✅ OTP Sent! Verification ID received");
+
+      setLoading(false);
+      router.push({
+        pathname: "/(auth)/otp",
+        params: {
+          phone: cleanPhone,
+          verificationId: verificationId,
+        },
+      });
+    } catch (error) {
+      setLoading(false);
+      console.error("❌ Error sending OTP:", error);
+      
+      // Fix: Type the error properly
+      const err = error as any;
+      let errorMessage = "Failed to send OTP. Please try again.";
+      
+      if (err.code === "auth/invalid-phone-number") {
+        errorMessage = "Invalid phone number format.";
+      } else if (err.code === "auth/too-many-requests") {
+        errorMessage = "Too many attempts. Please try again later.";
+      } else if (err.code === "auth/billing-not-enabled") {
+        errorMessage = "Firebase billing not enabled. Please enable Blaze plan.";
+      } else if (err.code === "auth/captcha-check-failed") {
+        errorMessage = "Captcha verification failed. Please try again.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      Alert.alert("Error", errorMessage);
     }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={true}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

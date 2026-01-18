@@ -13,15 +13,17 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
+import { auth } from "../../firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const OTP_LENGTH = 6;
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://13.203.206.134:5000";
 
 export default function Otp() {
   const params = useLocalSearchParams();
   const phone = (params.phone as string) || "";
-  const devOtp = params.devOtp as string; // Development OTP for testing
+  const verificationId = (params.verificationId as string) || "";
   const router = useRouter();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -30,16 +32,8 @@ export default function Otp() {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [selectedRole, setSelectedRole] = useState("customer");
 
-  const inputRefs = useRef<Array<TextInput | null>>([]);
-
-  useEffect(() => {
-    console.log("📱 OTP Screen loaded");
-    console.log("   Phone:", phone);
-    console.log("   API URL:", API_URL);
-    if (devOtp) {
-      console.log("   Dev OTP:", devOtp);
-    }
-  }, []);
+  // Fix: Properly type the input refs array
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -54,18 +48,16 @@ export default function Otp() {
     }, 300);
   }, []);
 
+  // Fix: Add proper types to function parameters
   const handleOtpChange = (value: string, index: number) => {
     if (value && !/^\d+$/.test(value)) return;
 
     const newOtp = [...otp];
 
-    // Handle paste (multiple digits)
     if (value.length > 1) {
       const digits = value.split("").slice(0, OTP_LENGTH);
       digits.forEach((digit, i) => {
-        if (i < OTP_LENGTH) {
-          newOtp[i] = digit;
-        }
+        if (i < OTP_LENGTH) newOtp[i] = digit;
       });
       setOtp(newOtp);
       inputRefs.current[Math.min(digits.length, OTP_LENGTH - 1)]?.focus();
@@ -80,6 +72,7 @@ export default function Otp() {
     }
   };
 
+  // Fix: Add proper types to function parameters
   const handleKeyPress = (key: string, index: number) => {
     if (key === "Backspace" && !otp[index] && index > 0) {
       const newOtp = [...otp];
@@ -89,6 +82,7 @@ export default function Otp() {
     }
   };
 
+  // Fix: Add proper type to function parameter
   const navigateToHome = (role: string) => {
     setTimeout(() => {
       switch (role) {
@@ -115,107 +109,92 @@ export default function Otp() {
     setLoading(true);
 
     try {
-      console.log("🔐 Verifying OTP...");
-      console.log("   Phone:", phone);
-      console.log("   OTP:", otpCode);
-      console.log("   Role:", selectedRole);
+      console.log("🔐 Verifying OTP with Firebase...");
 
-      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      // Step 1: Verify with Firebase
+      const credential = PhoneAuthProvider.credential(verificationId, otpCode);
+      const userCredential = await signInWithCredential(auth, credential);
+      
+      console.log("✅ Firebase authentication successful");
+
+      // Step 2: Get Firebase ID token
+      const firebaseToken = await userCredential.user.getIdToken();
+      console.log("🎟️ Got Firebase token");
+
+      // Step 3: Send to backend to create/login user
+      console.log("💾 Saving to backend...");
+      
+      const response = await fetch(`${API_URL}/api/auth/firebase-login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          firebaseToken,
           phone,
-          otp: otpCode,
           role: selectedRole,
         }),
       });
 
       const data = await response.json();
-      console.log("📨 Response:", data);
+      console.log("📨 Backend response:", data);
 
       if (data.success) {
-        const { token, user, isNewUser } = data.data;
+        const { token, user } = data.data;
 
-        // Save auth data locally
+        // Save auth data
         await AsyncStorage.setItem("authToken", token);
         await AsyncStorage.setItem("user", JSON.stringify(user));
         await AsyncStorage.setItem("userRole", user.role);
 
-        console.log("✅ Login successful!");
-
         setLoading(false);
-        Alert.alert(
-          isNewUser ? "Welcome! 🎉" : "Welcome back! 👋",
-          isNewUser 
-            ? "Your account has been created successfully!" 
-            : `Logged in as ${user.name || user.phone}`,
-          [
-            {
-              text: "Continue",
-              onPress: () => navigateToHome(user.role),
-            },
-          ]
-        );
+        Alert.alert("Success! ✅", `Welcome ${user.name || "User"}!`, [
+          {
+            text: "Continue",
+            onPress: () => navigateToHome(user.role),
+          },
+        ]);
       } else {
         setLoading(false);
-        Alert.alert("Error", data.error || "Invalid OTP");
-        
-        // Clear OTP on error
-        setOtp(["", "", "", "", "", ""]);
-        inputRefs.current[0]?.focus();
+        Alert.alert("Error", data.error || "Failed to save user");
+        resetOtp();
       }
-    } catch (error: any) {
+    } catch (error) {
       setLoading(false);
       console.error("❌ Error:", error);
-      Alert.alert(
-        "Connection Error",
-        "Could not connect to server. Please try again."
-      );
-      setOtp(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
+
+      // Fix: Type the error properly
+      const err = error as any;
+      let errorMessage = "Failed to verify OTP. Please try again.";
+
+      if (err.code === "auth/invalid-verification-code") {
+        errorMessage = "Invalid OTP. Please check and try again.";
+      } else if (err.code === "auth/code-expired") {
+        errorMessage = "OTP expired. Please request a new one.";
+      }
+
+      Alert.alert("Error", errorMessage);
+      resetOtp();
     }
   };
 
-  const handleResend = async () => {
+  const resetOtp = () => {
+    setOtp(["", "", "", "", "", ""]);
+    inputRefs.current[0]?.focus();
+  };
+
+  const handleResend = () => {
     if (resendTimer > 0) return;
-
-    try {
-      console.log("🔄 Resending OTP...");
-
-      const response = await fetch(`${API_URL}/api/auth/resend-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setResendTimer(30);
-        Alert.alert("Success", "OTP sent again!");
-        
-        if (data.otp) {
-          console.log("🔑 New Dev OTP:", data.otp);
-        }
-      } else {
-        Alert.alert("Error", data.error || "Failed to resend OTP");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to resend OTP. Please try again.");
-    }
+    router.back();
   };
 
   const isOtpComplete = otp.every((digit) => digit !== "");
   const maskedPhone = phone ? `******${phone.slice(-4)}` : "******1234";
 
   const roles = [
-    { id: "customer", label: "Customer", icon: "person" },
-    { id: "vendor", label: "Vendor", icon: "storefront" },
-    { id: "delivery", label: "Delivery", icon: "bicycle" },
+    { id: "customer", label: "Customer", icon: "person" as const },
+    { id: "vendor", label: "Vendor", icon: "storefront" as const },
+    { id: "delivery", label: "Delivery", icon: "bicycle" as const },
   ];
 
   return (
@@ -241,14 +220,6 @@ export default function Otp() {
             Enter the 6-digit code sent to{"\n"}
             <Text style={styles.phoneText}>+91 {maskedPhone}</Text>
           </Text>
-          
-          {/* Development hint */}
-          {devOtp && (
-            <View style={styles.devHint}>
-              <Ionicons name="information-circle" size={16} color="#F59E0B" />
-              <Text style={styles.devHintText}>Dev OTP: {devOtp}</Text>
-            </View>
-          )}
         </View>
 
         <View style={styles.otpContainer}>
@@ -256,7 +227,9 @@ export default function Otp() {
             <TextInput
               key={index}
               ref={(ref) => {
-                inputRefs.current[index] = ref;
+                if (inputRefs.current) {
+                  inputRefs.current[index] = ref;
+                }
               }}
               style={[
                 styles.otpInput,
@@ -288,7 +261,7 @@ export default function Otp() {
                 activeOpacity={0.7}
               >
                 <Ionicons
-                  name={role.icon as any}
+                  name={role.icon}
                   size={20}
                   color={selectedRole === role.id ? "#FFFFFF" : "#64748B"}
                 />
@@ -379,20 +352,6 @@ const styles = StyleSheet.create({
   phoneText: {
     fontWeight: "600",
     color: "#1E293B",
-  },
-  devHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 8,
-  },
-  devHintText: {
-    fontSize: 14,
-    color: "#D97706",
-    fontWeight: "600",
   },
   otpContainer: {
     flexDirection: "row",
