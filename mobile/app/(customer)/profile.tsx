@@ -1,4 +1,4 @@
-// app/(customer)/profile.tsx
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   StatusBar,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { storage, StorageKeys } from "../utils/storage";
 
 type MenuItem = {
   id: string;
@@ -81,6 +82,30 @@ const menuItems: MenuItem[] = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [profile, setProfile] = useState({
+    name: 'Guest User',
+    email: 'Not set',
+    phone: 'Not set',
+  });
+
+  // Reload profile when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProfile();
+    }, [])
+  );
+
+  const loadProfile = async () => {
+    try {
+      const savedProfile = await storage.getItem(StorageKeys.USER_PROFILE);
+      if (savedProfile) {
+        console.log('✅ Profile loaded:', savedProfile);
+        setProfile(savedProfile);
+      }
+    } catch (error) {
+      console.error('❌ Error loading profile:', error);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -120,9 +145,9 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           
-          <Text style={styles.userName}>John Doe</Text>
-          <Text style={styles.userEmail}>john.doe@email.com</Text>
-          <Text style={styles.userPhone}>+91 98765 43210</Text>
+          <Text style={styles.userName}>{profile.name || 'Guest User'}</Text>
+          <Text style={styles.userEmail}>{profile.email || 'Not set'}</Text>
+          <Text style={styles.userPhone}>{profile.phone || 'Not set'}</Text>
         </View>
       </View>
 
