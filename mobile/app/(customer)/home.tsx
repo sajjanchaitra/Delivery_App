@@ -4,13 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   Image,
   Dimensions,
   StatusBar,
 } from "react-native";
-import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -102,7 +100,6 @@ const nearbyShops: Shop[] = [
 
 export default function CustomerHome() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <View style={styles.container}>
@@ -133,19 +130,17 @@ export default function CustomerHome() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.searchContainer}>
+        <TouchableOpacity 
+          style={styles.searchContainer}
+          activeOpacity={0.7}
+          onPress={() => router.push("../search")}
+        >
           <Ionicons name="search" size={20} color="#94A3B8" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search Groceries, Shops or etc"
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          <Text style={styles.searchPlaceholder}>Search Groceries, Shops or etc</Text>
           <TouchableOpacity style={styles.filterButton} activeOpacity={0.7}>
             <Ionicons name="options-outline" size={20} color="#1E293B" />
           </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.promoBanner} activeOpacity={0.9}>
           <View style={styles.promoContent}>
@@ -339,7 +334,13 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: "#1E293B",
+    color: "#94A3B8",
+    marginLeft: 10,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 14,
+    color: "#94A3B8",
     marginLeft: 10,
   },
   filterButton: {
