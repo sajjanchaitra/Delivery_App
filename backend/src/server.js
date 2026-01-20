@@ -15,6 +15,9 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files (uploaded images)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Request logging
 app.use((req, res, next) => {
   console.log(`📨 ${new Date().toISOString()} | ${req.method} ${req.path}`);
@@ -43,6 +46,11 @@ mongoose
 
 // Routes
 app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/upload", require("./routes/upload.routes")); // 👈 ADD THIS
+app.use("/api/vendor", require("./routes/vendor.routes"));
+app.use("/api/customer", require("./routes/customer.routes"));
+app.use("/api/delivery", require("./routes/delivery.routes"));
+// app.use("/api/admin", require("./routes/admin.routes"));
 
 // Health check
 app.get("/", (req, res) => {
@@ -56,6 +64,7 @@ app.get("/", (req, res) => {
       updateProfile: "POST /api/auth/update-profile",
       changeRole: "POST /api/auth/change-role",
       logout: "POST /api/auth/logout",
+      upload: "POST /api/upload", // 👈 ADD THIS
     },
   });
 });
@@ -84,5 +93,6 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 http://13.203.206.134:${PORT}`);
   console.log(`🔐 Auth: Firebase`);
+  console.log(`📁 Uploads: /uploads directory`);
   console.log("========================================");
 });
