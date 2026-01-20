@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   deliveryText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#fff",
+    color: "#ffffff",
   },
   shopInfo: {
     paddingVertical: 10,
