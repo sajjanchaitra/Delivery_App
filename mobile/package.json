@@ -36,6 +36,7 @@
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
     "firebase": "^12.8.0",
+    "multer": "^2.0.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -48,6 +49,14 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__template": "^7.4.4",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/estree": "^1.0.8",
+    "@types/hammerjs": "^2.0.46",
+    "@types/istanbul-lib-report": "^3.0.3",
+    "@types/istanbul-reports": "^3.0.4",
+    "@types/json-schema": "^7.0.15",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",

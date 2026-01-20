@@ -1,53 +1,64 @@
+// app/(vendor)/add-product.tsx
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   StatusBar,
+  TextInput,
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import { productAPI } from "../../services/api";
 
-const categories = [
-  { id: "vegetables", label: "Vegetables" },
-  { id: "fruits", label: "Fruits" },
-  { id: "dairy", label: "Dairy" },
-  { id: "grocery", label: "Grocery" },
-  { id: "bakery", label: "Bakery" },
-  { id: "beverages", label: "Beverages" },
-  { id: "snacks", label: "Snacks" },
-  { id: "other", label: "Other" },
-];
-
-const units = ["kg", "g", "L", "ml", "pcs", "dozen", "pack"];
+const API_URL = "http://13.203.206.134:5000"; // Update with your backend URL
 
 export default function AddProduct() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState([]);
+  const [imageLoading, setImageLoading] = useState(false);
 
-  const [product, setProduct] = useState({
+  const [formData, setFormData] = useState({
     name: "",
     description: "",
     category: "",
     price: "",
     discountPrice: "",
     quantity: "1",
-    unit: "kg",
-    inStock: true,
+    unit: "piece",
+    stockQuantity: "100",
+    images: [],
   });
 
+  const categories = [
+    "Vegetables",
+    "Fruits",
+    "Dairy",
+    "Bakery",
+    "Beverages",
+    "Snacks",
+    "Meat",
+    "Seafood",
+  ];
+
+  const units = ["kg", "g", "ml", "l", "piece", "dozen", "pack", "box"];
+
   const pickImage = async () => {
-    if (images.length >= 4) {
-      Alert.alert("Limit Reached", "You can only add up to 4 images");
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Needed",
+        "Please grant camera roll permissions to upload images"
+      );
       return;
     }
 
@@ -59,187 +70,374 @@ export default function AddProduct() {
     });
 
     if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+      setFormData({ ...formData, images: [result.assets[0].uri] });
     }
   };
 
-  const removeImage = (index) => {
-    setImages(images.filter((_, i) => i !== index));
-  };
-
-  const updateProduct = (key, value) => {
-    setProduct({ ...product, [key]: value });
-  };
-
-const handleSave = async () => {
-  if (!product.name.trim()) {
-    Alert.alert("Error", "Please enter product name");
-    return;
-  }
-  if (!product.category) {
-    Alert.alert("Error", "Please select a category");
-    return;
-  }
-  if (!product.price) {
-    Alert.alert("Error", "Please enter price");
-    return;
-  }
-  if (images.length === 0) {
-    Alert.alert("Error", "Please add at least one image");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const formData = new FormData();
-
-    formData.append("name", product.name.trim());
-    formData.append("description", product.description.trim());
-    formData.append("category", product.category);
-    formData.append("price", product.price.toString());
-    formData.append(
-      "discountPrice",
-      product.discountPrice ? product.discountPrice.toString() : ""
-    );
-    formData.append("quantity", product.quantity.toString());
-    formData.append("unit", product.unit);
-    formData.append("inStock", product.inStock ? "true" : "false");
-
-    // ✅ IMPORTANT: append images correctly
-    images.forEach((uri, index) => {
-      formData.append("image", {
-        uri,
-        name: `product_${index}.jpg`,
-        type: "image/jpeg",
+  const uploadImage = async (imageUri) => {
+    setImageLoading(true);
+    try {
+      console.log('📤 Starting upload for:', imageUri);
+      
+      const formDataImg = new FormData();
+      
+      // Handle iOS and Android differently
+      let uri = imageUri;
+      if (Platform.OS === 'ios') {
+        // Remove file:// prefix for iOS if present
+        uri = imageUri.replace('file://', '');
+      }
+      
+      // Get filename and file type
+      const filename = uri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      
+      formDataImg.append("image", {
+        uri: uri,
+        type: type,
+        name: filename || `product-${Date.now()}.jpg`,
       });
-    });
 
-    console.log("🧪 FORMDATA:", [...formData]);
+      console.log('📤 Uploading to:', `${API_URL}/api/upload`);
+      
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: "POST",
+        body: formDataImg,
+        headers: {
+          'Accept': 'application/json',
+          // Don't set Content-Type for FormData - let it be set automatically
+        },
+      });
 
-    const response = await productAPI.createProduct(formData, true);
+      console.log('📥 Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed:', errorText);
+        throw new Error(`Upload failed: ${response.status}`);
+      }
 
-
-    if (response.success) {
-      Alert.alert("Success! ✅", "Product added successfully!", [
-        { text: "Add Another", onPress: resetForm },
-        { text: "View Products", onPress: () => router.push("/(vendor)/products") },
-      ]);
-    } else {
-      Alert.alert("Error", response.error || "Failed to add product");
+      const data = await response.json();
+      console.log('✅ Upload response:', data);
+      
+      if (data.success) {
+        return data.imageUrl;
+      }
+      
+      throw new Error(data.error || 'Upload failed');
+      
+    } catch (error) {
+      console.error("❌ Image upload error:", error);
+      
+      if (error.message.includes('Network request failed')) {
+        Alert.alert(
+          'Network Error',
+          'Cannot connect to server. Please check your internet connection.'
+        );
+      } else {
+        Alert.alert('Upload Error', error.message);
+      }
+      
+      return null;
+    } finally {
+      setImageLoading(false);
     }
-  } catch (err) {
-    console.error("Add product error:", err);
-    Alert.alert("Error", "Something went wrong");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-  const resetForm = () => {
-    setProduct({
-      name: "",
-      description: "",
-      category: "",
-      price: "",
-      discountPrice: "",
-      quantity: "1",
-      unit: "kg",
-      inStock: true,
-    });
-    setImages([]);
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      Alert.alert("Validation Error", "Please enter product name");
+      return false;
+    }
+    if (!formData.category) {
+      Alert.alert("Validation Error", "Please select a category");
+      return false;
+    }
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      Alert.alert("Validation Error", "Please enter a valid price");
+      return false;
+    }
+    if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
+      Alert.alert("Validation Error", "Please enter quantity");
+      return false;
+    }
+    if (!formData.stockQuantity || parseInt(formData.stockQuantity) < 0) {
+      Alert.alert("Validation Error", "Please enter stock quantity");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+
+      // Upload image if exists
+      let uploadedImages = [];
+      if (formData.images.length > 0) {
+        console.log('🖼️ Uploading image...');
+        const imageUrl = await uploadImage(formData.images[0]);
+        if (imageUrl) {
+          uploadedImages.push(imageUrl);
+          console.log('✅ Image uploaded:', imageUrl);
+        } else {
+          Alert.alert(
+            'Image Upload Failed',
+            'Do you want to continue without an image?',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => setLoading(false),
+              },
+              {
+                text: 'Continue',
+                onPress: () => submitProduct(token, uploadedImages),
+              },
+            ]
+          );
+          return;
+        }
+      }
+
+      await submitProduct(token, uploadedImages);
+    } catch (error) {
+      console.error("❌ Add product error:", error);
+      Alert.alert("Error", "Failed to add product. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const submitProduct = async (token, uploadedImages) => {
+    try {
+      // Prepare product data matching your backend model
+      const productData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        category: formData.category,
+        price: parseFloat(formData.price),
+        discountPrice: formData.discountPrice
+          ? parseFloat(formData.discountPrice)
+          : null,
+        quantity: formData.quantity,
+        unit: formData.unit,
+        stockQuantity: parseInt(formData.stockQuantity),
+        inStock: true,
+        images: uploadedImages,
+        isActive: true,
+      };
+
+      console.log('📦 Submitting product:', productData);
+
+      // Use vendor route - POST /api/vendor/products
+      const response = await fetch(`${API_URL}/api/vendor/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(productData),
+      });
+
+      const data = await response.json();
+      console.log('📥 Product response:', data);
+
+      if (data.success) {
+        Alert.alert("Success", "Product added successfully!", [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]);
+      } else {
+        Alert.alert("Error", data.error || "Failed to add product");
+      }
+    } catch (error) {
+      console.error("❌ Submit product error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Product</Text>
-        <View style={{ width: 44 }} />
-      </View>
+      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Product</Text>
+          <View style={{ width: 44 }} />
+        </View>
+      </LinearGradient>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Product Images */}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Image Upload */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Product Images</Text>
-          <Text style={styles.sectionSubtitle}>Add up to 4 images</Text>
-
-          <View style={styles.imagesContainer}>
-            {images.map((uri, index) => (
-              <View key={index} style={styles.imageWrapper}>
-                <Image source={{ uri }} style={styles.productImage} />
-                <TouchableOpacity
-                  style={styles.removeImageBtn}
-                  onPress={() => removeImage(index)}
-                >
-                  <Ionicons name="close" size={16} color="#FFF" />
-                </TouchableOpacity>
+          <Text style={styles.label}>Product Image</Text>
+          <TouchableOpacity 
+            style={styles.imageUpload} 
+            onPress={pickImage}
+            disabled={imageLoading}
+          >
+            {imageLoading ? (
+              <View style={styles.imagePlaceholder}>
+                <ActivityIndicator size="large" color="#22C55E" />
+                <Text style={styles.imagePlaceholderText}>Uploading...</Text>
               </View>
-            ))}
-
-            {images.length < 4 && (
-              <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
-                <Ionicons name="camera" size={28} color="#94A3B8" />
-                <Text style={styles.addImageText}>Add</Text>
-              </TouchableOpacity>
+            ) : formData.images.length > 0 ? (
+              <Image
+                source={{ uri: formData.images[0] }}
+                style={styles.uploadedImage}
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="camera" size={32} color="#94A3B8" />
+                <Text style={styles.imagePlaceholderText}>
+                  Tap to upload image
+                </Text>
+              </View>
             )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Rest of your form fields remain the same */}
+        {/* Product Name */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Product Name *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Fresh Tomatoes"
+            placeholderTextColor="#94A3B8"
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+          />
+        </View>
+
+        {/* Description */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Enter product description..."
+            placeholderTextColor="#94A3B8"
+            value={formData.description}
+            onChangeText={(text) =>
+              setFormData({ ...formData, description: text })
+            }
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Category */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Category *</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.categoryGrid}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryChip,
+                    formData.category === category &&
+                      styles.categoryChipActive,
+                  ]}
+                  onPress={() => setFormData({ ...formData, category })}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      formData.category === category &&
+                        styles.categoryTextActive,
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Price & Discount Price */}
+        <View style={styles.row}>
+          <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
+            <Text style={styles.label}>Price (₹) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor="#94A3B8"
+              value={formData.price}
+              onChangeText={(text) => setFormData({ ...formData, price: text })}
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
+            <Text style={styles.label}>Discount Price (₹)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor="#94A3B8"
+              value={formData.discountPrice}
+              onChangeText={(text) =>
+                setFormData({ ...formData, discountPrice: text })
+              }
+              keyboardType="decimal-pad"
+            />
           </View>
         </View>
 
-        {/* Product Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Product Details</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Product Name *</Text>
+        {/* Quantity & Unit */}
+        <View style={styles.row}>
+          <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
+            <Text style={styles.label}>Quantity *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter product name"
+              placeholder="1"
               placeholderTextColor="#94A3B8"
-              value={product.name}
-              onChangeText={(text) => updateProduct("name", text)}
+              value={formData.quantity}
+              onChangeText={(text) =>
+                setFormData({ ...formData, quantity: text })
+              }
+              keyboardType="decimal-pad"
             />
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Enter product description"
-              placeholderTextColor="#94A3B8"
-              value={product.description}
-              onChangeText={(text) => updateProduct("description", text)}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category *</Text>
+          <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
+            <Text style={styles.label}>Unit *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.categoryContainer}>
-                {categories.map((cat) => (
+              <View style={styles.unitGrid}>
+                {units.map((unit) => (
                   <TouchableOpacity
-                    key={cat.id}
+                    key={unit}
                     style={[
-                      styles.categoryChip,
-                      product.category === cat.id && styles.categoryChipActive,
+                      styles.unitChip,
+                      formData.unit === unit && styles.unitChipActive,
                     ]}
-                    onPress={() => updateProduct("category", cat.id)}
+                    onPress={() => setFormData({ ...formData, unit })}
                   >
                     <Text
                       style={[
-                        styles.categoryChipText,
-                        product.category === cat.id && styles.categoryChipTextActive,
+                        styles.unitText,
+                        formData.unit === unit && styles.unitTextActive,
                       ]}
                     >
-                      {cat.label}
+                      {unit}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -248,147 +446,86 @@ const handleSave = async () => {
           </View>
         </View>
 
-        {/* Pricing */}
+        {/* Stock Quantity */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pricing</Text>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Price (₹) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                placeholderTextColor="#94A3B8"
-                value={product.price}
-                onChangeText={(text) => updateProduct("price", text)}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>Discount Price (₹)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                placeholderTextColor="#94A3B8"
-                value={product.discountPrice}
-                onChangeText={(text) => updateProduct("discountPrice", text)}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Quantity</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="1"
-                placeholderTextColor="#94A3B8"
-                value={product.quantity}
-                onChangeText={(text) => updateProduct("quantity", text)}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-              <Text style={styles.label}>Unit</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.unitContainer}>
-                  {units.map((unit) => (
-                    <TouchableOpacity
-                      key={unit}
-                      style={[
-                        styles.unitChip,
-                        product.unit === unit && styles.unitChipActive,
-                      ]}
-                      onPress={() => updateProduct("unit", unit)}
-                    >
-                      <Text
-                        style={[
-                          styles.unitChipText,
-                          product.unit === unit && styles.unitChipTextActive,
-                        ]}
-                      >
-                        {unit}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          </View>
+          <Text style={styles.label}>Stock Quantity *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="100"
+            placeholderTextColor="#94A3B8"
+            value={formData.stockQuantity}
+            onChangeText={(text) =>
+              setFormData({ ...formData, stockQuantity: text })
+            }
+            keyboardType="number-pad"
+          />
+          <Text style={styles.helperText}>
+            Available quantity in your inventory
+          </Text>
         </View>
 
-        {/* Stock Status */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Availability</Text>
-          <TouchableOpacity
-            style={styles.stockToggle}
-            onPress={() => updateProduct("inStock", !product.inStock)}
-          >
-            <View>
-              <Text style={styles.stockLabel}>In Stock</Text>
-              <Text style={styles.stockSubtitle}>
-                {product.inStock ? "Product is available" : "Product is out of stock"}
-              </Text>
-            </View>
-            <View style={[styles.toggle, product.inStock && styles.toggleActive]}>
-              <View style={[styles.toggleKnob, product.inStock && styles.toggleKnobActive]} />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={22} color="#FFF" />
-              <Text style={styles.saveButtonText}>Save Product</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Submit Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading || imageLoading}
+        >
+          <LinearGradient
+            colors={
+              loading || imageLoading
+                ? ["#94A3B8", "#94A3B8"]
+                : ["#22C55E", "#16A34A"]
+            }
+            style={styles.submitGradient}
+          >
+            {loading || imageLoading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={22} color="#FFF" />
+                <Text style={styles.submitText}>Add Product</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
+// Styles remain the same
 const styles = StyleSheet.create({
+  // ... (keep all your existing styles)
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
   header: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFF",
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
   },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#FFF",
   },
   scrollView: {
     flex: 1,
@@ -396,91 +533,59 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: "#64748B",
-    marginBottom: 12,
-  },
-  imagesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  imageWrapper: {
-    position: "relative",
-  },
-  productImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
-  },
-  removeImageBtn: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#EF4444",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  addImageBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: "#FFF",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    borderStyle: "dashed",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  addImageText: {
-    fontSize: 12,
-    color: "#94A3B8",
-    marginTop: 4,
-  },
-  inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#334155",
+    color: "#1E293B",
     marginBottom: 8,
   },
   input: {
     backgroundColor: "#FFF",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
     color: "#1E293B",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   textArea: {
     height: 100,
     paddingTop: 14,
   },
-  categoryContainer: {
+  imageUpload: {
+    height: 200,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#FFF",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    borderStyle: "dashed",
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imagePlaceholderText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    marginTop: 8,
+  },
+  uploadedImage: {
+    width: "100%",
+    height: "100%",
+  },
+  categoryGrid: {
     flexDirection: "row",
     gap: 8,
   },
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -489,25 +594,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#22C55E",
     borderColor: "#22C55E",
   },
-  categoryChipText: {
+  categoryText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#64748B",
   },
-  categoryChipTextActive: {
+  categoryTextActive: {
     color: "#FFF",
   },
   row: {
     flexDirection: "row",
   },
-  unitContainer: {
+  unitGrid: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
   },
   unitChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -516,68 +621,48 @@ const styles = StyleSheet.create({
     backgroundColor: "#22C55E",
     borderColor: "#22C55E",
   },
-  unitChipText: {
+  unitText: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#64748B",
   },
-  unitChipTextActive: {
+  unitTextActive: {
     color: "#FFF",
   },
-  stockToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  helperText: {
+    fontSize: 12,
+    color: "#94A3B8",
+    marginTop: 6,
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
   },
-  stockLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1E293B",
-  },
-  stockSubtitle: {
-    fontSize: 13,
-    color: "#64748B",
-    marginTop: 2,
-  },
-  toggle: {
-    width: 50,
-    height: 28,
+  submitButton: {
     borderRadius: 14,
-    backgroundColor: "#E2E8F0",
-    padding: 2,
+    overflow: "hidden",
   },
-  toggleActive: {
-    backgroundColor: "#22C55E",
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
-  toggleKnob: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#FFF",
-  },
-  toggleKnobActive: {
-    transform: [{ translateX: 22 }],
-  },
-  saveButton: {
+  submitGradient: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#22C55E",
+    alignItems: "center",
     paddingVertical: 16,
-    borderRadius: 12,
     gap: 8,
   },
-  saveButtonDisabled: {
-    backgroundColor: "#86EFAC",
-  },
-  saveButtonText: {
+  submitText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#FFF",
   },
 });

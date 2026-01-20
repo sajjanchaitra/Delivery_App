@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { storage, StorageKeys } from '../utils/storage';
+import { storage, StorageKeys } from '../../utils/storage';
 
 type Gender = 'male' | 'female' | 'other' | '';
 
