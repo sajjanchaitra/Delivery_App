@@ -8,228 +8,695 @@ import {
   Image,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 
 const { width } = Dimensions.get("window");
 const SHOP_CARD_WIDTH = (width - 52) / 2;
+const API_URL = "http://13.203.206.134:5000";
 
-type Category = {
+// Type definitions
+interface Category {
+  _id?: string;
   id: string;
   name: string;
-  image: string;
-  itemCount: number;
-};
+  image?: string | null;
+  itemCount?: number;
+}
 
-type Shop = {
-  id: string;
+interface Store {
+  _id: string;
   name: string;
-  distance: string;
-  rating: number;
-  reviews: number;
+  image?: string;
+  logo?: string;
+  deliveryTime?: string;
+  isOpen?: boolean;
+  rating?: {
+    average?: number;
+    count?: number;
+  };
+  distance?: string;
+  address?: string;
+  productCount?: number;
+}
+
+interface Product {
+  _id: string;
+  name: string;
+  images?: string[];
+  price: number;
+  discountPrice?: number;
+  salePrice?: number;
+  quantity?: number;
+  unit?: string;
+  inStock?: boolean;
+  stock?: number;
+  store?: {
+    _id: string;
+    name: string;
+    isOpen?: boolean;
+  };
+}
+
+interface Banner {
+  id: number;
   image: string;
-  deliveryTime: string;
-};
-
-const categories: Category[] = [
-  {
-    id: "1",
-    name: "Grocery",
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200",
-    itemCount: 150,
-  },
-  {
-    id: "2",
-    name: "Food",
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200",
-    itemCount: 89,
-  },
-  {
-    id: "3",
-    name: "Vegetables",
-    image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200",
-    itemCount: 75,
-  },
-  {
-    id: "4",
-    name: "Dairy",
-    image: "https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=200",
-    itemCount: 45,
-  },
-];
-
-const nearbyShops: Shop[] = [
-  {
-    id: "1",
-    name: "Westside Market",
-    distance: "1.0 km",
-    rating: 4.8,
-    reviews: 234,
-    image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=300",
-    deliveryTime: "25-30 min",
-  },
-  {
-    id: "2",
-    name: "Green Mart",
-    distance: "500 m",
-    rating: 4.6,
-    reviews: 189,
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=300",
-    deliveryTime: "15-20 min",
-  },
-  {
-    id: "3",
-    name: "Fresh Basket",
-    distance: "1.2 km",
-    rating: 4.5,
-    reviews: 156,
-    image: "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=300",
-    deliveryTime: "30-35 min",
-  },
-  {
-    id: "4",
-    name: "Daily Needs",
-    distance: "800 m",
-    rating: 4.7,
-    reviews: 201,
-    image: "https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=300",
-    deliveryTime: "20-25 min",
-  },
-];
+  title: string;
+  subtitle: string;
+}
 
 export default function CustomerHome() {
   const router = useRouter();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const bannerScrollRef = useRef<ScrollView>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [locationText, setLocationText] = useState("Fetching location...");
+  const [userName, setUserName] = useState("Guest");
+  const [cartCount, setCartCount] = useState(0);
+
+  // Data states
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  // Default banners
+  const banners: Banner[] = [
+    {
+      id: 1,
+      image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800",
+      title: "Fresh Groceries",
+      subtitle: "30% OFF",
+    },
+    {
+      id: 2,
+      image: "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?w=800",
+      title: "Daily Essentials",
+      subtitle: "Best Deals",
+    },
+    {
+      id: 3,
+      image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800",
+      title: "Quick Delivery",
+      subtitle: "Order Now",
+    },
+  ];
+
+  // Initial load
+  useEffect(() => {
+    initializeScreen();
+  }, []);
+
+  // Refresh cart count when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchCartCount();
+    }, [])
+  );
+
+  // Auto-scroll banners
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => {
+        const nextSlide = (prev + 1) % banners.length;
+        bannerScrollRef.current?.scrollTo({
+          x: nextSlide * (width - 40),
+          animated: true,
+        });
+        return nextSlide;
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const initializeScreen = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchUserProfile(),
+        fetchLocation(),
+        fetchAllData(),
+        fetchCartCount(),
+      ]);
+    } catch (error) {
+      console.error("Error initializing screen:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        setUserName("Guest");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/customer/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const user = data.customer || data.user || data.profile;
+        if (user) {
+          setUserName(user.name || "Guest");
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setUserName("Guest");
+    }
+  };
+
+  const fetchLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationText("Location access denied");
+        return;
+      }
+
+      setLocationText("Getting location...");
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const address = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (address && address[0]) {
+        const { city, district, subregion, region, street, name } = address[0];
+        const primaryLocation = street || name || district || subregion || city || "Unknown";
+        const secondaryLocation = city || district || region || "";
+        
+        if (primaryLocation === secondaryLocation || !secondaryLocation) {
+          setLocationText(primaryLocation);
+        } else {
+          setLocationText(`${primaryLocation}, ${secondaryLocation}`);
+        }
+
+        // Save location for later use
+        await AsyncStorage.setItem("userLocation", JSON.stringify({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          address: address[0],
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching location:", error);
+      setLocationText("Unable to get location");
+    }
+  };
+
+  const fetchCartCount = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        setCartCount(0);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+
+      if (data.success && data.cart && data.cart.items) {
+        const count = data.cart.items.reduce(
+          (acc: number, item: { quantity?: number }) => acc + (item.quantity || 1), 
+          0
+        );
+        setCartCount(count);
+      } else {
+        setCartCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching cart count:", error);
+      setCartCount(0);
+    }
+  };
+
+  const fetchAllData = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      // Fetch categories, stores, and products in parallel
+      const [categoriesRes, storesRes, productsRes] = await Promise.all([
+        fetch(`${API_URL}/api/customer/categories`, { headers }),
+        fetch(`${API_URL}/api/customer/stores?limit=6`, { headers }),
+        fetch(`${API_URL}/api/customer/products?limit=10`, { headers }),
+      ]);
+
+      const [categoriesData, storesData, productsData] = await Promise.all([
+        categoriesRes.json(),
+        storesRes.json(),
+        productsRes.json(),
+      ]);
+
+      console.log("Categories response:", categoriesData);
+      console.log("Stores response:", storesData);
+      console.log("Products response:", productsData);
+
+      if (categoriesData.success && categoriesData.categories) {
+        setCategories(categoriesData.categories);
+      }
+
+      if (storesData.success && storesData.stores) {
+        setStores(storesData.stores);
+      }
+
+      if (productsData.success && productsData.products) {
+        setProducts(productsData.products);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      Alert.alert("Error", "Failed to load data. Please check your connection.");
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchAllData();
+    await fetchCartCount();
+    setRefreshing(false);
+  };
+
+  const addToCart = async (product: Product) => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        Alert.alert(
+          "Login Required",
+          "Please login to add items to cart",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Login", onPress: () => router.push("/(auth)/login" as any) },
+          ]
+        );
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/cart/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          productId: product._id, 
+          quantity: 1 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setCartCount((prev) => prev + 1);
+        Alert.alert("Success", `${product.name} added to cart!`);
+      } else {
+        Alert.alert("Error", data.message || data.error || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      Alert.alert("Error", "Failed to add to cart. Please try again.");
+    }
+  };
+
+  const handleBannerScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / (width - 40));
+    setCurrentSlide(slideIndex);
+  };
+
+  const navigateToCategory = (category: Category) => {
+    router.push({
+      pathname: "/(customer)/categories",
+      params: {
+        categoryId: category.id || category._id,
+        categoryName: category.name,
+      },
+    } as any);
+  };
+
+  const navigateToStore = (store: Store) => {
+    router.push({
+      pathname: "/(customer)/store-details",
+      params: { storeId: store._id },
+    } as any);
+  };
+
+  const navigateToProduct = (product: Product) => {
+    router.push({
+      pathname: "/(customer)/product-details",
+      params: { productId: product._id },
+    } as any);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#22C55E"]}
+            tintColor="#22C55E"
+          />
+        }
       >
+        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.locationContainer}>
+          <TouchableOpacity 
+            style={styles.locationContainer}
+            onPress={fetchLocation}
+            activeOpacity={0.7}
+          >
             <View style={styles.locationIcon}>
               <Ionicons name="location" size={20} color="#22C55E" />
             </View>
             <View style={styles.locationInfo}>
-              <TouchableOpacity style={styles.locationSelector} activeOpacity={0.7}>
-                <Text style={styles.locationLabel}>Current location</Text>
-                <Ionicons name="chevron-down" size={14} color="#1E293B" />
-              </TouchableOpacity>
-              <Text style={styles.locationAddress} numberOfLines={1}>
-                New mico layout, Kudlu...
-              </Text>
+              <Text style={styles.locationLabel}>Deliver to</Text>
+              <View style={styles.locationRow}>
+                <Text style={styles.locationAddress} numberOfLines={1}>
+                  {locationText}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#64748B" />
+              </View>
             </View>
-          </View>
-          <TouchableOpacity style={styles.qrButton} activeOpacity={0.7}>
-            <Ionicons name="qr-code-outline" size={24} color="#1E293B" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.profileButton}
+            activeOpacity={0.7}
+            onPress={() => router.push("/(customer)/profile" as any)}
+          >
+            <Ionicons name="person-circle-outline" size={32} color="#22C55E" />
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
+        {/* Welcome Message */}
+        <Text style={styles.welcomeText}>
+          Hello, <Text style={styles.userName}>{userName}</Text> 👋
+        </Text>
+
+        {/* Search Bar */}
+        <TouchableOpacity
           style={styles.searchContainer}
           activeOpacity={0.7}
-          onPress={() => router.push("../search")}
+          onPress={() => router.push("/(customer)/search" as any)}
         >
           <Ionicons name="search" size={20} color="#94A3B8" />
-          <Text style={styles.searchPlaceholder}>Search Groceries, Shops or etc</Text>
-          <TouchableOpacity style={styles.filterButton} activeOpacity={0.7}>
+          <Text style={styles.searchPlaceholder}>Search products, stores...</Text>
+          <View style={styles.filterButton}>
             <Ionicons name="options-outline" size={20} color="#1E293B" />
-          </TouchableOpacity>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.promoBanner} activeOpacity={0.9}>
-          <View style={styles.promoContent}>
-            <Text style={styles.promoTitle}>
-              Claim your{"\n"}discount 30%{"\n"}daily now!
-            </Text>
-            <TouchableOpacity style={styles.promoButton} activeOpacity={0.8}>
-              <Text style={styles.promoButtonText}>Order now</Text>
-            </TouchableOpacity>
-          </View>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?w=300",
-            }}
-            style={styles.promoImage}
-          />
-          <View style={styles.promoDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
           </View>
         </TouchableOpacity>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Categories</Text>
-          <View style={styles.categoriesContainer}>
-            {categories.map((category) => (
+        {/* Promo Banner Slider */}
+        <View style={styles.bannerContainer}>
+          <ScrollView
+            ref={bannerScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleBannerScroll}
+            scrollEventThrottle={16}
+          >
+            {banners.map((banner) => (
               <TouchableOpacity
-                key={category.id}
-                style={styles.categoryItem}
-                activeOpacity={0.7}
-                onPress={() => router.push({
-                  pathname: "/(customer)/categories",
-                  params: { 
-                    categoryId: category.id,
-                    categoryName: category.name 
-                  }
-                })}
+                key={banner.id}
+                style={styles.promoBanner}
+                activeOpacity={0.9}
               >
-                <View style={styles.categoryImageContainer}>
-                  <Image
-                    source={{ uri: category.image }}
-                    style={styles.categoryImage}
-                  />
+                <Image
+                  source={{ uri: banner.image }}
+                  style={styles.bannerImage}
+                />
+                <View style={styles.bannerOverlay}>
+                  <Text style={styles.bannerTitle}>{banner.title}</Text>
+                  <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                  <TouchableOpacity style={styles.bannerButton}>
+                    <Text style={styles.bannerButtonText}>Order now</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.categoryName}>{category.name}</Text>
-                <Text style={styles.categoryCount}>{category.itemCount}+ items</Text>
               </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <View style={styles.promoDots}>
+            {banners.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  currentSlide === index && styles.dotActive,
+                ]}
+              />
             ))}
           </View>
         </View>
 
+        {/* Categories Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Top Categories</Text>
+          {categories.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No categories available</Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriesContainer}
+            >
+              {categories.map((category, index) => (
+                <TouchableOpacity
+                  key={category.id || category._id || index}
+                  style={styles.categoryItem}
+                  activeOpacity={0.7}
+                  onPress={() => navigateToCategory(category)}
+                >
+                  <View style={styles.categoryImageContainer}>
+                    <Image
+                      source={{
+                        uri: category.image || 
+                          "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200",
+                      }}
+                      style={styles.categoryImage}
+                    />
+                  </View>
+                  <Text style={styles.categoryName} numberOfLines={1}>
+                    {category.name}
+                  </Text>
+                  <Text style={styles.categoryCount}>
+                    {category.itemCount || 0} items
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Shops Near You */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Shops Near You</Text>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push("/(customer)/stores" as any)}
+            >
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.shopsGrid}>
-            {nearbyShops.map((shop) => (
-              <TouchableOpacity
-                key={shop.id}
-                style={styles.shopCard}
-                activeOpacity={0.8}
-              >
-                <Image source={{ uri: shop.image }} style={styles.shopImage} />
-                <View style={styles.deliveryBadge}>
-                  <Ionicons name="bicycle" size={12} color="#FFFFFF" />
-                  <Text style={styles.deliveryText}>{shop.deliveryTime}</Text>
-                </View>
-                <View style={styles.shopInfo}>
-                  <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
-                  <View style={styles.shopMeta}>
-                    <Text style={styles.shopDistance}>{shop.distance}</Text>
-                    <Text style={styles.shopDot}>•</Text>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.shopRating}>{shop.rating}</Text>
-                    <Text style={styles.shopReviews}>({shop.reviews})</Text>
+
+          {stores.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="storefront-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyText}>No stores available</Text>
+            </View>
+          ) : (
+            <View style={styles.shopsGrid}>
+              {stores.slice(0, 4).map((store) => (
+                <TouchableOpacity
+                  key={store._id}
+                  style={styles.shopCard}
+                  activeOpacity={0.8}
+                  onPress={() => navigateToStore(store)}
+                >
+                  <Image
+                    source={{
+                      uri: store.image || store.logo ||
+                        "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=300",
+                    }}
+                    style={styles.shopImage}
+                  />
+                  <View style={styles.deliveryBadge}>
+                    <Ionicons name="bicycle" size={12} color="#FFFFFF" />
+                    <Text style={styles.deliveryText}>
+                      {store.deliveryTime || "20-30 min"}
+                    </Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  {store.isOpen !== false && (
+                    <View style={styles.openBadge}>
+                      <Text style={styles.openText}>OPEN</Text>
+                    </View>
+                  )}
+                  <View style={styles.shopInfo}>
+                    <Text style={styles.shopName} numberOfLines={1}>
+                      {store.name}
+                    </Text>
+                    <View style={styles.shopMeta}>
+                      <Ionicons name="star" size={12} color="#F59E0B" />
+                      <Text style={styles.shopRating}>
+                        {store.rating?.average?.toFixed(1) || "4.5"}
+                      </Text>
+                      <Text style={styles.shopDot}>•</Text>
+                      <Text style={styles.shopDistance}>
+                        {store.productCount || 0} products
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
+
+        {/* Featured Products */}
+        {products.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured Products</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push("/(customer)/store-products" as any)}
+              >
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.productsContainer}
+            >
+              {products.map((product) => {
+                const finalPrice = product.discountPrice || product.salePrice || product.price;
+                const hasDiscount = product.discountPrice || product.salePrice;
+                const discountPercent = hasDiscount
+                  ? Math.round(((product.price - finalPrice) / product.price) * 100)
+                  : 0;
+
+                return (
+                  <TouchableOpacity
+                    key={product._id}
+                    style={styles.productCard}
+                    activeOpacity={0.8}
+                    onPress={() => navigateToProduct(product)}
+                  >
+                    <View style={styles.productImageContainer}>
+                      <Image
+                        source={{
+                          uri: product.images?.[0] || 
+                            "https://via.placeholder.com/150",
+                        }}
+                        style={styles.productImage}
+                      />
+                      {discountPercent > 0 && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>
+                            {discountPercent}% OFF
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      {product.store && (
+                        <Text style={styles.productStore} numberOfLines={1}>
+                          {product.store.name}
+                        </Text>
+                      )}
+                      <View style={styles.productFooter}>
+                        <View style={styles.priceContainer}>
+                          <Text style={styles.productPrice}>₹{finalPrice}</Text>
+                          {hasDiscount && (
+                            <Text style={styles.originalPrice}>
+                              ₹{product.price}
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          style={[
+                            styles.addButton,
+                            product.inStock === false && styles.addButtonDisabled,
+                          ]}
+                          activeOpacity={0.7}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            if (product.inStock !== false) {
+                              addToCart(product);
+                            }
+                          }}
+                          disabled={product.inStock === false}
+                        >
+                          <Ionicons 
+                            name={product.inStock === false ? "close" : "add"} 
+                            size={18} 
+                            color="#FFFFFF" 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
           <Ionicons name="home" size={24} color="#22C55E" />
@@ -239,7 +706,7 @@ export default function CustomerHome() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/orders")}
+          onPress={() => router.push("/(customer)/orders" as any)}
         >
           <Ionicons name="receipt-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
@@ -248,16 +715,25 @@ export default function CustomerHome() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/cart")}
+          onPress={() => router.push("/(customer)/cart" as any)}
         >
-          <Ionicons name="cart-outline" size={24} color="#94A3B8" />
+          <View style={styles.cartIconContainer}>
+            <Ionicons name="cart-outline" size={24} color="#94A3B8" />
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>
+                  {cartCount > 99 ? "99+" : cartCount}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.navLabel}>Cart</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/profile")}
+          onPress={() => router.push("/(customer)/profile" as any)}
         >
           <Ionicons name="person-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Profile</Text>
@@ -272,6 +748,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+  loadingScreen: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#64748B",
+  },
   scrollView: {
     flex: 1,
   },
@@ -283,7 +770,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   locationContainer: {
     flexDirection: "row",
@@ -299,28 +786,35 @@ const styles = StyleSheet.create({
   locationInfo: {
     flex: 1,
   },
-  locationSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
   locationLabel: {
     fontSize: 12,
     color: "#64748B",
   },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   locationAddress: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: "#1E293B",
     marginTop: 2,
+    flex: 1,
   },
-  qrButton: {
+  profileButton: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
     justifyContent: "center",
     alignItems: "center",
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: "#64748B",
+    marginBottom: 16,
+  },
+  userName: {
+    fontWeight: "700",
+    color: "#1E293B",
   },
   searchContainer: {
     flexDirection: "row",
@@ -330,12 +824,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 48,
     marginBottom: 20,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#94A3B8",
-    marginLeft: 10,
   },
   searchPlaceholder: {
     flex: 1,
@@ -349,46 +837,57 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  promoBanner: {
-    backgroundColor: "#22C55E",
+  bannerContainer: {
+    marginBottom: 24,
     borderRadius: 16,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 28,
     overflow: "hidden",
-    minHeight: 140,
   },
-  promoContent: {
-    flex: 1,
-    zIndex: 1,
+  promoBanner: {
+    width: width - 40,
+    height: 160,
   },
-  promoTitle: {
-    fontSize: 18,
+  bannerImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+    borderRadius: 16,
+  },
+  bannerOverlay: {
+    position: "absolute",
+    left: 20,
+    top: 20,
+    bottom: 20,
+    justifyContent: "center",
+  },
+  bannerTitle: {
+    fontSize: 20,
     fontWeight: "700",
     color: "#FFFFFF",
-    lineHeight: 24,
-    marginBottom: 12,
+    marginBottom: 4,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
-  promoButton: {
+  bannerSubtitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  bannerButton: {
     backgroundColor: "#1E293B",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
     alignSelf: "flex-start",
   },
-  promoButtonText: {
+  bannerButtonText: {
     fontSize: 13,
     fontWeight: "600",
     color: "#FFFFFF",
-  },
-  promoImage: {
-    width: 140,
-    height: 160,
-    position: "absolute",
-    right: -10,
-    bottom: -20,
-    resizeMode: "contain",
   },
   promoDots: {
     position: "absolute",
@@ -424,15 +923,15 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: "#22C55E",
   },
   categoriesContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
+    paddingTop: 8,
+    gap: 16,
   },
   categoryItem: {
     alignItems: "center",
+    width: 80,
   },
   categoryImageContainer: {
     width: 70,
@@ -441,6 +940,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 8,
     backgroundColor: "#F8FAFC",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   categoryImage: {
     width: "100%",
@@ -451,11 +955,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#1E293B",
+    textAlign: "center",
   },
   categoryCount: {
     fontSize: 11,
     color: "#94A3B8",
     marginTop: 2,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    marginTop: 12,
   },
   shopsGrid: {
     flexDirection: "row",
@@ -468,11 +982,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#FFFFFF",
-    elevation: 2,
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
   },
   shopImage: {
     width: "100%",
@@ -494,11 +1008,25 @@ const styles = StyleSheet.create({
   deliveryText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#ffffff",
+    color: "#FFFFFF",
+  },
+  openBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  openText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   shopInfo: {
     paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   shopName: {
     fontSize: 14,
@@ -510,25 +1038,104 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  shopDistance: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  shopDot: {
-    fontSize: 12,
-    color: "#CBD5E1",
-    marginHorizontal: 6,
-  },
   shopRating: {
     fontSize: 12,
     fontWeight: "600",
     color: "#1E293B",
     marginLeft: 2,
   },
-  shopReviews: {
+  shopDot: {
+    fontSize: 12,
+    color: "#CBD5E1",
+    marginHorizontal: 6,
+  },
+  shopDistance: {
+    fontSize: 12,
+    color: "#64748B",
+  },
+  productsContainer: {
+    gap: 12,
+  },
+  productCard: {
+    width: 160,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  productImageContainer: {
+    width: "100%",
+    height: 120,
+    position: "relative",
+  },
+  productImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  discountBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  discountText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  productInfo: {
+    padding: 10,
+  },
+  productName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginBottom: 2,
+    minHeight: 32,
+  },
+  productStore: {
+    fontSize: 11,
+    color: "#64748B",
+    marginBottom: 6,
+  },
+  productFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  productPrice: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#22C55E",
+  },
+  originalPrice: {
     fontSize: 11,
     color: "#94A3B8",
-    marginLeft: 2,
+    textDecorationLine: "line-through",
+  },
+  addButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#22C55E",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addButtonDisabled: {
+    backgroundColor: "#CBD5E1",
   },
   bottomNav: {
     position: "absolute",
@@ -557,5 +1164,25 @@ const styles = StyleSheet.create({
   navLabelActive: {
     color: "#22C55E",
     fontWeight: "600",
+  },
+  cartIconContainer: {
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -6,
+    right: -10,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });
