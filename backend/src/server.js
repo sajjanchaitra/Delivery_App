@@ -51,6 +51,8 @@ app.use("/api/vendor", require("./routes/vendor.routes"));
 app.use("/api/customer", require("./routes/customer.routes"));
 app.use("/api/delivery", require("./routes/delivery.routes"));
 // app.use("/api/admin", require("./routes/admin.routes"));
+const cartRoutes = require('./routes/cart');
+app.use('/api/cart', cartRoutes);
 
 // Health check
 app.get("/", (req, res) => {
