@@ -11,12 +11,18 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
+
+const getImageUrl = (imagePath: string | null | undefined): string => {
+  if (!imagePath) return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200";
+  if (imagePath.startsWith("http")) return imagePath;
+  return `${API_URL}${imagePath}`;
+};
 
 interface CartItem {
   _id: string;
@@ -25,10 +31,10 @@ interface CartItem {
     name: string;
     images?: string[];
     price: number;
-    discountPrice?: number;
-    salePrice?: number;
+    discountPrice?: number | null;
+    salePrice?: number | null;
     unit?: string;
-    quantity?: number;
+    quantity?: number | string;
     inStock?: boolean;
   };
   quantity: number;
@@ -37,10 +43,7 @@ interface CartItem {
 interface Cart {
   _id: string;
   items: CartItem[];
-  store?: {
-    _id: string;
-    name: string;
-  };
+  store?: { _id: string; name: string };
 }
 
 export default function CartScreen() {
@@ -49,31 +52,43 @@ export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [cart, setCart] = useState<Cart | null>(null);
   const [updatingItem, setUpdatingItem] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      fetchCart();
+      checkAuthAndFetchCart();
     }, [])
   );
+
+  const checkAuthAndFetchCart = async () => {
+    const token = await AsyncStorage.getItem("authToken");
+    setIsLoggedIn(!!token);
+    if (token) {
+      await fetchCart();
+    } else {
+      setLoading(false);
+    }
+  };
 
   const fetchCart = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+      if (!token) { setLoading(false); return; }
 
       const response = await fetch(`${API_URL}/api/cart`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
+      console.log("Cart response:", data);
 
       if (data.success) {
         setCart(data.cart);
+      } else {
+        setCart(null);
       }
     } catch (error) {
       console.error("Error fetching cart:", error);
+      setCart(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,27 +103,21 @@ export default function CartScreen() {
       setUpdatingItem(productId);
 
       if (newQuantity <= 0) {
-        // Remove item
         const response = await fetch(`${API_URL}/api/cart/remove`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ productId }),
         });
         const data = await response.json();
-        if (data.success) {
-          setCart(data.cart);
-        }
+        if (data.success) setCart(data.cart);
       } else {
-        // Update quantity
         const response = await fetch(`${API_URL}/api/cart/update`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ productId, quantity: newQuantity }),
         });
         const data = await response.json();
-        if (data.success) {
-          setCart(data.cart);
-        }
+        if (data.success) setCart(data.cart);
       }
     } catch (error) {
       console.error("Error updating cart:", error);
@@ -118,49 +127,38 @@ export default function CartScreen() {
     }
   };
 
-  const removeItem = async (productId: string) => {
-    Alert.alert(
-      "Remove Item",
-      "Are you sure you want to remove this item from your cart?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Remove", style: "destructive", onPress: () => updateQuantity(productId, 0) },
-      ]
-    );
+  const removeItem = (productId: string, productName: string) => {
+    Alert.alert("Remove Item", `Remove ${productName} from cart?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => updateQuantity(productId, 0) },
+    ]);
   };
 
-  const clearCart = async () => {
-    Alert.alert(
-      "Clear Cart",
-      "Are you sure you want to remove all items from your cart?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const token = await AsyncStorage.getItem("authToken");
-              if (!token) return;
-
-              const response = await fetch(`${API_URL}/api/cart/clear`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              const data = await response.json();
-              if (data.success) {
-                setCart(null);
-              }
-            } catch (error) {
-              Alert.alert("Error", "Failed to clear cart");
-            }
-          },
+  const clearCart = () => {
+    Alert.alert("Clear Cart", "Remove all items from your cart?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = await AsyncStorage.getItem("authToken");
+            if (!token) return;
+            const response = await fetch(`${API_URL}/api/cart/clear`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await response.json();
+            if (data.success) setCart(null);
+          } catch (error) {
+            Alert.alert("Error", "Failed to clear cart");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  const calculateSubtotal = () => {
+  const calculateSubtotal = (): number => {
     if (!cart?.items) return 0;
     return cart.items.reduce((total, item) => {
       const price = item.product.discountPrice || item.product.salePrice || item.product.price;
@@ -168,7 +166,7 @@ export default function CartScreen() {
     }, 0);
   };
 
-  const calculateSavings = () => {
+  const calculateSavings = (): number => {
     if (!cart?.items) return 0;
     return cart.items.reduce((total, item) => {
       const originalPrice = item.product.price;
@@ -184,11 +182,13 @@ export default function CartScreen() {
 
   const proceedToCheckout = () => {
     if (!cart?.items?.length) {
-      Alert.alert("Empty Cart", "Please add items to your cart before checkout");
+      Alert.alert("Empty Cart", "Please add items to your cart");
       return;
     }
     router.push("/(customer)/checkout" as any);
   };
+
+  const hasItems = cart?.items && cart.items.length > 0;
 
   if (loading) {
     return (
@@ -199,25 +199,22 @@ export default function CartScreen() {
     );
   }
 
-  const isLoggedIn = cart !== null;
-  const hasItems = cart?.items && cart.items.length > 0;
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Cart</Text>
-        {hasItems && (
+        {hasItems ? (
           <TouchableOpacity style={styles.clearButton} onPress={clearCart}>
             <Text style={styles.clearText}>Clear</Text>
           </TouchableOpacity>
+        ) : (
+          <View style={{ width: 50 }} />
         )}
-        {!hasItems && <View style={{ width: 40 }} />}
       </View>
 
       {!isLoggedIn ? (
@@ -225,10 +222,7 @@ export default function CartScreen() {
           <Ionicons name="person-outline" size={64} color="#CBD5E1" />
           <Text style={styles.emptyTitle}>Please Login</Text>
           <Text style={styles.emptyText}>Login to view your cart and place orders</Text>
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => router.push("/(auth)/login" as any)}
-          >
+          <TouchableOpacity style={styles.loginButton} onPress={() => router.push("/(auth)/login" as any)}>
             <Text style={styles.loginButtonText}>Login</Text>
           </TouchableOpacity>
         </View>
@@ -236,11 +230,8 @@ export default function CartScreen() {
         <View style={styles.emptyContainer}>
           <Ionicons name="cart-outline" size={64} color="#CBD5E1" />
           <Text style={styles.emptyTitle}>Your Cart is Empty</Text>
-          <Text style={styles.emptyText}>Looks like you haven't added anything to your cart yet</Text>
-          <TouchableOpacity
-            style={styles.shopButton}
-            onPress={() => router.push("/(customer)/home" as any)}
-          >
+          <Text style={styles.emptyText}>Looks like you haven't added anything yet</Text>
+          <TouchableOpacity style={styles.shopButton} onPress={() => router.push("/(customer)/home" as any)}>
             <Text style={styles.shopButtonText}>Start Shopping</Text>
           </TouchableOpacity>
         </View>
@@ -253,60 +244,45 @@ export default function CartScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCart(); }} colors={["#22C55E"]} />
             }
           >
-            {/* Store Info */}
-            {cart.store && (
+            {cart.store ? (
               <TouchableOpacity
                 style={styles.storeCard}
-                onPress={() => router.push({
-                  pathname: "/(customer)/store-details",
-                  params: { storeId: cart.store!._id },
-                } as any)}
+                onPress={() => router.push({ pathname: "/(customer)/store-details", params: { storeId: cart.store!._id } } as any)}
               >
                 <Ionicons name="storefront" size={20} color="#22C55E" />
                 <Text style={styles.storeCardName}>{cart.store.name}</Text>
                 <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
               </TouchableOpacity>
-            )}
+            ) : null}
 
-            {/* Cart Items */}
             <View style={styles.cartItems}>
               {cart.items.map((item) => {
                 const price = item.product.discountPrice || item.product.salePrice || item.product.price;
-                const hasDiscount = item.product.discountPrice || item.product.salePrice;
+                const hasDiscount = (item.product.discountPrice && item.product.discountPrice < item.product.price) || 
+                                   (item.product.salePrice && item.product.salePrice < item.product.price);
                 const isUpdating = updatingItem === item.product._id;
 
                 return (
                   <View key={item._id} style={styles.cartItem}>
                     <TouchableOpacity
-                      onPress={() => router.push({
-                        pathname: "/(customer)/product-details",
-                        params: { productId: item.product._id },
-                      } as any)}
+                      onPress={() => router.push({ pathname: "/(customer)/product-details", params: { productId: item.product._id } } as any)}
                     >
-                      <Image
-                        source={{ uri: item.product.images?.[0] || "https://via.placeholder.com/80" }}
-                        style={styles.itemImage}
-                      />
+                      <Image source={{ uri: getImageUrl(item.product.images?.[0]) }} style={styles.itemImage} />
                     </TouchableOpacity>
 
                     <View style={styles.itemInfo}>
                       <Text style={styles.itemName} numberOfLines={2}>{item.product.name}</Text>
-                      {item.product.unit && (
-                        <Text style={styles.itemUnit}>{item.product.quantity} {item.product.unit}</Text>
-                      )}
+                      {item.product.unit ? (
+                        <Text style={styles.itemUnit}>{String(item.product.quantity)} {item.product.unit}</Text>
+                      ) : null}
                       <View style={styles.itemPriceRow}>
-                        <Text style={styles.itemPrice}>₹{price}</Text>
-                        {hasDiscount && (
-                          <Text style={styles.itemOriginalPrice}>₹{item.product.price}</Text>
-                        )}
+                        <Text style={styles.itemPrice}>₹{String(price)}</Text>
+                        {hasDiscount ? <Text style={styles.itemOriginalPrice}>₹{String(item.product.price)}</Text> : null}
                       </View>
                     </View>
 
                     <View style={styles.itemActions}>
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => removeItem(item.product._id)}
-                      >
+                      <TouchableOpacity style={styles.removeButton} onPress={() => removeItem(item.product._id, item.product.name)}>
                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                       </TouchableOpacity>
 
@@ -315,73 +291,63 @@ export default function CartScreen() {
                           <ActivityIndicator size="small" color="#22C55E" />
                         ) : (
                           <>
-                            <TouchableOpacity
-                              style={styles.qtyButton}
-                              onPress={() => updateQuantity(item.product._id, item.quantity - 1)}
-                            >
+                            <TouchableOpacity style={styles.qtyButton} onPress={() => updateQuantity(item.product._id, item.quantity - 1)}>
                               <Ionicons name="remove" size={16} color="#64748B" />
                             </TouchableOpacity>
-                            <Text style={styles.qtyText}>{item.quantity}</Text>
-                            <TouchableOpacity
-                              style={styles.qtyButton}
-                              onPress={() => updateQuantity(item.product._id, item.quantity + 1)}
-                            >
+                            <Text style={styles.qtyText}>{String(item.quantity)}</Text>
+                            <TouchableOpacity style={styles.qtyButton} onPress={() => updateQuantity(item.product._id, item.quantity + 1)}>
                               <Ionicons name="add" size={16} color="#64748B" />
                             </TouchableOpacity>
                           </>
                         )}
                       </View>
 
-                      <Text style={styles.itemTotal}>₹{price * item.quantity}</Text>
+                      <Text style={styles.itemTotal}>₹{String(price * item.quantity)}</Text>
                     </View>
                   </View>
                 );
               })}
             </View>
 
-            {/* Order Summary */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>Order Summary</Text>
               
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Subtotal ({cart.items.length} items)</Text>
-                <Text style={styles.summaryValue}>₹{subtotal}</Text>
+                <Text style={styles.summaryLabel}>{`Subtotal (${String(cart.items.length)} items)`}</Text>
+                <Text style={styles.summaryValue}>₹{String(subtotal)}</Text>
               </View>
 
-              {savings > 0 && (
+              {savings > 0 ? (
                 <View style={styles.summaryRow}>
                   <Text style={styles.savingsLabel}>You're Saving</Text>
-                  <Text style={styles.savingsValue}>-₹{savings}</Text>
+                  <Text style={styles.savingsValue}>-₹{String(savings)}</Text>
                 </View>
-              )}
+              ) : null}
 
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Delivery Fee</Text>
                 <Text style={[styles.summaryValue, deliveryFee === 0 && styles.freeDelivery]}>
-                  {deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`}
+                  {deliveryFee === 0 ? "FREE" : `₹${String(deliveryFee)}`}
                 </Text>
               </View>
 
-              {subtotal < 500 && (
-                <Text style={styles.freeDeliveryHint}>
-                  Add ₹{500 - subtotal} more for free delivery
-                </Text>
-              )}
+              {subtotal < 500 ? (
+                <Text style={styles.freeDeliveryHint}>{`Add ₹${String(500 - subtotal)} more for free delivery`}</Text>
+              ) : null}
 
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>₹{total}</Text>
+                <Text style={styles.totalValue}>₹{String(total)}</Text>
               </View>
             </View>
 
             <View style={{ height: 120 }} />
           </ScrollView>
 
-          {/* Checkout Button */}
           <View style={styles.bottomBar}>
             <View style={styles.bottomTotal}>
               <Text style={styles.bottomTotalLabel}>Total</Text>
-              <Text style={styles.bottomTotalValue}>₹{total}</Text>
+              <Text style={styles.bottomTotalValue}>₹{String(total)}</Text>
             </View>
             <TouchableOpacity style={styles.checkoutButton} onPress={proceedToCheckout}>
               <Text style={styles.checkoutText}>Proceed to Checkout</Text>

@@ -1,4 +1,5 @@
 // app/(customer)/product-details.tsx
+// FIXED: All text properly wrapped, numbers converted to strings
 import {
   View,
   Text,
@@ -19,15 +20,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width } = Dimensions.get("window");
 const API_URL = "http://13.203.206.134:5000";
 
+const getImageUrl = (imagePath: string | null | undefined): string => {
+  if (!imagePath) return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400";
+  if (imagePath.startsWith("http")) return imagePath;
+  return `${API_URL}${imagePath}`;
+};
+
 interface Product {
   _id: string;
   name: string;
   description?: string;
   images?: string[];
   price: number;
-  discountPrice?: number;
-  salePrice?: number;
-  quantity?: number;
+  discountPrice?: number | null;
+  salePrice?: number | null;
+  quantity?: number | string;
   unit?: string;
   inStock?: boolean;
   stock?: number;
@@ -37,7 +44,6 @@ interface Product {
     name: string;
     isOpen?: boolean;
     rating?: { average?: number };
-    phone?: string;
   };
 }
 
@@ -53,9 +59,7 @@ export default function ProductDetails() {
   const [addingToCart, setAddingToCart] = useState(false);
 
   useEffect(() => {
-    if (productId) {
-      fetchProductDetails();
-    }
+    if (productId) fetchProductDetails();
   }, [productId]);
 
   const fetchProductDetails = async () => {
@@ -116,25 +120,11 @@ export default function ProductDetails() {
     }
   };
 
-  const incrementQuantity = () => {
-    if (product?.stock && cartQuantity < product.stock) {
-      setCartQuantity(prev => prev + 1);
-    } else if (!product?.stock) {
-      setCartQuantity(prev => prev + 1);
-    }
-  };
-
-  const decrementQuantity = () => {
-    if (cartQuantity > 1) {
-      setCartQuantity(prev => prev - 1);
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator size="large" color="#22C55E" />
-        <Text style={styles.loadingText}>Loading product...</Text>
+        <Text style={styles.loadingText}>{"Loading product..."}</Text>
       </View>
     );
   }
@@ -147,106 +137,95 @@ export default function ProductDetails() {
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Product</Text>
-          <View style={{ width: 40 }} />
+          <Text style={styles.headerTitle}>{"Product"}</Text>
+          <View style={styles.placeholder} />
         </View>
         <View style={styles.emptyContainer}>
           <Ionicons name="cube-outline" size={64} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>Product Not Found</Text>
+          <Text style={styles.emptyTitle}>{"Product Not Found"}</Text>
         </View>
       </View>
     );
   }
 
   const finalPrice = product.discountPrice || product.salePrice || product.price;
-  const hasDiscount = product.discountPrice || product.salePrice;
-  const discountPercent = hasDiscount
-    ? Math.round(((product.price - finalPrice) / product.price) * 100)
-    : 0;
-  const images = product.images?.length ? product.images : ["https://via.placeholder.com/400"];
+  const hasDiscount = (product.discountPrice && product.discountPrice < product.price) || (product.salePrice && product.salePrice < product.price);
+  const discountPercent = hasDiscount ? Math.round(((product.price - finalPrice) / product.price) * 100) : 0;
+  const savingsAmount = hasDiscount ? product.price - finalPrice : 0;
+  const images = product.images && product.images.length > 0 ? product.images : ["https://via.placeholder.com/400"];
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Product Details</Text>
+        <Text style={styles.headerTitle}>{"Product Details"}</Text>
         <TouchableOpacity style={styles.cartButton} onPress={() => router.push("/(customer)/cart" as any)}>
           <Ionicons name="cart-outline" size={24} color="#1E293B" />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Image Gallery */}
         <View style={styles.imageSection}>
-          <Image source={{ uri: images[selectedImage] }} style={styles.mainImage} />
-          {discountPercent > 0 && (
+          <Image source={{ uri: getImageUrl(images[selectedImage]) }} style={styles.mainImage} />
+          {discountPercent > 0 ? (
             <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{discountPercent}% OFF</Text>
+              <Text style={styles.discountText}>{`${String(discountPercent)}% OFF`}</Text>
             </View>
-          )}
-          {product.inStock === false && (
+          ) : null}
+          {product.inStock === false ? (
             <View style={styles.outOfStockBadge}>
-              <Text style={styles.outOfStockText}>Out of Stock</Text>
+              <Text style={styles.outOfStockText}>{"Out of Stock"}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
-        {/* Image Thumbnails */}
-        {images.length > 1 && (
+        {images.length > 1 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbnailContainer}>
             {images.map((img, index) => (
               <TouchableOpacity
-                key={index}
+                key={`thumb-${String(index)}`}
                 style={[styles.thumbnail, selectedImage === index && styles.thumbnailActive]}
                 onPress={() => setSelectedImage(index)}
               >
-                <Image source={{ uri: img }} style={styles.thumbnailImage} />
+                <Image source={{ uri: getImageUrl(img) }} style={styles.thumbnailImage} />
               </TouchableOpacity>
             ))}
           </ScrollView>
-        )}
+        ) : null}
 
-        {/* Product Info */}
         <View style={styles.productInfo}>
           <Text style={styles.productName}>{product.name}</Text>
-          
-          {product.unit && (
-            <Text style={styles.productUnit}>{product.quantity} {product.unit}</Text>
-          )}
 
-          {/* Price */}
+          {product.unit ? (
+            <Text style={styles.productUnit}>{`${String(product.quantity || "")} ${product.unit}`}</Text>
+          ) : null}
+
           <View style={styles.priceRow}>
-            <Text style={styles.currentPrice}>₹{finalPrice}</Text>
-            {hasDiscount && (
-              <>
-                <Text style={styles.originalPrice}>₹{product.price}</Text>
-                <View style={styles.saveBadge}>
-                  <Text style={styles.saveText}>Save ₹{product.price - finalPrice}</Text>
-                </View>
-              </>
-            )}
+            <Text style={styles.currentPrice}>{`₹${String(finalPrice)}`}</Text>
+            {hasDiscount ? (
+              <Text style={styles.originalPrice}>{`₹${String(product.price)}`}</Text>
+            ) : null}
+            {savingsAmount > 0 ? (
+              <View style={styles.saveBadge}>
+                <Text style={styles.saveText}>{`Save ₹${String(savingsAmount)}`}</Text>
+              </View>
+            ) : null}
           </View>
 
-          {/* Stock Status */}
-          {product.inStock !== false && product.stock !== undefined && (
+          {product.inStock !== false && product.stock !== undefined && product.stock > 0 ? (
             <Text style={styles.stockText}>
-              {product.stock > 10 ? "In Stock" : `Only ${product.stock} left in stock`}
+              {product.stock > 10 ? "In Stock" : `Only ${String(product.stock)} left in stock`}
             </Text>
-          )}
+          ) : null}
 
-          {/* Store Info */}
-          {product.store && (
+          {product.store ? (
             <TouchableOpacity
               style={styles.storeCard}
-              onPress={() => router.push({
-                pathname: "/(customer)/store-details",
-                params: { storeId: product.store!._id },
-              } as any)}
+              onPress={() => router.push({ pathname: "/(customer)/store-details", params: { storeId: product.store!._id } } as any)}
             >
               <View style={styles.storeIcon}>
                 <Ionicons name="storefront" size={24} color="#22C55E" />
@@ -254,61 +233,55 @@ export default function ProductDetails() {
               <View style={styles.storeInfo}>
                 <Text style={styles.storeName}>{product.store.name}</Text>
                 <View style={styles.storeMetaRow}>
-                  {product.store.rating?.average && (
-                    <>
+                  {product.store.rating?.average ? (
+                    <View style={styles.ratingRow}>
                       <Ionicons name="star" size={14} color="#F59E0B" />
                       <Text style={styles.storeRating}>{product.store.rating.average.toFixed(1)}</Text>
-                    </>
-                  )}
-                  {product.store.isOpen !== false && (
+                    </View>
+                  ) : null}
+                  {product.store.isOpen !== false ? (
                     <View style={styles.openIndicator}>
                       <View style={styles.openDot} />
-                      <Text style={styles.openText}>Open</Text>
+                      <Text style={styles.openText}>{"Open"}</Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
             </TouchableOpacity>
-          )}
+          ) : null}
 
-          {/* Description */}
-          {product.description && (
+          {product.description ? (
             <View style={styles.descriptionSection}>
-              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.sectionTitle}>{"Description"}</Text>
               <Text style={styles.descriptionText}>{product.description}</Text>
             </View>
-          )}
+          ) : null}
 
-          {/* Category */}
-          {product.category && (
+          {product.category ? (
             <View style={styles.categorySection}>
-              <Text style={styles.sectionTitle}>Category</Text>
+              <Text style={styles.sectionTitle}>{"Category"}</Text>
               <TouchableOpacity
                 style={styles.categoryChip}
-                onPress={() => router.push({
-                  pathname: "/(customer)/categories",
-                  params: { categoryId: product.category, categoryName: product.category },
-                } as any)}
+                onPress={() => router.push({ pathname: "/(customer)/categories", params: { categoryId: product.category, categoryName: product.category } } as any)}
               >
                 <Text style={styles.categoryText}>{product.category}</Text>
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
         </View>
 
-        <View style={{ height: 120 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Bottom Action Bar */}
-      {product.inStock !== false && (
+      {product.inStock !== false ? (
         <View style={styles.bottomBar}>
           <View style={styles.quantitySelector}>
-            <TouchableOpacity style={styles.quantityButton} onPress={decrementQuantity}>
+            <TouchableOpacity style={styles.quantityButton} onPress={() => cartQuantity > 1 && setCartQuantity(cartQuantity - 1)}>
               <Ionicons name="remove" size={20} color="#1E293B" />
             </TouchableOpacity>
-            <Text style={styles.quantityText}>{cartQuantity}</Text>
-            <TouchableOpacity style={styles.quantityButton} onPress={incrementQuantity}>
+            <Text style={styles.quantityText}>{String(cartQuantity)}</Text>
+            <TouchableOpacity style={styles.quantityButton} onPress={() => setCartQuantity(cartQuantity + 1)}>
               <Ionicons name="add" size={20} color="#1E293B" />
             </TouchableOpacity>
           </View>
@@ -321,14 +294,14 @@ export default function ProductDetails() {
             {addingToCart ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <>
+              <View style={styles.addToCartContent}>
                 <Ionicons name="cart" size={20} color="#FFFFFF" />
-                <Text style={styles.addToCartText}>Add to Cart • ₹{finalPrice * cartQuantity}</Text>
-              </>
+                <Text style={styles.addToCartText}>{`Add • ₹${String(finalPrice * cartQuantity)}`}</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -341,6 +314,7 @@ const styles = StyleSheet.create({
   backButton: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
   cartButton: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+  placeholder: { width: 40 },
   scrollView: { flex: 1 },
   imageSection: { width: width, height: width * 0.8, position: "relative", backgroundColor: "#F8FAFC" },
   mainImage: { width: "100%", height: "100%", resizeMode: "contain" },
@@ -355,7 +329,7 @@ const styles = StyleSheet.create({
   productInfo: { padding: 20 },
   productName: { fontSize: 22, fontWeight: "700", color: "#1E293B", marginBottom: 8 },
   productUnit: { fontSize: 14, color: "#64748B", marginBottom: 12 },
-  priceRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  priceRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 },
   currentPrice: { fontSize: 28, fontWeight: "700", color: "#22C55E" },
   originalPrice: { fontSize: 18, color: "#94A3B8", textDecorationLine: "line-through" },
   saveBadge: { backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
@@ -365,8 +339,9 @@ const styles = StyleSheet.create({
   storeIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center" },
   storeInfo: { flex: 1, marginLeft: 12 },
   storeName: { fontSize: 16, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
-  storeMetaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  storeRating: { fontSize: 13, fontWeight: "500", color: "#1E293B", marginLeft: 2 },
+  storeMetaRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  ratingRow: { flexDirection: "row", alignItems: "center" },
+  storeRating: { fontSize: 13, fontWeight: "500", color: "#1E293B", marginLeft: 4 },
   openIndicator: { flexDirection: "row", alignItems: "center", gap: 4 },
   openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E" },
   openText: { fontSize: 12, color: "#22C55E", fontWeight: "500" },
@@ -378,11 +353,13 @@ const styles = StyleSheet.create({
   categoryText: { fontSize: 14, fontWeight: "500", color: "#64748B" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyTitle: { fontSize: 18, fontWeight: "700", color: "#64748B", marginTop: 16 },
+  bottomSpacer: { height: 120 },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 28, borderTopWidth: 1, borderTopColor: "#F1F5F9", gap: 12 },
   quantitySelector: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1F5F9", borderRadius: 10, paddingHorizontal: 4 },
   quantityButton: { width: 36, height: 36, justifyContent: "center", alignItems: "center" },
   quantityText: { fontSize: 16, fontWeight: "600", color: "#1E293B", paddingHorizontal: 12 },
-  addToCartButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14, gap: 8 },
+  addToCartButton: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14 },
   addToCartButtonDisabled: { backgroundColor: "#86EFAC" },
+  addToCartContent: { flexDirection: "row", alignItems: "center", gap: 8 },
   addToCartText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
 });
