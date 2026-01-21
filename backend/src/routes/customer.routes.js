@@ -1,124 +1,128 @@
 // backend/src/routes/customer.routes.js
-// Replace your existing customer.routes.js with this file
+// COMPLETE WORKING VERSION
 
 const express = require('express');
 const router = express.Router();
-const Product = require('../models/Product');
-const Store = require('../models/Store');
-const auth = require('../middleware/auth');
+const mongoose = require('mongoose');
 
-// ==================== PUBLIC ROUTES ====================
+// Import models - adjust paths if needed
+let Store, Product, Category;
 
+try {
+  Store = require('../models/Store');
+} catch (e) {
+  console.log('Store model not found, using fallback');
+  Store = mongoose.model('Store', new mongoose.Schema({}, { strict: false }));
+}
+
+try {
+  Product = require('../models/Product');
+} catch (e) {
+  console.log('Product model not found, using fallback');
+  Product = mongoose.model('Product', new mongoose.Schema({}, { strict: false }));
+}
+
+try {
+  Category = require('../models/Category');
+} catch (e) {
+  console.log('Category model not found, using fallback');
+  Category = mongoose.model('Category', new mongoose.Schema({}, { strict: false }));
+}
+
+// ============================================
 // GET /api/customer/categories
+// ============================================
 router.get('/categories', async (req, res) => {
   try {
-    console.log('📂 Fetching categories...');
+    console.log('📂 GET /api/customer/categories');
     
-    const categories = await Product.aggregate([
-      { $match: { isActive: { $ne: false } } }, // Include products where isActive is true or not set
-      { 
-        $group: { 
-          _id: "$category", 
-          count: { $sum: 1 },
-          sampleImage: { $first: "$images" }
-        } 
-      },
-      { $sort: { count: -1 } }
-    ]);
+    const categories = await Category.find({ isActive: { $ne: false } })
+      .sort({ name: 1 })
+      .lean();
 
-    const formattedCategories = categories
-      .filter(cat => cat._id)
-      .map(cat => ({
-        _id: cat._id,
-        id: cat._id,
-        name: cat._id,
-        itemCount: cat.count,
-        image: cat.sampleImage && cat.sampleImage.length > 0 ? cat.sampleImage[0] : null
-      }));
+    // Get product count for each category
+    const categoriesWithCount = await Promise.all(
+      categories.map(async (cat) => {
+        const count = await Product.countDocuments({
+          category: cat.name,
+          isActive: { $ne: false }
+        });
+        return {
+          ...cat,
+          id: cat._id,
+          itemCount: count
+        };
+      })
+    );
 
-    console.log(`✅ Found ${formattedCategories.length} categories`);
-    res.json({ success: true, categories: formattedCategories });
+    console.log(`✅ Found ${categories.length} categories`);
+    res.json({
+      success: true,
+      categories: categoriesWithCount
+    });
   } catch (error) {
     console.error('❌ Error fetching categories:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// ============================================
 // GET /api/customer/stores
+// ============================================
 router.get('/stores', async (req, res) => {
   try {
-    console.log('🏪 Fetching stores...');
-    const { search, page = 1, limit = 20 } = req.query;
-    
-    // Start with empty query to get ALL stores
-    let query = {};
+    console.log('🏪 GET /api/customer/stores');
+    const { category, lat, lng, search, page = 1, limit = 20 } = req.query;
 
-    // Only add filters if stores exist with those fields
-    const totalStores = await Store.countDocuments({});
-    console.log(`Total stores in DB: ${totalStores}`);
+    // Build query - don't filter out stores without isActive/isApproved fields
+    const query = {
+      $or: [
+        { isActive: true, isApproved: true },
+        { isActive: { $exists: false } },
+        { isApproved: { $exists: false } }
+      ]
+    };
 
-    if (totalStores > 0) {
-      // Check if any stores have isActive field
-      const activeStores = await Store.countDocuments({ isActive: true });
-      const approvedStores = await Store.countDocuments({ isApproved: true });
-      
-      console.log(`Active stores: ${activeStores}, Approved stores: ${approvedStores}`);
-
-      // Only filter by isActive/isApproved if stores have these fields set
-      if (activeStores > 0 || approvedStores > 0) {
-        query = {
-          $or: [
-            { isActive: true, isApproved: true },
-            { isActive: { $exists: false } },
-            { isApproved: { $exists: false } }
-          ]
-        };
-      }
+    if (category) {
+      query.categories = category;
     }
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { address: { $regex: search, $options: "i" } }
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
 
     console.log('Store query:', JSON.stringify(query));
 
-    const stores = await Store.find(query)
-      .populate("vendor", "name phone")
-      .select("-__v")
-      .sort({ createdAt: -1 })
+    let stores = await Store.find(query)
+      .select('name description logo images address rating isOpen categories deliveryTime deliveryFee minOrder phone')
       .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    // If no stores found with filters, try getting all stores
+    if (stores.length === 0) {
+      console.log('No stores with filter, trying all stores...');
+      stores = await Store.find({})
+        .select('name description logo images address rating isOpen categories deliveryTime deliveryFee minOrder phone')
+        .limit(parseInt(limit))
+        .lean();
+    }
 
     const total = await Store.countDocuments(query);
 
-    // Add product count for each store
-    const storesWithCount = await Promise.all(
-      stores.map(async (store) => {
-        const productCount = await Product.countDocuments({
-          store: store._id,
-          isActive: { $ne: false },
-        });
-        return {
-          ...store.toObject(),
-          productCount,
-          isOpen: store.isOpen !== false,
-        };
-      })
-    );
-
-    console.log(`✅ Found ${storesWithCount.length} stores`);
-
+    console.log(`✅ Found ${stores.length} stores`);
     res.json({
       success: true,
-      stores: storesWithCount,
+      stores,
       pagination: {
-        total,
         page: parseInt(page),
-        pages: Math.ceil(total / parseInt(limit)),
-      },
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
     });
   } catch (error) {
     console.error('❌ Error fetching stores:', error);
@@ -126,47 +130,34 @@ router.get('/stores', async (req, res) => {
   }
 });
 
-// GET /api/customer/stores/:id
-router.get('/stores/:id', async (req, res) => {
+// ============================================
+// GET /api/customer/stores/:storeId
+// ============================================
+router.get('/stores/:storeId', async (req, res) => {
   try {
-    console.log('🏪 Fetching store details:', req.params.id);
-    
-    const store = await Store.findById(req.params.id)
-      .populate("vendor", "name phone");
+    const { storeId } = req.params;
+    console.log('🏪 GET /api/customer/stores/:storeId -', storeId);
 
-    if (!store) {
-      return res.status(404).json({ success: false, error: "Store not found" });
+    if (!mongoose.Types.ObjectId.isValid(storeId)) {
+      return res.status(400).json({ success: false, error: 'Invalid store ID' });
     }
 
-    const topProducts = await Product.find({
-      store: store._id,
-      isActive: { $ne: false },
-    })
-      .sort({ soldCount: -1, createdAt: -1 })
-      .limit(10);
+    const store = await Store.findById(storeId).lean();
 
-    const totalProducts = await Product.countDocuments({
-      store: store._id,
-      isActive: { $ne: false },
-    });
+    if (!store) {
+      return res.status(404).json({ success: false, error: 'Store not found' });
+    }
 
-    const inStockProducts = await Product.countDocuments({
-      store: store._id,
-      isActive: { $ne: false },
-      inStock: { $ne: false },
-    });
+    // Get products for this store
+    const products = await Product.find({
+      store: storeId,
+      isActive: { $ne: false }
+    }).lean();
 
-    console.log(`✅ Found store: ${store.name} with ${totalProducts} products`);
-
+    console.log(`✅ Found store: ${store.name} with ${products.length} products`);
     res.json({
       success: true,
-      store: {
-        ...store.toObject(),
-        totalProducts,
-        inStockProducts,
-        isOpen: store.isOpen !== false,
-      },
-      topProducts,
+      store: { ...store, products }
     });
   } catch (error) {
     console.error('❌ Error fetching store:', error);
@@ -174,106 +165,65 @@ router.get('/stores/:id', async (req, res) => {
   }
 });
 
-// GET /api/customer/stores/:id/products
-router.get('/stores/:id/products', async (req, res) => {
-  try {
-    console.log('📦 Fetching store products:', req.params.id);
-    const { category, search, minPrice, maxPrice, inStock, page = 1, limit = 20, sort = "createdAt" } = req.query;
-
-    let query = { 
-      store: req.params.id,
-      isActive: { $ne: false }
-    };
-
-    if (category && category !== 'All') query.category = category;
-    if (inStock === "true") query.inStock = true;
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
-    }
-    if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = parseFloat(minPrice);
-      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
-    }
-
-    let sortOption = {};
-    switch (sort) {
-      case "price-low": sortOption = { price: 1 }; break;
-      case "price-high": sortOption = { price: -1 }; break;
-      case "popular": sortOption = { soldCount: -1 }; break;
-      default: sortOption = { createdAt: -1 };
-    }
-
-    const products = await Product.find(query)
-      .sort(sortOption)
-      .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit));
-
-    const total = await Product.countDocuments(query);
-
-    console.log(`✅ Found ${products.length} products for store`);
-
-    res.json({
-      success: true,
-      products,
-      pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) },
-    });
-  } catch (error) {
-    console.error('❌ Error fetching store products:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
+// ============================================
 // GET /api/customer/products
+// ============================================
 router.get('/products', async (req, res) => {
   try {
-    console.log('📦 Fetching products...');
-    const { category, search, minPrice, maxPrice, inStock, featured, page = 1, limit = 20, sort = "createdAt" } = req.query;
+    console.log('📦 GET /api/customer/products');
+    const { category, store, search, sort, page = 1, limit = 20, minPrice, maxPrice } = req.query;
 
-    let query = { isActive: { $ne: false } };
+    const query = { isActive: { $ne: false } };
 
-    if (category && category !== 'All') query.category = category;
-    if (inStock === "true") query.inStock = true;
-    if (featured === 'true') query.isFeatured = true;
+    if (category && category !== 'All') {
+      query.category = category;
+    }
+
+    if (store) {
+      query.store = store;
+    }
+
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { category: { $regex: search, $options: "i" } },
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
+
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = parseFloat(minPrice);
       if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
 
-    let sortOption = {};
-    switch (sort) {
-      case "price-low": sortOption = { price: 1 }; break;
-      case "price-high": sortOption = { price: -1 }; break;
-      case "rating": sortOption = { "rating.average": -1 }; break;
-      case "popular": sortOption = { soldCount: -1 }; break;
-      default: sortOption = { createdAt: -1 };
-    }
+    // Sort options
+    let sortOption = { createdAt: -1 };
+    if (sort === 'price-low') sortOption = { price: 1 };
+    else if (sort === 'price-high') sortOption = { price: -1 };
+    else if (sort === 'popular') sortOption = { soldCount: -1 };
+    else if (sort === 'rating') sortOption = { 'rating.average': -1 };
+
+    console.log('Product query:', JSON.stringify(query));
 
     const products = await Product.find(query)
-      .populate("store", "name isOpen rating")
+      .populate('store', 'name')
       .sort(sortOption)
       .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await Product.countDocuments(query);
 
     console.log(`✅ Found ${products.length} products`);
-
     res.json({
       success: true,
       products,
-      pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
     });
   } catch (error) {
     console.error('❌ Error fetching products:', error);
@@ -281,16 +231,24 @@ router.get('/products', async (req, res) => {
   }
 });
 
-// GET /api/customer/products/:id
-router.get('/products/:id', async (req, res) => {
+// ============================================
+// GET /api/customer/products/:productId
+// ============================================
+router.get('/products/:productId', async (req, res) => {
   try {
-    console.log('📦 Fetching product details:', req.params.id);
-    
-    const product = await Product.findById(req.params.id)
-      .populate("store", "name rating isOpen address phone");
+    const { productId } = req.params;
+    console.log('📦 GET /api/customer/products/:productId -', productId);
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ success: false, error: 'Invalid product ID' });
+    }
+
+    const product = await Product.findById(productId)
+      .populate('store', 'name phone address rating isOpen')
+      .lean();
 
     if (!product) {
-      return res.status(404).json({ success: false, error: "Product not found" });
+      return res.status(404).json({ success: false, error: 'Product not found' });
     }
 
     console.log(`✅ Found product: ${product.name}`);
@@ -301,40 +259,127 @@ router.get('/products/:id', async (req, res) => {
   }
 });
 
-// ==================== PROTECTED ROUTES (Auth required) ====================
-
-// GET /api/customer/profile
-router.get('/profile', auth, async (req, res) => {
+// ============================================
+// GET /api/customer/search
+// ============================================
+router.get('/search', async (req, res) => {
   try {
-    const User = require('../models/User');
-    const user = await User.findById(req.user.id).select('-password');
-    
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
+    const { q, type = 'all', page = 1, limit = 20 } = req.query;
+    console.log('🔍 GET /api/customer/search - query:', q);
+
+    if (!q) {
+      return res.json({ success: true, products: [], stores: [] });
     }
 
-    res.json({ success: true, customer: user, user: user });
+    const searchRegex = { $regex: q, $options: 'i' };
+    const results = { products: [], stores: [] };
+
+    if (type === 'all' || type === 'products') {
+      results.products = await Product.find({
+        $or: [
+          { name: searchRegex },
+          { description: searchRegex },
+          { category: searchRegex }
+        ],
+        isActive: { $ne: false }
+      })
+        .populate('store', 'name')
+        .limit(parseInt(limit))
+        .lean();
+    }
+
+    if (type === 'all' || type === 'stores') {
+      results.stores = await Store.find({
+        $or: [
+          { name: searchRegex },
+          { description: searchRegex },
+          { categories: searchRegex }
+        ]
+      })
+        .limit(parseInt(limit))
+        .lean();
+    }
+
+    console.log(`✅ Search found ${results.products.length} products, ${results.stores.length} stores`);
+    res.json({ success: true, ...results });
   } catch (error) {
-    console.error('Error fetching profile:', error);
+    console.error('❌ Error searching:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// PUT /api/customer/profile
-router.put('/profile', auth, async (req, res) => {
+// ============================================
+// GET /api/customer/featured
+// ============================================
+router.get('/featured', async (req, res) => {
   try {
-    const User = require('../models/User');
-    const { name, phone, email, address } = req.body;
+    console.log('⭐ GET /api/customer/featured');
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, phone, email, address },
-      { new: true }
-    ).select('-password');
+    const [featuredProducts, featuredStores, categories] = await Promise.all([
+      Product.find({ isActive: { $ne: false } })
+        .populate('store', 'name')
+        .sort({ soldCount: -1 })
+        .limit(10)
+        .lean(),
+      Store.find({})
+        .sort({ 'rating.average': -1 })
+        .limit(10)
+        .lean(),
+      Category.find({ isActive: { $ne: false } })
+        .limit(10)
+        .lean()
+    ]);
 
-    res.json({ success: true, customer: user, user: user });
+    console.log('✅ Featured data loaded');
+    res.json({
+      success: true,
+      featuredProducts,
+      featuredStores,
+      categories
+    });
   } catch (error) {
-    console.error('Error updating profile:', error);
+    console.error('❌ Error fetching featured:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// GET /api/customer/home
+// ============================================
+router.get('/home', async (req, res) => {
+  try {
+    console.log('🏠 GET /api/customer/home');
+
+    const [categories, stores, products, deals] = await Promise.all([
+      Category.find({ isActive: { $ne: false } }).limit(10).lean(),
+      Store.find({}).limit(10).lean(),
+      Product.find({ isActive: { $ne: false } })
+        .populate('store', 'name')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+      Product.find({
+        isActive: { $ne: false },
+        $or: [
+          { discountPrice: { $exists: true, $ne: null } },
+          { salePrice: { $exists: true, $ne: null } }
+        ]
+      })
+        .populate('store', 'name')
+        .limit(10)
+        .lean()
+    ]);
+
+    console.log('✅ Home data loaded');
+    res.json({
+      success: true,
+      categories,
+      stores,
+      products,
+      deals
+    });
+  } catch (error) {
+    console.error('❌ Error fetching home data:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

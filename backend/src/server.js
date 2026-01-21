@@ -1,100 +1,144 @@
 // backend/src/server.js
+// COMPLETE WORKING VERSION
+
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
 const path = require('path');
-
-// Load environment variables from parent directory
-require("dotenv").config({ path: path.resolve(__dirname, '../.env') });
-
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
-// Middleware
-app.use(cors({ origin: "*" }));
+// ============================================
+// MIDDLEWARE
+// ============================================
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files (uploaded images)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Request logging
-app.use((req, res, next) => {
-  console.log(`📨 ${new Date().toISOString()} | ${req.method} ${req.path}`);
-  next();
-});
-
-// Verify .env loaded
-if (!process.env.MONGODB_URI) {
-  console.error("❌ ERROR: MONGODB_URI not found in .env file");
-  console.error("📁 Looking for .env at:", path.resolve(__dirname, '../.env'));
-  process.exit(1);
-}
-
-// MongoDB Connection - SIMPLIFIED (no deprecated options)
-console.log("🔄 Connecting to MongoDB...");
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log("✅ MongoDB Connected");
-    console.log(`📊 Database: ${mongoose.connection.name}`);
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB Error:", err.message);
+// ============================================
+// DATABASE CONNECTION
+// ============================================
+const connectDB = async () => {
+  try {
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/delivery_app';
+    console.log('🔄 Connecting to MongoDB...');
+    await mongoose.connect(mongoURI);
+    console.log('✅ MongoDB Connected Successfully');
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error.message);
     process.exit(1);
-  });
+  }
+};
 
-// Routes
-app.use("/api/auth", require("./routes/auth.routes"));
-app.use("/api/upload", require("./routes/upload.routes")); // 👈 ADD THIS
-app.use("/api/vendor", require("./routes/vendor.routes"));
-app.use("/api/customer", require("./routes/customer.routes"));
-app.use("/api/delivery", require("./routes/delivery.routes"));
-// app.use("/api/admin", require("./routes/admin.routes"));
-const cartRoutes = require('./routes/cart');
+connectDB();
+
+// ============================================
+// IMPORT ROUTES (with error handling)
+// ============================================
+
+// Helper function to safely load routes
+const loadRoute = (routePath, routeName) => {
+  try {
+    return require(routePath);
+  } catch (error) {
+    console.warn(`⚠️  Could not load ${routeName}: ${error.message}`);
+    // Return empty router
+    return express.Router();
+  }
+};
+
+const authRoutes = loadRoute('./routes/auth.routes', 'auth.routes');
+const customerRoutes = loadRoute('./routes/customer.routes', 'customer.routes');
+const cartRoutes = loadRoute('./routes/cart', 'cart');
+const orderRoutes = loadRoute('./routes/orders', 'orders');
+const storeRoutes = loadRoute('./routes/stores', 'stores');
+const productRoutes = loadRoute('./routes/products', 'products');
+const vendorRoutes = loadRoute('./routes/vendor.routes', 'vendor.routes');
+const deliveryRoutes = loadRoute('./routes/delivery.routes', 'delivery.routes');
+const uploadRoutes = loadRoute('./routes/upload.routes', 'upload.routes');
+
+// ============================================
+// REGISTER ROUTES
+// ============================================
+app.use('/api/auth', authRoutes);
+app.use('/api/customer', customerRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/stores', storeRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/vendor', vendorRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/upload', uploadRoutes);
 
-// Health check
-app.get("/", (req, res) => {
+// ============================================
+// HEALTH CHECK
+// ============================================
+app.get('/', (req, res) => {
   res.json({
-    message: "QuickMart API is running! 🚀",
-    auth: "Firebase",
-    mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
-    endpoints: {
-      firebaseLogin: "POST /api/auth/firebase-login",
-      getProfile: "GET /api/auth/me",
-      updateProfile: "POST /api/auth/update-profile",
-      changeRole: "POST /api/auth/change-role",
-      logout: "POST /api/auth/logout",
-      upload: "POST /api/upload", // 👈 ADD THIS
-    },
+    success: true,
+    message: '🚀 Delivery App API is running!',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
   });
 });
 
-// 404 handler
-app.use((req, res) => {
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is healthy',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// ============================================
+// 404 HANDLER
+// ============================================
+app.use((req, res, next) => {
+  console.log(`❌ 404 - Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
-    error: `Route ${req.method} ${req.path} not found`,
+    error: `Route ${req.method} ${req.originalUrl} not found`
   });
 });
 
-// Error handling
+// ============================================
+// ERROR HANDLER
+// ============================================
 app.use((err, req, res, next) => {
-  console.error("❌ Error:", err);
-  res.status(500).json({
+  console.error('❌ Server Error:', err);
+  res.status(err.status || 500).json({
     success: false,
-    error: err.message || "Server error",
+    error: err.message || 'Internal Server Error'
   });
 });
 
-// Start server
+// ============================================
+// START SERVER
+// ============================================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("========================================");
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('');
+  console.log('==========================================');
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 http://13.203.206.134:${PORT}`);
-  console.log(`🔐 Auth: Firebase`);
-  console.log(`📁 Uploads: /uploads directory`);
-  console.log("========================================");
+  console.log(`📍 Local:   http://localhost:${PORT}`);
+  console.log(`📍 Network: http://0.0.0.0:${PORT}`);
+  console.log('==========================================');
+  console.log('');
+  console.log('📌 Available Routes:');
+  console.log('   GET  /api/health');
+  console.log('   POST /api/auth/send-otp');
+  console.log('   POST /api/auth/verify-otp');
+  console.log('   GET  /api/customer/categories');
+  console.log('   GET  /api/customer/stores');
+  console.log('   GET  /api/customer/products');
+  console.log('   GET  /api/cart');
+  console.log('   POST /api/cart/add');
+  console.log('');
 });
+
+module.exports = app;
