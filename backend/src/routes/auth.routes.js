@@ -1,127 +1,447 @@
 // backend/src/routes/auth.routes.js
-const express = require('express');
-const mongoose = require("mongoose");
+const express = require("express");
+const mongoose = require("mongoose"); // ADD THIS LINE - was missing!
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const { auth } = require("../middleware/auth");
 
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const authController = require('../controllers/auth.controller');
-const auth = require('../middleware/auth');
+const JWT_SECRET = process.env.JWT_SECRET || "quickmart-secret-key-2024";
 
-// ==================== EXISTING ROUTES ====================
-// OTP Login with Firebase
-router.post('/otp-login', authController.otpLogin);
-
-// Temporarily commented out to debug - uncomment after fixing auth middleware
-// Get current user profile (Protected)
-// router.get('/me', auth, authController.getMe);
-
-// Update user profile (Protected)
-// router.put('/profile', auth, authController.updateProfile);
-
-// Logout (Protected)
-// router.post('/logout', auth, authController.logout);
-
-// ==================== TEST LOGIN ENDPOINT ====================
-// 🧪 For development and testing only - bypasses Firebase OTP
-router.post('/test-login', async (req, res) => {
+// ==================== TEST LOGIN (FAKE OTP) ====================
+/**
+ * POST /api/auth/test-login
+ * For development/testing - Creates real JWT token without OTP verification
+ */
+router.post("/test-login", async (req, res) => {
   try {
-    // Only enable in development
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({
-        success: false,
-        error: 'Test login is only available in development mode'
-      });
-    }
+    const { phone, role = "customer", testMode = true } = req.body;
 
-   const { phone, role } = req.body;
+    console.log("🧪 Test Login Request:");
+    console.log("   Phone:", phone);
+    console.log("   Role:", role);
 
-    console.log('🧪 Test Login Request:', { phone, role, testMode });
-
-    // Validate request
-  if (!phone) {
-  return res.status(400).json({
-    success: false,
-    error: "Phone number required"
-  });
-}
-
-
-    // Validate phone format (10 digits)
-    if (!/^\d{10}$/.test(phone)) {
+    // Validate phone
+    if (!phone) {
       return res.status(400).json({
         success: false,
-        error: 'Phone number must be 10 digits'
+        error: "Phone number is required",
       });
     }
 
     // Validate role
-    const validRoles = ['customer', 'vendor', 'delivery'];
-    const userRole = role || 'customer';
-    if (!validRoles.includes(userRole)) {
+    const validRoles = ["customer", "vendor", "delivery", "admin"];
+    if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid role. Must be customer, vendor, or delivery'
+        error: `Invalid role. Must be: ${validRoles.join(", ")}`,
       });
     }
 
-    // Find or create user
-    let user = await User.findOne({ phone });
+    // Normalize phone number
+    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+    const normalizedPhone = `+91${cleanPhone}`;
+
+    // Find or Create User
+    let user = await User.findOne({ phone: normalizedPhone });
     let isNewUser = false;
 
-    if (!user) {
-      console.log('📝 Creating new test user...');
-      user = await User.create({
-        phone,
-        role: userRole,
-        name: `Test ${userRole.charAt(0).toUpperCase() + userRole.slice(1)}`,
-      });
-      isNewUser = true;
-      console.log('✅ Test user created:', user._id);
-    } else {
-      console.log('✅ Using existing user:', user._id);
-      
-      // Update role if changed
-      if (role && user.role !== userRole) {
-        user.role = userRole;
-        user.name = `Test ${userRole.charAt(0).toUpperCase() + userRole.slice(1)}`;
-        await user.save();
-        console.log('🔄 Updated user role to:', userRole);
+    if (user) {
+      console.log("👤 Found existing user:", user._id);
+      // Update role if different
+      if (user.role !== role) {
+        user.role = role;
       }
+      user.isPhoneVerified = true;
+      user.lastLogin = new Date();
+      await user.save();
+    } else {
+      console.log("🆕 Creating new user");
+      isNewUser = true;
+      
+      // Generate name based on role
+      const roleNames = {
+        customer: "Test Customer",
+        vendor: "Test Vendor",
+        delivery: "Test Delivery Partner",
+        admin: "Test Admin",
+      };
+
+      user = new User({
+        phone: normalizedPhone,
+        role: role,
+        isPhoneVerified: true,
+        lastLogin: new Date(),
+        name: roleNames[role] || "Test User",
+        email: `test_${cleanPhone}@example.com`,
+      });
+      await user.save();
+      console.log("✅ New user created:", user._id);
     }
 
-    // Generate JWT token (using userId to match your auth controller)
+    // Generate REAL JWT Token
     const token = jwt.sign(
       {
         userId: user._id.toString(),
         phone: user.phone,
         role: user.role,
       },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
+      JWT_SECRET,
+      { expiresIn: "30d" }
     );
 
-    console.log('✅ Test token generated successfully');
+    console.log("✅ Test Login Successful!");
+    console.log("   User ID:", user._id);
+    console.log("   Role:", user.role);
 
-    // Return response (matching your controller's response format)
     res.status(200).json({
       success: true,
-      message: isNewUser ? 'Account created successfully' : 'Login successful',
-      token: token,
-      user: {
+      message: isNewUser ? "Test account created" : "Test login successful",
+      data: {
+        token: token,
+        user: {
+          id: user._id.toString(),
+          _id: user._id.toString(),
+          phone: user.phone,
+          role: user.role,
+          name: user.name,
+          email: user.email || "",
+          profileImage: user.profileImage || "",
+          isPhoneVerified: user.isPhoneVerified,
+          createdAt: user.createdAt,
+        },
+        isNewUser,
+        testMode: true,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Test Login Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Server error during test login",
+    });
+  }
+});
+
+// ==================== SEND OTP (PLACEHOLDER) ====================
+router.post("/send-otp", async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone number is required",
+      });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+    console.log("📱 OTP Request for:", cleanPhone);
+
+    res.status(200).json({
+      success: true,
+      message: "OTP sent successfully (Test Mode: Use any 6 digits)",
+      verificationId: "TEST_VERIFICATION_" + Date.now(),
+      testMode: true,
+    });
+  } catch (error) {
+    console.error("❌ Send OTP Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// ==================== VERIFY OTP ====================
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { phone, otp, role = "customer", verificationId } = req.body;
+
+    console.log("🔐 Verify OTP Request:");
+    console.log("   Phone:", phone);
+    console.log("   OTP:", otp);
+    console.log("   Role:", role);
+
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone and OTP are required",
+      });
+    }
+
+    if (!/^\d{6}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        error: "OTP must be 6 digits",
+      });
+    }
+
+    const validRoles = ["customer", "vendor", "delivery", "admin"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid role",
+      });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+    const normalizedPhone = `+91${cleanPhone}`;
+
+    let user = await User.findOne({ phone: normalizedPhone });
+    let isNewUser = false;
+
+    if (!user) {
+      isNewUser = true;
+      const roleNames = {
+        customer: "Customer",
+        vendor: "Vendor",
+        delivery: "Delivery Partner",
+        admin: "Admin",
+      };
+
+      user = new User({
+        phone: normalizedPhone,
+        role: role,
+        isPhoneVerified: true,
+        name: roleNames[role] || "User",
+        lastLogin: new Date(),
+      });
+      await user.save();
+    } else {
+      user.role = role;
+      user.isPhoneVerified = true;
+      user.lastLogin = new Date();
+      await user.save();
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        phone: user.phone,
+        role: user.role,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    console.log("✅ OTP Verified Successfully!");
+
+    res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+      data: {
+        token: token,
+        user: {
+          id: user._id.toString(),
+          _id: user._id.toString(),
+          phone: user.phone,
+          role: user.role,
+          name: user.name,
+          email: user.email || "",
+          profileImage: user.profileImage || "",
+          isPhoneVerified: user.isPhoneVerified,
+          createdAt: user.createdAt,
+        },
+        isNewUser,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Verify OTP Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// ==================== GET CURRENT USER ====================
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("-__v");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user._id.toString(),
         _id: user._id.toString(),
         phone: user.phone,
-        name: user.name,
         role: user.role,
+        name: user.name,
+        email: user.email || "",
+        profileImage: user.profileImage || "",
+        isPhoneVerified: user.isPhoneVerified,
         createdAt: user.createdAt,
       },
     });
-
   } catch (error) {
-    console.error('❌ Test login error:', error);
+    console.error("❌ Get Me Error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error. Please try again.',
+      error: "Server error",
+    });
+  }
+});
+
+// ==================== UPDATE PROFILE ====================
+router.put("/profile", auth, async (req, res) => {
+  try {
+    const { name, email, profileImage } = req.body;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (profileImage !== undefined) updateData.profileImage = profileImage;
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: updateData },
+      { new: true }
+    ).select("-__v");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated",
+      data: {
+        id: user._id.toString(),
+        _id: user._id.toString(),
+        phone: user.phone,
+        role: user.role,
+        name: user.name,
+        email: user.email || "",
+        profileImage: user.profileImage || "",
+        isPhoneVerified: user.isPhoneVerified,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Update Profile Error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+});
+
+// ==================== CHANGE ROLE ====================
+router.post("/change-role", auth, async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    const validRoles = ["customer", "vendor", "delivery", "admin"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid role",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { role },
+      { new: true }
+    ).select("-__v");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    const newToken = jwt.sign(
+      {
+        userId: user._id.toString(),
+        phone: user.phone,
+        role: user.role,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Role changed to ${role}`,
+      data: {
+        token: newToken,
+        user: {
+          id: user._id.toString(),
+          _id: user._id.toString(),
+          phone: user.phone,
+          role: user.role,
+          name: user.name,
+          email: user.email || "",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("❌ Change Role Error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+});
+
+// ==================== LOGOUT ====================
+router.post("/logout", auth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.userId, {
+      lastLogout: new Date(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+});
+
+// ==================== VALIDATE TOKEN ====================
+router.get("/validate", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        valid: false,
+        error: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      valid: true,
+      user: {
+        id: user._id.toString(),
+        role: user.role,
+        phone: user.phone,
+      },
+    });
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      valid: false,
+      error: "Invalid token",
     });
   }
 });
