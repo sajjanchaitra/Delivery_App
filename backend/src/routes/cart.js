@@ -49,7 +49,7 @@ try {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
       req.user = { id: decoded.id || decoded.userId || decoded._id };
-      req.userId = req.user.id;
+      // req.userId = req.userId;
       next();
     } catch (error) {
       res.status(401).json({ success: false, error: 'Invalid token' });
@@ -64,9 +64,9 @@ router.use(auth);
 // ============================================
 router.get('/', async (req, res) => {
   try {
-    console.log('🛒 GET /api/cart - User:', req.user.id);
+    console.log('🛒 GET /api/cart - User:', req.userId);
     
-    let cart = await Cart.findOne({ user: req.user.id })
+    let cart = await Cart.findOne({ user: req.userId })
       .populate({
         path: 'items.product',
         select: 'name images price discountPrice salePrice unit quantity inStock stock'
@@ -97,7 +97,7 @@ router.get('/', async (req, res) => {
 router.post('/add', async (req, res) => {
   try {
     const { productId, quantity = 1 } = req.body;
-    console.log('🛒 POST /api/cart/add:', { productId, quantity, user: req.user.id });
+    console.log('🛒 POST /api/cart/add:', { productId, quantity, user: req.userId });
 
     if (!productId) {
       return res.status(400).json({ success: false, error: 'Product ID is required' });
@@ -115,11 +115,11 @@ router.post('/add', async (req, res) => {
     }
 
     // Find or create cart
-    let cart = await Cart.findOne({ user: req.user.id });
+    let cart = await Cart.findOne({ user: req.userId });
 
     if (!cart) {
       cart = new Cart({
-        user: req.user.id,
+        user: req.userId,
         store: product.store,
         items: []
       });
@@ -180,7 +180,7 @@ router.post('/update', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Product ID and quantity are required' });
     }
 
-    let cart = await Cart.findOne({ user: req.user.id });
+    let cart = await Cart.findOne({ user: req.userId });
 
     if (!cart) {
       return res.status(404).json({ success: false, error: 'Cart not found' });
@@ -233,7 +233,7 @@ router.post('/remove', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Product ID is required' });
     }
 
-    let cart = await Cart.findOne({ user: req.user.id });
+    let cart = await Cart.findOne({ user: req.userId });
 
     if (!cart) {
       return res.status(404).json({ success: false, error: 'Cart not found' });
@@ -267,10 +267,10 @@ router.post('/remove', async (req, res) => {
 // ============================================
 router.post('/clear', async (req, res) => {
   try {
-    console.log('🛒 POST /api/cart/clear - User:', req.user.id);
+    console.log('🛒 POST /api/cart/clear - User:', req.userId);
 
     const cart = await Cart.findOneAndUpdate(
-      { user: req.user.id },
+      { user: req.userId },
       { items: [], store: null },
       { new: true }
     );
