@@ -1,4 +1,3 @@
-// app/(vendor)/products.tsx
 import {
   View,
   Text,
@@ -12,16 +11,18 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_URL = "http://13.203.206.134:5000"; // Update with your backend URL
+const API_URL = "http://13.203.206.134:5000";
 
 export default function VendorProducts() {
   const router = useRouter();
+
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,9 +42,11 @@ export default function VendorProducts() {
     "Seafood",
   ];
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [])
+  );
 
   useEffect(() => {
     filterProducts();
@@ -53,26 +56,21 @@ export default function VendorProducts() {
     try {
       const token = await AsyncStorage.getItem("authToken");
 
-      // Use the vendor routes - GET /api/vendor/products
-      const response = await fetch(
-        `${API_URL}/api/vendor/products?category=${selectedCategory !== "all" ? selectedCategory : ""}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_URL}/api/vendor/products`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setProducts(data.products || []);
       } else {
-        Alert.alert("Error", data.error || "Failed to fetch products");
+        console.log("Error fetching products:", data.error);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
-      Alert.alert("Error", "Failed to fetch products");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,18 +86,17 @@ export default function VendorProducts() {
 
     if (searchQuery) {
       filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
+        (p.name || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     setFilteredProducts(filtered);
   };
 
-  const toggleProductStock = async (productId, currentStock) => {
+  const toggleProductStock = async (productId) => {
     try {
       const token = await AsyncStorage.getItem("authToken");
 
-      // Use vendor route - PATCH /api/vendor/products/:id/stock
       const response = await fetch(
         `${API_URL}/api/vendor/products/${productId}/stock`,
         {
@@ -111,7 +108,7 @@ export default function VendorProducts() {
       );
 
       const data = await response.json();
-      
+
       if (data.success) {
         setProducts(
           products.map((p) =>
@@ -140,7 +137,6 @@ export default function VendorProducts() {
             try {
               const token = await AsyncStorage.getItem("authToken");
 
-              // Use vendor route - DELETE /api/vendor/products/:id (soft delete)
               const response = await fetch(
                 `${API_URL}/api/vendor/products/${productId}`,
                 {
@@ -152,7 +148,7 @@ export default function VendorProducts() {
               );
 
               const data = await response.json();
-              
+
               if (data.success) {
                 setProducts(products.filter((p) => p._id !== productId));
                 Alert.alert("Success", "Product deleted successfully");
@@ -195,7 +191,9 @@ export default function VendorProducts() {
           >
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
+
           <Text style={styles.headerTitle}>My Products</Text>
+
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => router.push("/(vendor)/add-product")}
@@ -302,11 +300,13 @@ export default function VendorProducts() {
                     <Text style={styles.productEmoji}>🛒</Text>
                   )}
                 </View>
+
                 <View style={styles.productInfo}>
                   <Text style={styles.productName} numberOfLines={1}>
                     {product.name}
                   </Text>
                   <Text style={styles.productCategory}>{product.category}</Text>
+
                   <View style={styles.productMeta}>
                     <View style={styles.priceContainer}>
                       {product.discountPrice ? (
@@ -322,6 +322,7 @@ export default function VendorProducts() {
                         <Text style={styles.productPrice}>₹{product.price}</Text>
                       )}
                     </View>
+
                     <Text style={styles.productStock}>
                       {product.inStock
                         ? `${product.stockQuantity} ${product.unit}`
@@ -339,9 +340,7 @@ export default function VendorProducts() {
                       ? styles.statusButtonActive
                       : styles.statusButtonInactive,
                   ]}
-                  onPress={() =>
-                    toggleProductStock(product._id, product.inStock)
-                  }
+                  onPress={() => toggleProductStock(product._id)}
                 >
                   <Text
                     style={[
@@ -358,12 +357,11 @@ export default function VendorProducts() {
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => {
-                      Alert.alert("Edit", "Edit feature coming soon!");
-                    }}
+                    onPress={() => Alert.alert("Edit", "Edit feature coming soon!")}
                   >
                     <Ionicons name="create-outline" size={20} color="#3B82F6" />
                   </TouchableOpacity>
+
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => deleteProduct(product._id)}

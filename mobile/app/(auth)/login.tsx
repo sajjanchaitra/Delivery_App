@@ -1,5 +1,4 @@
 // app/(auth)/login.tsx
-// FIXED: Removed expo-firebase-recaptcha which causes crash
 import {
   View,
   Text,
@@ -15,17 +14,18 @@ import {
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_URL = "http://13.203.206.134:5000";
+// Test mode flag - set to false for production Firebase OTP
+const ENABLE_TEST_MODE = true;
 
 export default function Login() {
-  const router = useRouter();
-  const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState(false);
 
-  const handleSendOtp = async () => {
+  const router = useRouter();
+  const [phone, setPhone] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [focused, setFocused] = useState<boolean>(false);
+
+  const handleContinue = async (): Promise<void> => {
     const cleanPhone = phone.replace(/\D/g, "");
     
     if (cleanPhone.length !== 10) {
@@ -36,33 +36,22 @@ export default function Login() {
     setLoading(true);
 
     try {
-      console.log("📱 Sending OTP to:", `+91${cleanPhone}`);
+      // Simulate delay
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
 
-      // Call backend to send OTP
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: cleanPhone }),
+      console.log("📱 Continuing with phone:", cleanPhone);
+      
+      // Navigate to OTP screen
+      router.push({
+        pathname: "/(auth)/otp",
+        params: {
+          phone: cleanPhone,
+          testMode: ENABLE_TEST_MODE ? "true" : "false",
+        },
       });
-
-      const data = await response.json();
-      console.log("OTP Response:", data);
-
-      if (data.success) {
-        console.log("✅ OTP Sent!");
-        router.push({
-          pathname: "/(auth)/otp",
-          params: {
-            phone: cleanPhone,
-            verificationId: data.verificationId || data.sessionId || "backend",
-          },
-        });
-      } else {
-        Alert.alert("Error", data.message || data.error || "Failed to send OTP");
-      }
     } catch (error) {
-      console.error("❌ Error sending OTP:", error);
-      Alert.alert("Error", "Failed to send OTP. Please check your connection.");
+      console.error("❌ Error:", error);
+      Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,15 +75,28 @@ export default function Login() {
 
         <View style={styles.header}>
           <Text style={styles.title}>{"Enter your mobile\nnumber"}</Text>
-          <Text style={styles.subtitle}>{"We will send you a verification code"}</Text>
+          <Text style={styles.subtitle}>
+            {ENABLE_TEST_MODE 
+              ? "🧪 Test Mode - Any 6-digit OTP works" 
+              : "We will send you a verification code"}
+          </Text>
         </View>
 
+        {ENABLE_TEST_MODE && (
+          <View style={styles.testBanner}>
+            <Ionicons name="flask" size={16} color="#F59E0B" />
+            <Text style={styles.testBannerText}>
+              Testing Mode Active
+            </Text>
+          </View>
+        )}
+
         <View style={styles.inputSection}>
-          <Text style={styles.label}>{"Phone Number"}</Text>
+          <Text style={styles.label}>Phone Number</Text>
           <View style={[styles.inputContainer, focused && styles.inputFocused]}>
             <View style={styles.countryCode}>
-              <Text style={styles.flag}>{"🇮🇳"}</Text>
-              <Text style={styles.code}>{"+91"}</Text>
+              <Text style={styles.flag}>🇮🇳</Text>
+              <Text style={styles.code}>+91</Text>
               <Ionicons name="chevron-down" size={16} color="#94A3B8" />
             </View>
 
@@ -107,35 +109,35 @@ export default function Login() {
               keyboardType="phone-pad"
               maxLength={10}
               value={phone}
-              onChangeText={(text) => setPhone(text.replace(/\D/g, ""))}
+              onChangeText={(text: string) => setPhone(text.replace(/\D/g, ""))}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
             />
 
-            {phone.length === 10 ? (
+            {phone.length === 10 && (
               <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
-            ) : null}
+            )}
           </View>
         </View>
 
         <TouchableOpacity
           style={[styles.button, phone.length < 10 && styles.buttonDisabled]}
-          onPress={handleSendOtp}
+          onPress={handleContinue}
           disabled={phone.length < 10 || loading}
           activeOpacity={0.8}
         >
           {loading ? (
             <ActivityIndicator color="#FFF" size="small" />
           ) : (
-            <Text style={styles.buttonText}>{"Send OTP"}</Text>
+            <Text style={styles.buttonText}>Continue</Text>
           )}
         </TouchableOpacity>
 
         <Text style={styles.termsText}>
-          <Text>{"By continuing, you agree to our "}</Text>
-          <Text style={styles.termsLink}>{"Terms of Service"}</Text>
-          <Text>{" & "}</Text>
-          <Text style={styles.termsLink}>{"Privacy Policy"}</Text>
+          By continuing, you agree to our{" "}
+          <Text style={styles.termsLink}>Terms of Service</Text>
+          {" & "}
+          <Text style={styles.termsLink}>Privacy Policy</Text>
         </Text>
       </KeyboardAvoidingView>
     </View>
@@ -143,24 +145,125 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 50 },
-  backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#F8FAFC", justifyContent: "center", alignItems: "center", marginBottom: 24 },
-  header: { marginBottom: 32 },
-  title: { fontSize: 28, fontWeight: "700", color: "#1E293B", lineHeight: 36, marginBottom: 8 },
-  subtitle: { fontSize: 15, color: "#64748B" },
-  inputSection: { marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: "600", color: "#334155", marginBottom: 10 },
-  inputContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, borderWidth: 1.5, borderColor: "#E2E8F0", paddingHorizontal: 16, height: 56 },
-  inputFocused: { borderColor: "#22C55E", backgroundColor: "#FFFFFF" },
-  countryCode: { flexDirection: "row", alignItems: "center", gap: 6 },
-  flag: { fontSize: 20 },
-  code: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
-  divider: { width: 1, height: 28, backgroundColor: "#E2E8F0", marginHorizontal: 14 },
-  input: { flex: 1, fontSize: 16, color: "#1E293B", fontWeight: "500" },
-  button: { backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 16, alignItems: "center", justifyContent: "center", marginBottom: 20 },
-  buttonDisabled: { backgroundColor: "#CBD5E1" },
-  buttonText: { fontSize: 16, fontWeight: "600", color: "#FFFFFF" },
-  termsText: { fontSize: 13, color: "#94A3B8", textAlign: "center", lineHeight: 20 },
-  termsLink: { color: "#22C55E", fontWeight: "600" },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#FFFFFF" 
+  },
+  content: { 
+    flex: 1, 
+    paddingHorizontal: 24, 
+    paddingTop: 50 
+  },
+  backButton: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
+    backgroundColor: "#F8FAFC", 
+    justifyContent: "center", 
+    alignItems: "center", 
+    marginBottom: 24 
+  },
+  header: { 
+    marginBottom: 32 
+  },
+  title: { 
+    fontSize: 28, 
+    fontWeight: "700", 
+    color: "#1E293B", 
+    lineHeight: 36, 
+    marginBottom: 8 
+  },
+  subtitle: { 
+    fontSize: 15, 
+    color: "#64748B" 
+  },
+  testBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 8,
+  },
+  testBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  inputSection: { 
+    marginBottom: 24 
+  },
+  label: { 
+    fontSize: 14, 
+    fontWeight: "600", 
+    color: "#334155", 
+    marginBottom: 10 
+  },
+  inputContainer: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: "#F8FAFC", 
+    borderRadius: 12, 
+    borderWidth: 1.5, 
+    borderColor: "#E2E8F0", 
+    paddingHorizontal: 16, 
+    height: 56 
+  },
+  inputFocused: { 
+    borderColor: "#22C55E", 
+    backgroundColor: "#FFFFFF" 
+  },
+  countryCode: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 6 
+  },
+  flag: { 
+    fontSize: 20 
+  },
+  code: { 
+    fontSize: 16, 
+    fontWeight: "600", 
+    color: "#1E293B" 
+  },
+  divider: { 
+    width: 1, 
+    height: 28, 
+    backgroundColor: "#E2E8F0", 
+    marginHorizontal: 14 
+  },
+  input: { 
+    flex: 1, 
+    fontSize: 16, 
+    color: "#1E293B", 
+    fontWeight: "500" 
+  },
+  button: { 
+    backgroundColor: "#22C55E", 
+    borderRadius: 12, 
+    paddingVertical: 16, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    marginBottom: 20 
+  },
+  buttonDisabled: { 
+    backgroundColor: "#CBD5E1" 
+  },
+  buttonText: { 
+    fontSize: 16, 
+    fontWeight: "600", 
+    color: "#FFFFFF" 
+  },
+  termsText: { 
+    fontSize: 13, 
+    color: "#94A3B8", 
+    textAlign: "center", 
+    lineHeight: 20 
+  },
+  termsLink: { 
+    color: "#22C55E", 
+    fontWeight: "600" 
+  },
 });

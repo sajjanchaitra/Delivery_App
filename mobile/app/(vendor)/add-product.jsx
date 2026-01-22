@@ -1,4 +1,3 @@
-// app/(vendor)/add-product.tsx
 import {
   View,
   Text,
@@ -19,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 
-const API_URL = "http://13.203.206.134:5000"; // Update with your backend URL
+const API_URL = "http://13.203.206.134:5000";
 
 export default function AddProduct() {
   const router = useRouter();
@@ -52,93 +51,78 @@ export default function AddProduct() {
   const units = ["kg", "g", "ml", "l", "piece", "dozen", "pack", "box"];
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission Needed",
-        "Please grant camera roll permissions to upload images"
-      );
-      return;
-    }
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Needed",
+          "Please grant camera roll permissions to upload images"
+        );
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setFormData({ ...formData, images: [result.assets[0].uri] });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setFormData({ ...formData, images: [result.assets[0].uri] });
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image");
     }
   };
 
   const uploadImage = async (imageUri) => {
     setImageLoading(true);
     try {
-      console.log('📤 Starting upload for:', imageUri);
-      
+      console.log("📤 Starting upload for:", imageUri);
+
       const formDataImg = new FormData();
-      
-      // Handle iOS and Android differently
-      let uri = imageUri;
-      if (Platform.OS === 'ios') {
-        // Remove file:// prefix for iOS if present
-        uri = imageUri.replace('file://', '');
-      }
-      
-      // Get filename and file type
-      const filename = uri.split('/').pop();
+
+      const filename = imageUri.split("/").pop() || `product-${Date.now()}.jpg`;
       const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
-      
+      const type = match ? `image/${match[1]}` : "image/jpeg";
+
       formDataImg.append("image", {
-        uri: uri,
-        type: type,
-        name: filename || `product-${Date.now()}.jpg`,
+        uri: Platform.OS === "ios" ? imageUri.replace("file://", "") : imageUri,
+        type,
+        name: filename,
       });
 
-      console.log('📤 Uploading to:', `${API_URL}/api/upload`);
-      
+      console.log("📤 Uploading to:", `${API_URL}/api/upload`);
+
       const response = await fetch(`${API_URL}/api/upload`, {
         method: "POST",
         body: formDataImg,
         headers: {
-          'Accept': 'application/json',
-          // Don't set Content-Type for FormData - let it be set automatically
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
         },
       });
 
-      console.log('📥 Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Upload failed:', errorText);
-        throw new Error(`Upload failed: ${response.status}`);
-      }
+      console.log("📥 Response status:", response.status);
 
       const data = await response.json();
-      console.log('✅ Upload response:', data);
-      
-      if (data.success) {
+      console.log("✅ Upload response:", data);
+
+      if (data.success && data.imageUrl) {
         return data.imageUrl;
       }
-      
-      throw new Error(data.error || 'Upload failed');
-      
+
+      throw new Error(data.error || "Upload failed");
     } catch (error) {
       console.error("❌ Image upload error:", error);
-      
-      if (error.message.includes('Network request failed')) {
-        Alert.alert(
-          'Network Error',
-          'Cannot connect to server. Please check your internet connection.'
-        );
-      } else {
-        Alert.alert('Upload Error', error.message);
+
+      if (error?.message?.includes("Network request failed")) {
+        console.log("Network error - continuing without image");
       }
-      
+
       return null;
     } finally {
       setImageLoading(false);
@@ -176,45 +160,18 @@ export default function AddProduct() {
     try {
       const token = await AsyncStorage.getItem("authToken");
 
-      // Upload image if exists
       let uploadedImages = [];
       if (formData.images.length > 0) {
-        console.log('🖼️ Uploading image...');
+        console.log("🖼️ Uploading image...");
         const imageUrl = await uploadImage(formData.images[0]);
         if (imageUrl) {
           uploadedImages.push(imageUrl);
-          console.log('✅ Image uploaded:', imageUrl);
+          console.log("✅ Image uploaded:", imageUrl);
         } else {
-          Alert.alert(
-            'Image Upload Failed',
-            'Do you want to continue without an image?',
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-                onPress: () => setLoading(false),
-              },
-              {
-                text: 'Continue',
-                onPress: () => submitProduct(token, uploadedImages),
-              },
-            ]
-          );
-          return;
+          console.log("⚠️ Continuing without image");
         }
       }
 
-      await submitProduct(token, uploadedImages);
-    } catch (error) {
-      console.error("❌ Add product error:", error);
-      Alert.alert("Error", "Failed to add product. Please try again.");
-      setLoading(false);
-    }
-  };
-
-  const submitProduct = async (token, uploadedImages) => {
-    try {
-      // Prepare product data matching your backend model
       const productData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -231,9 +188,8 @@ export default function AddProduct() {
         isActive: true,
       };
 
-      console.log('📦 Submitting product:', productData);
+      console.log("📦 Submitting product:", productData);
 
-      // Use vendor route - POST /api/vendor/products
       const response = await fetch(`${API_URL}/api/vendor/products`, {
         method: "POST",
         headers: {
@@ -244,7 +200,7 @@ export default function AddProduct() {
       });
 
       const data = await response.json();
-      console.log('📥 Product response:', data);
+      console.log("📥 Product response:", data);
 
       if (data.success) {
         Alert.alert("Success", "Product added successfully!", [
@@ -257,8 +213,8 @@ export default function AddProduct() {
         Alert.alert("Error", data.error || "Failed to add product");
       }
     } catch (error) {
-      console.error("❌ Submit product error:", error);
-      throw error;
+      console.error("❌ Add product error:", error);
+      Alert.alert("Error", "Failed to add product. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -268,7 +224,6 @@ export default function AddProduct() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
 
-      {/* Header */}
       <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
@@ -282,15 +237,11 @@ export default function AddProduct() {
         </View>
       </LinearGradient>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Image Upload */}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.label}>Product Image</Text>
-          <TouchableOpacity 
-            style={styles.imageUpload} 
+          <Text style={styles.label}>Product Image (Optional)</Text>
+          <TouchableOpacity
+            style={styles.imageUpload}
             onPress={pickImage}
             disabled={imageLoading}
           >
@@ -313,10 +264,17 @@ export default function AddProduct() {
               </View>
             )}
           </TouchableOpacity>
+
+          {formData.images.length > 0 && (
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => setFormData({ ...formData, images: [] })}
+            >
+              <Text style={styles.removeImageText}>Remove Image</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Rest of your form fields remain the same */}
-        {/* Product Name */}
         <View style={styles.section}>
           <Text style={styles.label}>Product Name *</Text>
           <TextInput
@@ -328,7 +286,6 @@ export default function AddProduct() {
           />
         </View>
 
-        {/* Description */}
         <View style={styles.section}>
           <Text style={styles.label}>Description</Text>
           <TextInput
@@ -345,7 +302,6 @@ export default function AddProduct() {
           />
         </View>
 
-        {/* Category */}
         <View style={styles.section}>
           <Text style={styles.label}>Category *</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -355,8 +311,7 @@ export default function AddProduct() {
                   key={category}
                   style={[
                     styles.categoryChip,
-                    formData.category === category &&
-                      styles.categoryChipActive,
+                    formData.category === category && styles.categoryChipActive,
                   ]}
                   onPress={() => setFormData({ ...formData, category })}
                 >
@@ -375,7 +330,6 @@ export default function AddProduct() {
           </ScrollView>
         </View>
 
-        {/* Price & Discount Price */}
         <View style={styles.row}>
           <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
             <Text style={styles.label}>Price (₹) *</Text>
@@ -388,6 +342,7 @@ export default function AddProduct() {
               keyboardType="decimal-pad"
             />
           </View>
+
           <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
             <Text style={styles.label}>Discount Price (₹)</Text>
             <TextInput
@@ -403,7 +358,6 @@ export default function AddProduct() {
           </View>
         </View>
 
-        {/* Quantity & Unit */}
         <View style={styles.row}>
           <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
             <Text style={styles.label}>Quantity *</Text>
@@ -418,6 +372,7 @@ export default function AddProduct() {
               keyboardType="decimal-pad"
             />
           </View>
+
           <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
             <Text style={styles.label}>Unit *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -446,7 +401,6 @@ export default function AddProduct() {
           </View>
         </View>
 
-        {/* Stock Quantity */}
         <View style={styles.section}>
           <Text style={styles.label}>Stock Quantity *</Text>
           <TextInput
@@ -467,7 +421,6 @@ export default function AddProduct() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Submit Button */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
@@ -497,9 +450,7 @@ export default function AddProduct() {
   );
 }
 
-// Styles remain the same
 const styles = StyleSheet.create({
-  // ... (keep all your existing styles)
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
@@ -577,6 +528,16 @@ const styles = StyleSheet.create({
   uploadedImage: {
     width: "100%",
     height: "100%",
+  },
+  removeImageButton: {
+    alignSelf: "center",
+    marginTop: 8,
+    padding: 8,
+  },
+  removeImageText: {
+    fontSize: 14,
+    color: "#EF4444",
+    fontWeight: "600",
   },
   categoryGrid: {
     flexDirection: "row",

@@ -1,4 +1,3 @@
-// app/(vendor)/home.tsx
 import {
   View,
   Text,
@@ -9,10 +8,10 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,7 +27,8 @@ export default function VendorHome() {
   const [greeting, setGreeting] = useState("Good Morning");
   const [hasStore, setHasStore] = useState(false);
   const [storeData, setStoreData] = useState(null);
-const [dashboardStats, setDashboardStats] = useState(null);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [userName, setUserName] = useState("Vendor");
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -36,48 +36,54 @@ const [dashboardStats, setDashboardStats] = useState(null);
     else if (hour < 17) setGreeting("Good Afternoon");
     else setGreeting("Good Evening");
 
-    checkStoreAndFetchData();
+    loadUserData();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkStoreAndFetchData();
+    }, [])
+  );
+
+  const loadUserData = async () => {
+    try {
+      const userData = await AsyncStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        setUserName(user.name || "Vendor");
+      }
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
 
   const checkStoreAndFetchData = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
-      
+
+      if (!token) {
+        router.replace("/(auth)/login");
+        return;
+      }
+
       // Check if vendor has a store
       const storeResponse = await fetch(`${API_URL}/api/vendor/store`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      const storeData = await storeResponse.json();
-      console.log("Store check:", storeData);
+      const storeResult = await storeResponse.json();
+      console.log("Store check:", storeResult);
 
-      if (!storeData.hasStore) {
+      if (!storeResult.hasStore) {
         setHasStore(false);
         setLoading(false);
-        // Show setup prompt
-        setTimeout(() => {
-          Alert.alert(
-            "Setup Your Store",
-            "Create your store to start selling products",
-            [
-              {
-                text: "Setup Now",
-                onPress: () => router.push("/(vendor)/store-setup"),
-              },
-              {
-                text: "Later",
-                style: "cancel",
-              },
-            ]
-          );
-        }, 500);
         return;
       }
 
       setHasStore(true);
-      setStoreData(storeData.store);
-      setStoreActive(storeData.store.isOpen);
+      setStoreData(storeResult.store);
+      setStoreActive(storeResult.store?.isOpen ?? true);
 
       // Fetch dashboard stats
       const dashboardResponse = await fetch(`${API_URL}/api/vendor/dashboard`, {
@@ -109,7 +115,7 @@ const [dashboardStats, setDashboardStats] = useState(null);
         },
       });
       const data = await response.json();
-      
+
       if (data.success) {
         setStoreActive(data.isOpen);
       }
@@ -124,21 +130,51 @@ const [dashboardStats, setDashboardStats] = useState(null);
   };
 
   const quickActions = [
-    { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
-    { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
-    { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
-    { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup" },
+    {
+      id: "1",
+      label: "Add Product",
+      icon: "add-circle",
+      color: "#22C55E",
+      route: "/(vendor)/add-product",
+    },
+    {
+      id: "2",
+      label: "My Products",
+      icon: "cube",
+      color: "#3B82F6",
+      route: "/(vendor)/products",
+    },
+    {
+      id: "3",
+      label: "All Orders",
+      icon: "receipt",
+      color: "#F59E0B",
+      route: "/(vendor)/orders",
+    },
+    {
+      id: "4",
+      label: "Store Setup",
+      icon: "storefront",
+      color: "#8B5CF6",
+      route: "/(vendor)/store-setup",
+    },
   ];
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
         <ActivityIndicator size="large" color="#22C55E" />
         <Text style={{ marginTop: 12, color: "#64748B" }}>Loading...</Text>
       </View>
     );
   }
 
+  // No Store State
   if (!hasStore) {
     return (
       <View style={styles.container}>
@@ -151,9 +187,16 @@ const [dashboardStats, setDashboardStats] = useState(null);
               </View>
               <View style={styles.greetingContainer}>
                 <Text style={styles.greetingText}>{greeting} 👋</Text>
-                <Text style={styles.storeName}>Welcome Vendor</Text>
+                <Text style={styles.storeName}>{userName}</Text>
               </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => router.push("/(vendor)/profile")}
+            >
+              <Ionicons name="person-outline" size={24} color="#FFF" />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -163,13 +206,18 @@ const [dashboardStats, setDashboardStats] = useState(null);
           </View>
           <Text style={styles.emptyStateTitle}>Setup Your Store</Text>
           <Text style={styles.emptyStateText}>
-            Create your store profile to start selling products and receiving orders
+            Create your store profile to start selling products and receiving
+            orders
           </Text>
+
           <TouchableOpacity
             style={styles.setupButton}
             onPress={() => router.push("/(vendor)/store-setup")}
           >
-            <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.setupButtonGradient}>
+            <LinearGradient
+              colors={["#22C55E", "#16A34A"]}
+              style={styles.setupButtonGradient}
+            >
               <Ionicons name="storefront" size={20} color="#FFF" />
               <Text style={styles.setupButtonText}>Setup Store Now</Text>
             </LinearGradient>
@@ -202,15 +250,24 @@ const [dashboardStats, setDashboardStats] = useState(null);
             </View>
             <View style={styles.greetingContainer}>
               <Text style={styles.greetingText}>{greeting} 👋</Text>
-              <Text style={styles.storeName}>{storeData?.name || "Your Store"}</Text>
+              <Text style={styles.storeName}>
+                {storeData?.name || "Your Store"}
+              </Text>
             </View>
           </View>
+
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={24} color="#FFF" />
+              <Ionicons
+                name="notifications-outline"
+                size={24}
+                color="#FFF"
+              />
               {stats.pendingOrders > 0 && (
                 <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>{stats.pendingOrders}</Text>
+                  <Text style={styles.notifBadgeText}>
+                    {stats.pendingOrders}
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -220,7 +277,12 @@ const [dashboardStats, setDashboardStats] = useState(null);
         {/* Store Status Toggle */}
         <View style={styles.storeStatusCard}>
           <View style={styles.storeStatusLeft}>
-            <View style={[styles.statusDot, { backgroundColor: storeActive ? "#22C55E" : "#EF4444" }]} />
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: storeActive ? "#22C55E" : "#EF4444" },
+              ]}
+            />
             <View>
               <Text style={styles.storeStatusLabel}>Store Status</Text>
               <Text style={styles.storeStatusValue}>
@@ -228,8 +290,12 @@ const [dashboardStats, setDashboardStats] = useState(null);
               </Text>
             </View>
           </View>
+
           <TouchableOpacity
-            style={[styles.toggleButton, storeActive && styles.toggleButtonActive]}
+            style={[
+              styles.toggleButton,
+              storeActive && styles.toggleButtonActive,
+            ]}
             onPress={toggleStoreStatus}
             activeOpacity={0.8}
           >
@@ -254,8 +320,8 @@ const [dashboardStats, setDashboardStats] = useState(null);
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             colors={["#22C55E"]}
             tintColor="#22C55E"
@@ -266,7 +332,10 @@ const [dashboardStats, setDashboardStats] = useState(null);
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
             <View style={[styles.statCard, styles.statCardPrimary]}>
-              <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.statCardGradient}>
+              <LinearGradient
+                colors={["#22C55E", "#16A34A"]}
+                style={styles.statCardGradient}
+              >
                 <View style={styles.statIconContainer}>
                   <Ionicons name="cart" size={24} color="#FFF" />
                 </View>
@@ -274,24 +343,44 @@ const [dashboardStats, setDashboardStats] = useState(null);
                 <Text style={styles.statLabelLight}>Today's Orders</Text>
               </LinearGradient>
             </View>
+
             <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: "#FEF3C7" }]}>
+              <View
+                style={[
+                  styles.statIconContainer,
+                  { backgroundColor: "#FEF3C7" },
+                ]}
+              >
                 <Ionicons name="wallet" size={24} color="#F59E0B" />
               </View>
-              <Text style={styles.statValue}>₹{stats.todayRevenue?.toLocaleString() || 0}</Text>
+              <Text style={styles.statValue}>
+                ₹{stats.todayRevenue?.toLocaleString() || 0}
+              </Text>
               <Text style={styles.statLabel}>Today's Earnings</Text>
             </View>
           </View>
+
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: "#FEE2E2" }]}>
+              <View
+                style={[
+                  styles.statIconContainer,
+                  { backgroundColor: "#FEE2E2" },
+                ]}
+              >
                 <Ionicons name="time" size={24} color="#EF4444" />
               </View>
               <Text style={styles.statValue}>{stats.pendingOrders}</Text>
               <Text style={styles.statLabel}>Pending</Text>
             </View>
+
             <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: "#DBEAFE" }]}>
+              <View
+                style={[
+                  styles.statIconContainer,
+                  { backgroundColor: "#DBEAFE" },
+                ]}
+              >
                 <Ionicons name="cube" size={24} color="#3B82F6" />
               </View>
               <Text style={styles.statValue}>{stats.totalProducts}</Text>
@@ -300,7 +389,7 @@ const [dashboardStats, setDashboardStats] = useState(null);
           </View>
         </View>
 
-        {/* Monthly Earnings Banner */}
+        {/* Total Earnings Banner */}
         <TouchableOpacity style={styles.earningsBanner} activeOpacity={0.9}>
           <LinearGradient
             colors={["#1E293B", "#334155"]}
@@ -331,7 +420,12 @@ const [dashboardStats, setDashboardStats] = useState(null);
                 onPress={() => router.push(action.route)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}15` }]}>
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: `${action.color}15` },
+                  ]}
+                >
                   <Ionicons name={action.icon} size={26} color={action.color} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
@@ -350,22 +444,26 @@ const [dashboardStats, setDashboardStats] = useState(null);
               </TouchableOpacity>
             </View>
 
-           {dashboardStats.recentOrders.map((order) => (
-              <TouchableOpacity 
-                key={order._id} 
-                style={styles.orderCard} 
+            {dashboardStats.recentOrders.map((order) => (
+              <TouchableOpacity
+                key={order._id}
+                style={styles.orderCard}
                 activeOpacity={0.7}
-                onPress={() => router.push({
-                  pathname: "/(vendor)/order-details",
-                  params: { orderId: order._id }
-                })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(vendor)/order-details",
+                    params: { orderId: order._id },
+                  })
+                }
               >
                 <View style={styles.orderLeft}>
                   <View style={styles.orderIconContainer}>
                     <Ionicons name="receipt" size={20} color="#22C55E" />
                   </View>
                   <View style={styles.orderInfo}>
-                    <Text style={styles.orderNumber}>#{order._id.substring(0, 8)}</Text>
+                    <Text style={styles.orderNumber}>
+                      #{order._id?.substring(0, 8)}
+                    </Text>
                     <Text style={styles.orderCustomer}>
                       {order.customer?.name || "Customer"}
                     </Text>
@@ -374,10 +472,13 @@ const [dashboardStats, setDashboardStats] = useState(null);
                     </Text>
                   </View>
                 </View>
+
                 <View style={styles.orderRight}>
                   <Text style={styles.orderTotal}>₹{order.total}</Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>{order.status}</Text>
+                  <View style={[styles.statusBadge, getStatusStyle(order.status)]}>
+                    <Text style={[styles.statusText, getStatusTextStyle(order.status)]}>
+                      {order.status}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -385,13 +486,16 @@ const [dashboardStats, setDashboardStats] = useState(null);
           </View>
         )}
 
-        {/* Empty State for Orders */}
+        {/* Empty Orders */}
         {(!dashboardStats?.recentOrders || dashboardStats.recentOrders.length === 0) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Orders</Text>
             <View style={styles.emptyOrders}>
               <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyOrdersText}>No orders yet</Text>
+              <Text style={styles.emptyOrdersSubtext}>
+                Orders will appear here when customers place them
+              </Text>
             </View>
           </View>
         )}
@@ -408,23 +512,35 @@ const [dashboardStats, setDashboardStats] = useState(null);
           <Text style={[styles.navLabel, styles.navLabelActive]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/(vendor)/products")}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/(vendor)/products")}
+        >
           <Ionicons name="cube-outline" size={22} color="#94A3B8" />
           <Text style={styles.navLabel}>Products</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItemCenter} onPress={() => router.push("/(vendor)/add-product")}>
+        <TouchableOpacity
+          style={styles.navItemCenter}
+          onPress={() => router.push("/(vendor)/add-product")}
+        >
           <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.addButtonGradient}>
             <Ionicons name="add" size={28} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/(vendor)/orders")}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/(vendor)/orders")}
+        >
           <Ionicons name="receipt-outline" size={22} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/(vendor)/profile")}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/(vendor)/profile")}
+        >
           <Ionicons name="person-outline" size={22} color="#94A3B8" />
           <Text style={styles.navLabel}>Profile</Text>
         </TouchableOpacity>
@@ -433,11 +549,48 @@ const [dashboardStats, setDashboardStats] = useState(null);
   );
 }
 
+// Helper functions for status styling
+const getStatusStyle = (status) => {
+  switch (status?.toLowerCase()) {
+    case "pending":
+      return { backgroundColor: "#FEF3C7" };
+    case "confirmed":
+      return { backgroundColor: "#DBEAFE" };
+    case "preparing":
+      return { backgroundColor: "#E0E7FF" };
+    case "ready":
+      return { backgroundColor: "#D1FAE5" };
+    case "delivered":
+      return { backgroundColor: "#DCFCE7" };
+    case "cancelled":
+      return { backgroundColor: "#FEE2E2" };
+    default:
+      return { backgroundColor: "#F1F5F9" };
+  }
+};
+
+const getStatusTextStyle = (status) => {
+  switch (status?.toLowerCase()) {
+    case "pending":
+      return { color: "#D97706" };
+    case "confirmed":
+      return { color: "#2563EB" };
+    case "preparing":
+      return { color: "#4F46E5" };
+    case "ready":
+      return { color: "#059669" };
+    case "delivered":
+      return { color: "#16A34A" };
+    case "cancelled":
+      return { color: "#DC2626" };
+    default:
+      return { color: "#64748B" };
+  }
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+
   emptyStateContainer: {
     flex: 1,
     justifyContent: "center",
@@ -466,10 +619,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     lineHeight: 22,
   },
-  setupButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-  },
+  setupButton: { borderRadius: 14, overflow: "hidden" },
   setupButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
@@ -477,11 +627,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
   },
-  setupButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFF",
-  },
+  setupButtonText: { fontSize: 16, fontWeight: "700", color: "#FFF" },
+
   emptyOrders: {
     alignItems: "center",
     paddingVertical: 40,
@@ -490,10 +637,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   emptyOrdersText: {
-    fontSize: 14,
-    color: "#94A3B8",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#64748B",
     marginTop: 12,
   },
+  emptyOrdersSubtext: { fontSize: 13, color: "#94A3B8", marginTop: 4 },
+
   header: {
     paddingTop: 50,
     paddingHorizontal: 20,
@@ -507,10 +657,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  profileSection: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  profileSection: { flexDirection: "row", alignItems: "center" },
   avatar: {
     width: 48,
     height: 48,
@@ -519,28 +666,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFF",
-  },
-  greetingContainer: {
-    marginLeft: 12,
-  },
-  greetingText: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
-  },
-  storeName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFF",
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  avatarText: { fontSize: 18, fontWeight: "700", color: "#FFF" },
+  greetingContainer: { marginLeft: 12 },
+  greetingText: { fontSize: 13, color: "rgba(255,255,255,0.85)" },
+  storeName: { fontSize: 18, fontWeight: "700", color: "#FFF", marginTop: 2 },
+  headerActions: { flexDirection: "row", gap: 10 },
   iconButton: {
     width: 44,
     height: 44,
@@ -560,11 +690,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  notifBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFF",
-  },
+  notifBadgeText: { fontSize: 10, fontWeight: "700", color: "#FFF" },
+
   storeStatusCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -573,43 +700,21 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
   },
-  storeStatusLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 12,
-  },
-  storeStatusLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
-  },
-  storeStatusValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFF",
-    marginTop: 2,
-  },
+  storeStatusLeft: { flexDirection: "row", alignItems: "center" },
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
+  storeStatusLabel: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
+  storeStatusValue: { fontSize: 14, fontWeight: "600", color: "#FFF", marginTop: 2 },
+
   toggleButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: "rgba(0,0,0,0.2)",
   },
-  toggleButtonActive: {
-    backgroundColor: "#FFF",
-  },
-  toggleText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#FFF",
-  },
-  toggleTextActive: {
-    color: "#22C55E",
-  },
+  toggleButtonActive: { backgroundColor: "#FFF" },
+  toggleText: { fontSize: 12, fontWeight: "700", color: "#FFF" },
+  toggleTextActive: { color: "#22C55E" },
+
   ratingBadge: {
     position: "absolute",
     bottom: -15,
@@ -627,31 +732,15 @@ const styles = StyleSheet.create({
     elevation: 4,
     gap: 4,
   },
-  ratingText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  ratingLabel: {
-    fontSize: 12,
-    color: "#64748B",
-    marginLeft: 2,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 30,
-    paddingHorizontal: 20,
-  },
-  statsContainer: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
+  ratingText: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
+  ratingLabel: { fontSize: 12, color: "#64748B", marginLeft: 2 },
+
+  scrollView: { flex: 1 },
+  scrollContent: { paddingTop: 30, paddingHorizontal: 20 },
+
+  statsContainer: { gap: 12, marginBottom: 20 },
+  statsRow: { flexDirection: "row", gap: 12 },
+
   statCard: {
     flex: 1,
     backgroundColor: "#FFF",
@@ -663,14 +752,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  statCardPrimary: {
-    padding: 0,
-    overflow: "hidden",
-  },
-  statCardGradient: {
-    padding: 16,
-    flex: 1,
-  },
+  statCardPrimary: { padding: 0, overflow: "hidden" },
+  statCardGradient: { padding: 16, flex: 1 },
+
   statIconContainer: {
     width: 44,
     height: 44,
@@ -680,47 +764,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  statValueLight: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFF",
-  },
-  statLabel: {
-    fontSize: 13,
-    color: "#64748B",
-    marginTop: 4,
-  },
-  statLabelLight: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 4,
-  },
-  earningsBanner: {
-    marginBottom: 24,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
+
+  statValue: { fontSize: 24, fontWeight: "700", color: "#1E293B" },
+  statValueLight: { fontSize: 24, fontWeight: "700", color: "#FFF" },
+  statLabel: { fontSize: 13, color: "#64748B", marginTop: 4 },
+  statLabelLight: { fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 4 },
+
+  earningsBanner: { marginBottom: 24, borderRadius: 16, overflow: "hidden" },
   earningsBannerGradient: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 20,
   },
-  earningsBannerLabel: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-  },
-  earningsBannerValue: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#FFF",
-    marginTop: 4,
-  },
+  earningsBannerLabel: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
+  earningsBannerValue: { fontSize: 28, fontWeight: "700", color: "#FFF", marginTop: 4 },
   earningsBannerIcon: {
     width: 56,
     height: 56,
@@ -729,30 +787,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  section: {
-    marginBottom: 24,
-  },
+
+  section: { marginBottom: 24 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#22C55E",
-  },
-  quickActionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  seeAllText: { fontSize: 14, fontWeight: "600", color: "#22C55E" },
+
+  quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   quickActionCard: {
     width: (width - 52) / 2,
     backgroundColor: "#FFF",
@@ -773,11 +819,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  quickActionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E293B",
-  },
+  quickActionLabel: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
+
   orderCard: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -792,11 +835,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  orderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
+  orderLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   orderIconContainer: {
     width: 42,
     height: 42,
@@ -805,45 +844,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  orderInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  orderNumber: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  orderCustomer: {
-    fontSize: 13,
-    color: "#64748B",
-    marginTop: 2,
-  },
-  orderMeta: {
-    fontSize: 12,
-    color: "#94A3B8",
-    marginTop: 2,
-  },
-  orderRight: {
-    alignItems: "flex-end",
-  },
-  orderTotal: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 6,
-    backgroundColor: "#FEF3C7",
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#D97706",
-  },
+  orderInfo: { marginLeft: 12, flex: 1 },
+  orderNumber: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
+  orderCustomer: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  orderMeta: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
+  orderRight: { alignItems: "flex-end" },
+  orderTotal: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 6 },
+  statusText: { fontSize: 11, fontWeight: "600", textTransform: "capitalize" },
+
   bottomNav: {
     position: "absolute",
     bottom: 0,
@@ -859,19 +868,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
   },
-  navItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 4,
-  },
-  navItemActive: {
-    backgroundColor: "#F0FDF4",
-    padding: 8,
-    borderRadius: 12,
-  },
-  navItemCenter: {
-    marginTop: -30,
-  },
+  navItem: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },
+  navItemActive: { backgroundColor: "#F0FDF4", padding: 8, borderRadius: 12 },
+  navItemCenter: { marginTop: -30 },
   addButtonGradient: {
     width: 56,
     height: 56,
@@ -884,14 +883,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  navLabel: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#94A3B8",
-    marginTop: 4,
-  },
-  navLabelActive: {
-    color: "#22C55E",
-    fontWeight: "600",
-  },
+  navLabel: { fontSize: 11, fontWeight: "500", color: "#94A3B8", marginTop: 4 },
+  navLabelActive: { color: "#22C55E", fontWeight: "600" },
 });

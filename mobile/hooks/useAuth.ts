@@ -1,244 +1,280 @@
-import { useState, useCallback, useEffect } from "react";
+// mobile/hooks/useAuth.ts
+import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { authAPI } from "../services/api";
+import api, { User, LoginResponse } from "../services/api";
 
-export interface User {
-  _id: string;
-  phone: string;
-  role: "customer" | "vendor" | "delivery";
-  name: string;
-  email?: string;
-  profileImage?: string;
-  isPhoneVerified: boolean;
-  createdAt: string;
-}
-
-interface AuthState {
+export interface UseAuthReturn {
   user: User | null;
   token: string | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-}
-
-interface AuthResult {
-  success: boolean;
-  error?: string;
-}
-
-export interface UseAuthReturn extends AuthState {
-  sendOtp: (phone: string) => Promise<AuthResult>;
-  verifyOtp: (phone: string, otp: string, role: string) => Promise<AuthResult>;
-  login: (phone: string, otp: string, role: string) => Promise<AuthResult>; // Alias for verifyOtp
+  sendOtp: (phone: string) => Promise<{ success: boolean; verificationId?: string; error?: string }>;
+  verifyOtp: (phone: string, otp: string, role: string) => Promise<{ success: boolean; error?: string }>;
+  login: (phone: string, otp: string, role: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => Promise<void>;
-  updateProfile: (data: { name?: string; email?: string; profileImage?: string }) => Promise<void>;
-  changeRole: (role: string) => Promise<void>;
+  updateProfile: (data: Partial<User>) => Promise<{ success: boolean; error?: string }>;
+  changeRole: (role: string) => Promise<{ success: boolean; error?: string }>;
   checkAuth: () => Promise<boolean>;
   clearError: () => void;
 }
 
-export const useAuth = (): UseAuthReturn => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    token: null,
-    loading: true,
-    error: null,
-    isAuthenticated: false,
-  });
+export function useAuth(): UseAuthReturn {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Check existing auth on mount
+  const isAuthenticated = !!token && !!user;
+
   useEffect(() => {
     checkAuth();
   }, []);
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
-      setState((prev) => ({ ...prev, loading: true }));
+      setLoading(true);
+      setError(null);
 
-      const savedToken = await AsyncStorage.getItem("authToken");
-      const savedUser = await AsyncStorage.getItem("user");
+      const storedToken = await AsyncStorage.getItem("authToken");
+      const storedUser = await AsyncStorage.getItem("user");
 
-      if (savedToken && savedUser) {
-        const user = JSON.parse(savedUser) as User;
-        setState({
-          user,
-          token: savedToken,
-          loading: false,
-          error: null,
-          isAuthenticated: true,
-        });
-        return true;
+      console.log("🔍 Checking auth...");
+      console.log("   Token exists:", !!storedToken);
+      console.log("   User exists:", !!storedUser);
+
+      if (storedToken && storedToken !== "null" && storedToken !== "undefined") {
+        setToken(storedToken);
+
+        if (storedUser && storedUser !== "null") {
+          try {
+            const parsedUser: User = JSON.parse(storedUser);
+            setUser(parsedUser);
+            console.log("✅ Auth restored:", parsedUser.name || parsedUser.phone);
+            return true;
+          } catch (parseError) {
+            console.log("⚠️ Failed to parse user");
+          }
+        }
+
+        try {
+          const response = await api.getMe();
+          if (response.success && response.data) {
+            setUser(response.data);
+            await AsyncStorage.setItem("user", JSON.stringify(response.data));
+            console.log("✅ Auth verified with API");
+            return true;
+          }
+        } catch (apiError: any) {
+          console.log("⚠️ API auth check failed:", apiError.message);
+          if (apiError.status === 401) {
+            await clearAuthData();
+          }
+        }
       }
 
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        isAuthenticated: false,
-      }));
+      console.log("❌ Not authenticated");
       return false;
-    } catch (err) {
-      console.error("Check auth error:", err);
-      setState((prev) => ({ ...prev, loading: false }));
-      return false;
-    }
-  }, []);
-
-  const sendOtp = useCallback(async (phone: string): Promise<AuthResult> => {
-    try {
-      setState((prev) => ({ ...prev, loading: true, error: null }));
-
-      const response = await authAPI.sendOtp(phone);
-
-      setState((prev) => ({ ...prev, loading: false }));
-
-      if (response.success) {
-        return { success: true };
-      }
-
-      return { success: false, error: response.error || "Failed to send OTP" };
     } catch (err: any) {
-      const errorMessage = err.error || err.message || "Failed to send OTP";
-      setState((prev) => ({ ...prev, loading: false, error: errorMessage }));
-      return { success: false, error: errorMessage };
+      console.error("❌ Auth check error:", err);
+      setError(err.message);
+      return false;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const verifyOtp = useCallback(async (phone: string, otp: string, role: string): Promise<AuthResult> => {
+  const clearAuthData = async (): Promise<void> => {
+    await AsyncStorage.multiRemove([
+      "authToken",
+      "user",
+      "userId",
+      "userPhone",
+      "userRole",
+      "isLoggedIn",
+    ]);
+    setToken(null);
+    setUser(null);
+  };
+
+  const sendOtp = useCallback(async (phone: string): Promise<{ success: boolean; verificationId?: string; error?: string }> => {
     try {
-      setState((prev) => ({ ...prev, loading: true, error: null }));
+      setLoading(true);
+      setError(null);
 
-      const response = await authAPI.verifyOtp(phone, otp, role);
+      const response = await api.sendOtp(phone);
+      console.log("📱 OTP sent:", response.success);
+      
+      return {
+        success: response.success,
+        verificationId: response.data?.verificationId,
+      };
+    } catch (err: any) {
+      console.error("❌ Send OTP error:", err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  const verifyOtp = useCallback(async (phone: string, otp: string, role: string = "customer"): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await api.verifyOtp(phone, otp, role);
+      
       if (response.success && response.data) {
-        const { token, user } = response.data;
+        const { token: newToken, user: userData } = response.data;
 
-        // Save to storage
-        await AsyncStorage.setItem("authToken", token);
-        await AsyncStorage.setItem("user", JSON.stringify(user));
-        await AsyncStorage.setItem("userRole", user.role);
+        await AsyncStorage.setItem("authToken", newToken);
+        await AsyncStorage.setItem("user", JSON.stringify(userData));
+        await AsyncStorage.setItem("userId", userData.id || userData._id);
+        await AsyncStorage.setItem("userRole", userData.role);
+        await AsyncStorage.setItem("isLoggedIn", "true");
 
-        setState({
-          user: user as User,
-          token,
-          loading: false,
-          error: null,
-          isAuthenticated: true,
-        });
+        setToken(newToken);
+        setUser(userData);
 
+        console.log("✅ OTP verified:", userData.name || userData.phone);
         return { success: true };
       }
 
-      setState((prev) => ({ ...prev, loading: false }));
       return { success: false, error: response.error || "Verification failed" };
     } catch (err: any) {
-      const errorMessage = err.error || err.message || "Verification failed";
-      setState((prev) => ({ ...prev, loading: false, error: errorMessage }));
-      return { success: false, error: errorMessage };
+      console.error("❌ Verify OTP error:", err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // Alias for verifyOtp (for backward compatibility with AuthContext)
-  const login = verifyOtp;
+  const login = useCallback(async (phone: string, _otp: string, role: string = "customer"): Promise<{ success: boolean; user?: User; error?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log("🧪 Attempting test login...");
+      
+      const response = await api.testLogin(phone, role);
+      
+      if (response.success && response.data) {
+        const { token: newToken, user: userData } = response.data;
+
+        await AsyncStorage.setItem("authToken", newToken);
+        await AsyncStorage.setItem("user", JSON.stringify(userData));
+        await AsyncStorage.setItem("userId", userData.id || userData._id);
+        await AsyncStorage.setItem("userPhone", userData.phone);
+        await AsyncStorage.setItem("userRole", userData.role);
+        await AsyncStorage.setItem("isLoggedIn", "true");
+
+        setToken(newToken);
+        setUser(userData);
+
+        console.log("✅ Test login successful!");
+        console.log("   User:", userData.name || userData.phone);
+        console.log("   Role:", userData.role);
+        console.log("   Token:", newToken.substring(0, 30) + "...");
+        
+        return { success: true, user: userData };
+      }
+
+      return { success: false, error: response.error || "Login failed" };
+    } catch (err: any) {
+      console.error("❌ Test login error:", err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      setState((prev) => ({ ...prev, loading: true }));
-
-      // Call logout API (optional - for tracking)
+      setLoading(true);
+      
       try {
-        await authAPI.logout();
+        await api.post("/api/auth/logout");
       } catch (e) {
-        // Ignore API errors during logout
+        // Ignore
       }
 
-      // Clear storage
-      await AsyncStorage.multiRemove(["authToken", "user", "userRole"]);
-
-      setState({
-        user: null,
-        token: null,
-        loading: false,
-        error: null,
-        isAuthenticated: false,
-      });
-
-      console.log("✅ Logged out successfully");
+      await clearAuthData();
+      console.log("✅ Logged out");
     } catch (err: any) {
-      console.error("Logout error:", err);
-      setState((prev) => ({ ...prev, loading: false }));
+      console.error("❌ Logout error:", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const updateProfile = useCallback(
-    async (data: { name?: string; email?: string; profileImage?: string }): Promise<void> => {
-      try {
-        setState((prev) => ({ ...prev, loading: true, error: null }));
-
-        const response = await authAPI.updateProfile(data);
-
-        if (response.success && response.data) {
-          const updatedUser = response.data as User;
-
-          await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-
-          setState((prev) => ({
-            ...prev,
-            user: updatedUser,
-            loading: false,
-          }));
-
-          console.log("✅ Profile updated");
-          return;
-        }
-
-        throw new Error(response.error || "Update failed");
-      } catch (err: any) {
-        const errorMessage = err.error || err.message || "Update failed";
-        setState((prev) => ({ ...prev, loading: false, error: errorMessage }));
-        throw new Error(errorMessage);
-      }
-    },
-    []
-  );
-
-  const changeRole = useCallback(async (role: string): Promise<void> => {
+  const updateProfile = useCallback(async (data: Partial<User>): Promise<{ success: boolean; error?: string }> => {
     try {
-      setState((prev) => ({ ...prev, loading: true, error: null }));
+      setLoading(true);
+      setError(null);
 
-      const response = await authAPI.changeRole(role);
-
+      const response = await api.updateProfile(data);
+      
       if (response.success && response.data) {
-        const { token, user } = response.data;
-
-        await AsyncStorage.setItem("authToken", token);
-        await AsyncStorage.setItem("user", JSON.stringify(user));
-        await AsyncStorage.setItem("userRole", user.role);
-
-        setState((prev) => ({
-          ...prev,
-          user: user as User,
-          token,
-          loading: false,
-        }));
-
-        console.log("✅ Role changed to:", role);
-        return;
+        const updatedUser: User = { ...user!, ...response.data };
+        setUser(updatedUser);
+        await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+        return { success: true };
       }
 
-      throw new Error(response.error || "Role change failed");
+      return { success: false, error: response.error };
     } catch (err: any) {
-      const errorMessage = err.error || err.message || "Role change failed";
-      setState((prev) => ({ ...prev, loading: false, error: errorMessage }));
-      throw new Error(errorMessage);
+      console.error("❌ Update profile error:", err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const changeRole = useCallback(async (newRole: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await api.changeRole(newRole);
+      
+      if (response.success && response.data) {
+        const { token: newToken, user: userData } = response.data;
+
+        await AsyncStorage.setItem("authToken", newToken);
+        await AsyncStorage.setItem("user", JSON.stringify(userData));
+        await AsyncStorage.setItem("userRole", userData.role);
+
+        setToken(newToken);
+        setUser(userData);
+
+        console.log("✅ Role changed to:", newRole);
+        return { success: true };
+      }
+
+      return { success: false, error: response.error };
+    } catch (err: any) {
+      console.error("❌ Change role error:", err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   const clearError = useCallback((): void => {
-    setState((prev) => ({ ...prev, error: null }));
+    setError(null);
   }, []);
 
   return {
-    ...state,
+    user,
+    token,
+    loading,
+    error,
+    isAuthenticated,
     sendOtp,
     verifyOtp,
     login,
@@ -248,4 +284,7 @@ export const useAuth = (): UseAuthReturn => {
     checkAuth,
     clearError,
   };
-};
+}
+
+export type { User };
+export default useAuth;

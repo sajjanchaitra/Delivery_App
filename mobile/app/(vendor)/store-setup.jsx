@@ -1,4 +1,6 @@
 // app/(vendor)/store-setup.tsx
+// FIXED VERSION - Uses centralized API service (JavaScript compatible)
+
 import {
   View,
   Text,
@@ -14,9 +16,7 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const API_URL = "http://13.203.206.134:5000";
+import api from "../../services/api"; // Import the centralized API service
 
 export default function StoreSetup() {
   const router = useRouter();
@@ -25,70 +25,116 @@ export default function StoreSetup() {
     name: "",
     description: "",
     phone: "",
-    address: "",
+    street: "",
     city: "",
     state: "",
     pincode: "",
+    category: "grocery",
   });
 
+
+  const handleLogout = async () => {
+  Alert.alert("Logout", "Are you sure you want to logout?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Logout",
+      style: "destructive",
+      onPress: async () => {
+        await api.clearToken();
+        router.replace("/(auth)/login");
+      },
+    },
+  ]);
+};
+
+
   const handleSubmit = async () => {
+    // Validation
     if (!formData.name.trim()) {
       Alert.alert("Error", "Please enter store name");
       return;
     }
-    if (!formData.phone.trim()) {
-      Alert.alert("Error", "Please enter phone number");
+    if (!formData.phone.trim() || formData.phone.length !== 10) {
+      Alert.alert("Error", "Please enter valid 10-digit phone number");
       return;
     }
-    if (!formData.address.trim()) {
-      Alert.alert("Error", "Please enter address");
+    if (!formData.street.trim()) {
+      Alert.alert("Error", "Please enter street address");
+      return;
+    }
+    if (!formData.city.trim()) {
+      Alert.alert("Error", "Please enter city");
+      return;
+    }
+    if (!formData.state.trim()) {
+      Alert.alert("Error", "Please enter state");
+      return;
+    }
+    if (!formData.pincode.trim() || formData.pincode.length !== 6) {
+      Alert.alert("Error", "Please enter valid 6-digit pincode");
       return;
     }
 
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem("authToken");
+      console.log("📤 Creating store with data:", formData);
 
+      // Correct data structure matching backend Store model
       const storeData = {
-        name: formData.name,
-        description: formData.description,
-        phone: formData.phone,
+        name: formData.name.trim(),
+        description: formData.description.trim() || "A great store",
+        category: formData.category,
+        phone: formData.phone.trim(),
+        address: {
+          street: formData.street.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          pincode: formData.pincode.trim(),
+          landmark: "",
+        },
         location: {
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
-          coordinates: [0, 0], // Default coordinates
+          type: "Point",
+          coordinates: [0, 0],
+        },
+        businessHours: {
+          monday: { open: "09:00", close: "21:00", isOpen: true },
+          tuesday: { open: "09:00", close: "21:00", isOpen: true },
+          wednesday: { open: "09:00", close: "21:00", isOpen: true },
+          thursday: { open: "09:00", close: "21:00", isOpen: true },
+          friday: { open: "09:00", close: "21:00", isOpen: true },
+          saturday: { open: "09:00", close: "21:00", isOpen: true },
+          sunday: { open: "09:00", close: "21:00", isOpen: false },
         },
         isOpen: true,
         isActive: true,
       };
 
-      const response = await fetch(`${API_URL}/api/vendor/store`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(storeData),
-      });
+      // Use the centralized API service
+      const response = await api.createStore(storeData);
 
-      const data = await response.json();
-      console.log("Store creation response:", data);
+      console.log("✅ Store creation response:", response);
 
-      if (data.success) {
-        Alert.alert("Success", "Store created successfully!", [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(vendor)/home"),
-          },
-        ]);
+      if (response.success) {
+        Alert.alert(
+          "Success! 🎉",
+          "Your store has been created successfully!",
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace("/(vendor)/home"),
+            },
+          ]
+        );
       } else {
-        Alert.alert("Error", data.error || "Failed to create store");
+        console.error("❌ Store creation failed:", response.error);
+        Alert.alert("Error", response.error || "Failed to create store");
       }
     } catch (error) {
-      console.error("Store creation error:", error);
-      Alert.alert("Error", "Failed to create store");
+      console.error("❌ Store creation error:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Network error. Please check your connection."
+      );
     } finally {
       setLoading(false);
     }
@@ -100,18 +146,31 @@ export default function StoreSetup() {
 
       <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Setup Your Store</Text>
-          <View style={{ width: 44 }} />
-        </View>
+  <TouchableOpacity
+    style={styles.backButton}
+    onPress={() => router.back()}
+  >
+    <Ionicons name="arrow-back" size={24} color="#FFF" />
+  </TouchableOpacity>
+
+  <Text style={styles.headerTitle}>Setup Your Store</Text>
+
+  {/* Logout Button */}
+  <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+    <Ionicons name="log-out-outline" size={22} color="#FFF" />
+  </TouchableOpacity>
+</View>
+
       </LinearGradient>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle" size={20} color="#22C55E" />
+          <Text style={styles.infoText}>
+            Fill in all required fields to create your store
+          </Text>
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.label}>Store Name *</Text>
           <TextInput
@@ -153,13 +212,13 @@ export default function StoreSetup() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Address *</Text>
+          <Text style={styles.label}>Street Address *</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Street address"
+            placeholder="e.g., Shop 123, Main Road"
             placeholderTextColor="#94A3B8"
-            value={formData.address}
-            onChangeText={(text) => setFormData({ ...formData, address: text })}
+            value={formData.street}
+            onChangeText={(text) => setFormData({ ...formData, street: text })}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
@@ -168,20 +227,20 @@ export default function StoreSetup() {
 
         <View style={styles.row}>
           <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
-            <Text style={styles.label}>City</Text>
+            <Text style={styles.label}>City *</Text>
             <TextInput
               style={styles.input}
-              placeholder="City"
+              placeholder="e.g., Mumbai"
               placeholderTextColor="#94A3B8"
               value={formData.city}
               onChangeText={(text) => setFormData({ ...formData, city: text })}
             />
           </View>
           <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
-            <Text style={styles.label}>State</Text>
+            <Text style={styles.label}>State *</Text>
             <TextInput
               style={styles.input}
-              placeholder="State"
+              placeholder="e.g., Maharashtra"
               placeholderTextColor="#94A3B8"
               value={formData.state}
               onChangeText={(text) => setFormData({ ...formData, state: text })}
@@ -190,7 +249,7 @@ export default function StoreSetup() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Pincode</Text>
+          <Text style={styles.label}>Pincode *</Text>
           <TextInput
             style={styles.input}
             placeholder="6-digit pincode"
@@ -245,6 +304,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  logoutButton: {
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  backgroundColor: "rgba(255,255,255,0.2)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+
   backButton: {
     width: 44,
     height: 44,
@@ -262,6 +330,20 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#166534",
   },
   section: {
     marginBottom: 20,

@@ -9,30 +9,35 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  NativeSyntheticEvent,
+  TextInputKeyPressEventData,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
-import { auth } from "../../firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "../../services/api";
 
 const OTP_LENGTH = 6;
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://13.203.206.134:5000";
 
-export default function Otp() {
-  const params = useLocalSearchParams();
-  const phone = (params.phone as string) || "";
-  const verificationId = (params.verificationId as string) || "";
+interface Role {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+export default function OTP() {
+
   const router = useRouter();
+  const params = useLocalSearchParams<{ phone: string; testMode: string }>();
+  const phone = params.phone || "";
+  const isTestMode = params.testMode === "true";
 
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(30);
-  const [focusedIndex, setFocusedIndex] = useState(0);
-  const [selectedRole, setSelectedRole] = useState("customer");
-
-  // Fix: Properly type the input refs array
+  const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [resendTimer, setResendTimer] = useState<number>(30);
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
+  const [selectedRole, setSelectedRole] = useState<string>("customer");
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
@@ -48,12 +53,12 @@ export default function Otp() {
     }, 300);
   }, []);
 
-  // Fix: Add proper types to function parameters
-  const handleOtpChange = (value: string, index: number) => {
+  const handleOtpChange = (value: string, index: number): void => {
     if (value && !/^\d+$/.test(value)) return;
 
     const newOtp = [...otp];
 
+    // Handle paste
     if (value.length > 1) {
       const digits = value.split("").slice(0, OTP_LENGTH);
       digits.forEach((digit, i) => {
@@ -70,10 +75,15 @@ export default function Otp() {
     if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
+
+    // Auto verify when complete
+    if (newOtp.every((digit) => digit !== "")) {
+      setTimeout(() => handleVerifyOtp(newOtp.join("")), 300);
+    }
   };
 
-  // Fix: Add proper types to function parameters
-  const handleKeyPress = (key: string, index: number) => {
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number): void => {
+    const key = e.nativeEvent.key;
     if (key === "Backspace" && !otp[index] && index > 0) {
       const newOtp = [...otp];
       newOtp[index - 1] = "";
@@ -82,119 +92,106 @@ export default function Otp() {
     }
   };
 
-  // Fix: Add proper type to function parameter
-  const navigateToHome = (role: string) => {
+  const navigateToHome = (role: string): void => {
     setTimeout(() => {
       switch (role) {
         case "vendor":
-          router.replace("/(vendor)/home");
+          router.replace("/(vendor)/home" as any);
           break;
         case "delivery":
-          router.replace("/(delivery)/home");
+          router.replace("/(delivery)/home" as any);
+          break;
+        case "admin":
+          router.replace("/(dash)/home" as any);
           break;
         default:
-          router.replace("/(customer)/home");
+          router.replace("/(customer)/home" as any);
       }
     }, 100);
   };
 
-  const verifyOtp = async () => {
-    const otpCode = otp.join("");
+  const handleVerifyOtp = async (otpCode: string): Promise<void> => {
+  if (otpCode.length !== 6) {
+    Alert.alert("Error", "Please enter a 6-digit OTP");
+    return;
+  }
 
-    if (otpCode.length !== OTP_LENGTH) {
-      Alert.alert("Error", "Please enter complete 6-digit OTP");
-      return;
-    }
+  setLoading(true);
 
-    setLoading(true);
+  try {
+    console.log("🔐 Verifying OTP...");
+    console.log("   Phone:", phone);
+    console.log("   Role:", selectedRole);
+    console.log("   Test Mode:", isTestMode);
 
-    try {
-      console.log("🔐 Verifying OTP with Firebase...");
+    const response = await api.testLogin(phone, selectedRole);
+    
+    console.log("📨 Response:", JSON.stringify(response));
 
-      // Step 1: Verify with Firebase
-      const credential = PhoneAuthProvider.credential(verificationId, otpCode);
-      const userCredential = await signInWithCredential(auth, credential);
-      
-      console.log("✅ Firebase authentication successful");
+    // FIX: Access token and user from response.data
+    if (response.success && response.data?.token && response.data?.user) {
+      const token = response.data.token;
+      const user = response.data.user;
 
-      // Step 2: Get Firebase ID token
-      const firebaseToken = await userCredential.user.getIdToken();
-      console.log("🎟️ Got Firebase token");
+      // Save auth data
+      await AsyncStorage.setItem("authToken", token);
+      await AsyncStorage.setItem("userId", user.id || user._id);
+      await AsyncStorage.setItem("userPhone", user.phone);
+      await AsyncStorage.setItem("userRole", user.role);
+      await AsyncStorage.setItem("user", JSON.stringify(user));
+      await AsyncStorage.setItem("isLoggedIn", "true");
 
-      // Step 3: Send to backend to create/login user
-      console.log("💾 Saving to backend...");
-      
-      const response = await fetch(`${API_URL}/api/auth/firebase-login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          firebaseToken,
-          phone,
-          role: selectedRole,
-        }),
-      });
+      console.log("✅ Login Successful!");
+      console.log("   User:", user.name);
+      console.log("   Role:", user.role);
 
-      const data = await response.json();
-      console.log("📨 Backend response:", data);
-
-      if (data.success) {
-        const { token, user } = data.data;
-
-        // Save auth data
-        await AsyncStorage.setItem("authToken", token);
-        await AsyncStorage.setItem("user", JSON.stringify(user));
-        await AsyncStorage.setItem("userRole", user.role);
-
-        setLoading(false);
-        Alert.alert("Success! ✅", `Welcome ${user.name || "User"}!`, [
-          {
-            text: "Continue",
-            onPress: () => navigateToHome(user.role),
-          },
-        ]);
-      } else {
-        setLoading(false);
-        Alert.alert("Error", data.error || "Failed to save user");
-        resetOtp();
-      }
-    } catch (error) {
       setLoading(false);
-      console.error("❌ Error:", error);
-
-      // Fix: Type the error properly
-      const err = error as any;
-      let errorMessage = "Failed to verify OTP. Please try again.";
-
-      if (err.code === "auth/invalid-verification-code") {
-        errorMessage = "Invalid OTP. Please check and try again.";
-      } else if (err.code === "auth/code-expired") {
-        errorMessage = "OTP expired. Please request a new one.";
-      }
-
-      Alert.alert("Error", errorMessage);
+      
+      Alert.alert(
+        "Welcome! 🎉",
+        `Logged in as ${user.name || "User"} (${user.role})`,
+        [{ text: "Continue", onPress: () => navigateToHome(user.role) }]
+      );
+    } else {
+      setLoading(false);
+      Alert.alert("Error", response.error || "Login failed");
       resetOtp();
     }
-  };
+  } catch (error: any) {
+    console.error("❌ Login Error:", error);
+    setLoading(false);
+    Alert.alert("Error", error.message || "Login failed. Please try again.");
+    resetOtp();
+  }
+};
 
-  const resetOtp = () => {
+  const resetOtp = (): void => {
     setOtp(["", "", "", "", "", ""]);
     inputRefs.current[0]?.focus();
   };
 
-  const handleResend = () => {
+  const handleResend = async (): Promise<void> => {
     if (resendTimer > 0) return;
-    router.back();
+
+    setLoading(true);
+    try {
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      Alert.alert("Success", "OTP resent! (Test Mode: Use any 6 digits)");
+      setResendTimer(30);
+    } catch (error) {
+      Alert.alert("Error", "Failed to resend OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isOtpComplete = otp.every((digit) => digit !== "");
   const maskedPhone = phone ? `******${phone.slice(-4)}` : "******1234";
 
-  const roles = [
-    { id: "customer", label: "Customer", icon: "person" as const },
-    { id: "vendor", label: "Vendor", icon: "storefront" as const },
-    { id: "delivery", label: "Delivery", icon: "bicycle" as const },
+  const roles: Role[] = [
+    { id: "customer", label: "Customer", icon: "person" },
+    { id: "vendor", label: "Vendor", icon: "storefront" },
+    { id: "delivery", label: "Delivery", icon: "bicycle" },
   ];
 
   return (
@@ -217,19 +214,28 @@ export default function Otp() {
         <View style={styles.header}>
           <Text style={styles.title}>Verify OTP</Text>
           <Text style={styles.subtitle}>
-            Enter the 6-digit code sent to{"\n"}
-            <Text style={styles.phoneText}>+91 {maskedPhone}</Text>
+            {isTestMode
+              ? `🧪 Test Mode: Enter any 6 digits\n+91 ${maskedPhone}`
+              : `Enter the 6-digit code sent to\n+91 ${maskedPhone}`}
           </Text>
         </View>
 
+        {isTestMode && (
+          <View style={styles.testBanner}>
+            <Ionicons name="flask" size={16} color="#F59E0B" />
+            <Text style={styles.testBannerText}>
+              Any 6-digit OTP will work
+            </Text>
+          </View>
+        )}
+
+        {/* OTP Input */}
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <TextInput
               key={index}
               ref={(ref) => {
-                if (inputRefs.current) {
-                  inputRefs.current[index] = ref;
-                }
+                inputRefs.current[index] = ref;
               }}
               style={[
                 styles.otpInput,
@@ -238,7 +244,7 @@ export default function Otp() {
               ]}
               value={digit}
               onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={(e) => handleKeyPress(e.nativeEvent.key, index)}
+              onKeyPress={(e) => handleKeyPress(e, index)}
               onFocus={() => setFocusedIndex(index)}
               keyboardType="number-pad"
               maxLength={1}
@@ -247,6 +253,7 @@ export default function Otp() {
           ))}
         </View>
 
+        {/* Role Selection */}
         <View style={styles.roleSection}>
           <Text style={styles.roleLabel}>Continue as:</Text>
           <View style={styles.roleContainer}>
@@ -278,11 +285,12 @@ export default function Otp() {
           </View>
         </View>
 
+        {/* Resend */}
         <View style={styles.resendContainer}>
           <Text style={styles.resendText}>Didn't receive the code?</Text>
           <TouchableOpacity
             onPress={handleResend}
-            disabled={resendTimer > 0}
+            disabled={resendTimer > 0 || loading}
             activeOpacity={0.7}
           >
             <Text
@@ -296,9 +304,10 @@ export default function Otp() {
           </TouchableOpacity>
         </View>
 
+        {/* Verify Button */}
         <TouchableOpacity
           style={[styles.button, !isOtpComplete && styles.buttonDisabled]}
-          onPress={verifyOtp}
+          onPress={() => handleVerifyOtp(otp.join(""))}
           disabled={!isOtpComplete || loading}
           activeOpacity={0.8}
         >
@@ -349,9 +358,20 @@ const styles = StyleSheet.create({
     color: "#64748B",
     lineHeight: 22,
   },
-  phoneText: {
+  testBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+    gap: 8,
+  },
+  testBannerText: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#1E293B",
+    color: "#92400E",
   },
   otpContainer: {
     flexDirection: "row",
@@ -440,6 +460,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 16,
   },
   buttonDisabled: {
     backgroundColor: "#CBD5E1",
