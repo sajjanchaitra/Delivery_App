@@ -29,6 +29,21 @@ try {
   Category = mongoose.model('Category', new mongoose.Schema({}, { strict: false }));
 }
 
+// Helper function to format address
+const formatAddress = (address) => {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  
+  const parts = [
+    address.street,
+    address.city,
+    address.state,
+    address.pincode,
+  ].filter(Boolean);
+  
+  return parts.join(', ');
+};
+
 // ============================================
 // GET /api/customer/categories
 // ============================================
@@ -111,7 +126,7 @@ router.get('/stores', async (req, res) => {
         .lean();
     }
 
-    // Add product count to each store
+    // Add product count to each store and format address
     const storesWithProductCount = await Promise.all(
       stores.map(async (store) => {
         const productCount = await Product.countDocuments({
@@ -120,6 +135,7 @@ router.get('/stores', async (req, res) => {
         });
         return {
           ...store,
+          address: formatAddress(store.address),
           productCount,
           totalProducts: productCount
         };
@@ -172,23 +188,12 @@ router.get('/stores/:storeId', async (req, res) => {
         .lean()
     ]);
 
-    // Format address as string if it's an object
-    let addressString = store.address;
-    if (store.address && typeof store.address === 'object') {
-      addressString = [
-        store.address.street,
-        store.address.city,
-        store.address.state,
-        store.address.pincode
-      ].filter(Boolean).join(', ');
-    }
-
     console.log(`✅ Found store: ${store.name} with ${productCount} products`);
     res.json({
       success: true,
       store: {
         ...store,
-        address: addressString,
+        address: formatAddress(store.address),
         totalProducts: productCount,
         inStockProducts: productCount
       },
@@ -347,6 +352,11 @@ router.get('/products/:productId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
 
+    // Format store address if exists
+    if (product.store && product.store.address) {
+      product.store.address = formatAddress(product.store.address);
+    }
+
     console.log(`✅ Found product: ${product.name}`);
     res.json({ success: true, product });
   } catch (error) {
@@ -385,7 +395,7 @@ router.get('/search', async (req, res) => {
     }
 
     if (type === 'all' || type === 'stores') {
-      results.stores = await Store.find({
+      const stores = await Store.find({
         $or: [
           { name: searchRegex },
           { description: searchRegex },
@@ -394,6 +404,12 @@ router.get('/search', async (req, res) => {
       })
         .limit(parseInt(limit))
         .lean();
+      
+      // Format addresses
+      results.stores = stores.map(store => ({
+        ...store,
+        address: formatAddress(store.address)
+      }));
     }
 
     console.log(`✅ Search found ${results.products.length} products, ${results.stores.length} stores`);
@@ -426,11 +442,17 @@ router.get('/featured', async (req, res) => {
         .lean()
     ]);
 
+    // Format store addresses
+    const formattedStores = featuredStores.map(store => ({
+      ...store,
+      address: formatAddress(store.address)
+    }));
+
     console.log('✅ Featured data loaded');
     res.json({
       success: true,
       featuredProducts,
-      featuredStores,
+      featuredStores: formattedStores,
       categories
     });
   } catch (error) {
@@ -466,11 +488,17 @@ router.get('/home', async (req, res) => {
         .lean()
     ]);
 
+    // Format store addresses
+    const formattedStores = stores.map(store => ({
+      ...store,
+      address: formatAddress(store.address)
+    }));
+
     console.log('✅ Home data loaded');
     res.json({
       success: true,
       categories,
-      stores,
+      stores: formattedStores,
       products,
       deals
     });
