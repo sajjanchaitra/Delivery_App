@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Adjust path to your User model
+const User = require('./models/User'); // Adjust path to your User model
 
 // Your existing auth routes here...
 // router.post('/send-otp', ...)
