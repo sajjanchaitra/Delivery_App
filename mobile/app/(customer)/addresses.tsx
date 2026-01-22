@@ -1,577 +1,331 @@
-// app/(customer)/categories.tsx
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Image,
-  Dimensions,
-  StatusBar,
+  ScrollView,
+  ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
-import { useState } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useCart } from "../../context/CartContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window");
-const ITEM_WIDTH = (width - 56) / 2;
+const API_URL = "http://13.203.206.134:5000";
 
-// Type definitions
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  unit: string;
-  image: string;
-  rating: number;
-  discount: number;
+type Address = {
+  _id: string;
+  name?: string;
+  fullName?: string;
+  phone?: string;
+  houseNo?: string;
+  area?: string;
+  landmark?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  isDefault?: boolean;
 };
 
-type ProductsData = {
-  [key: string]: Product[];
-};
-
-// Mock products data
-const products: ProductsData = {
-  "1": [ // Grocery
-    {
-      id: "g1",
-      name: "Basmati Rice",
-      price: 599,
-      unit: "5 kg",
-      image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300",
-      rating: 4.5,
-      discount: 10,
-    },
-    {
-      id: "g2",
-      name: "Wheat Flour",
-      price: 299,
-      unit: "5 kg",
-      image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300",
-      rating: 4.3,
-      discount: 0,
-    },
-    {
-      id: "g3",
-      name: "Sugar",
-      price: 45,
-      unit: "1 kg",
-      image: "https://images.unsplash.com/photo-1587735243615-c03f25aaff15?w=300",
-      rating: 4.7,
-      discount: 5,
-    },
-    {
-      id: "g4",
-      name: "Cooking Oil",
-      price: 189,
-      unit: "1 L",
-      image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=300",
-      rating: 4.4,
-      discount: 15,
-    },
-  ],
-  "2": [ // Food
-    {
-      id: "f1",
-      name: "Fresh Bread",
-      price: 40,
-      unit: "500 g",
-      image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300",
-      rating: 4.6,
-      discount: 0,
-    },
-    {
-      id: "f2",
-      name: "Cookies Pack",
-      price: 120,
-      unit: "400 g",
-      image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=300",
-      rating: 4.8,
-      discount: 20,
-    },
-  ],
-  "3": [ // Vegetables
-    {
-      id: "v1",
-      name: "Fresh Tomatoes",
-      price: 60,
-      unit: "1 kg",
-      image: "https://images.unsplash.com/photo-1546470427-e26264959c0e?w=300",
-      rating: 4.5,
-      discount: 0,
-    },
-    {
-      id: "v2",
-      name: "Potatoes",
-      price: 30,
-      unit: "1 kg",
-      image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=300",
-      rating: 4.4,
-      discount: 0,
-    },
-    {
-      id: "v3",
-      name: "Onions",
-      price: 40,
-      unit: "1 kg",
-      image: "https://images.unsplash.com/photo-1508747703725-719777637510?w=300",
-      rating: 4.3,
-      discount: 0,
-    },
-    {
-      id: "v4",
-      name: "Carrots",
-      price: 50,
-      unit: "500 g",
-      image: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=300",
-      rating: 4.6,
-      discount: 0,
-    },
-  ],
-  "4": [ // Dairy
-    {
-      id: "d1",
-      name: "Fresh Milk",
-      price: 60,
-      unit: "1 L",
-      image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=300",
-      rating: 4.7,
-      discount: 0,
-    },
-    {
-      id: "d2",
-      name: "Cheddar Cheese",
-      price: 180,
-      unit: "200 g",
-      image: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=300",
-      rating: 4.8,
-      discount: 10,
-    },
-    {
-      id: "d3",
-      name: "Greek Yogurt",
-      price: 90,
-      unit: "400 g",
-      image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300",
-      rating: 4.6,
-      discount: 5,
-    },
-  ],
-};
-
-const categoryNames: { [key: string]: string } = {
-  "1": "Grocery",
-  "2": "Food",
-  "3": "Vegetables",
-  "4": "Dairy",
-};
-
-export default function CategoriesScreen() {
+export default function AddressesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { addItem, getItemCount, isInCart } = useCart();
-  
-  const categoryId = (params.categoryId as string) || "1";
-  const categoryName = (params.categoryName as string) || categoryNames[categoryId];
-  
-  const categoryProducts: Product[] = products[categoryId] || products["1"];
-  
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [addingToCart, setAddingToCart] = useState<string | null>(null);
 
-  const handleProductPress = (product: Product) => {
-    router.push({
-      pathname: "/(customer)/product-details",
-      params: {
-        productId: product.id,
-        productName: product.name,
-        productPrice: product.price,
-        productUnit: product.unit,
-        productImage: product.image,
-        productRating: product.rating,
-        productDiscount: product.discount,
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+
+  const formatAddress = (a: Address) => {
+    const parts = [
+      a.houseNo,
+      a.area,
+      a.landmark,
+      a.city,
+      a.state,
+      a.pincode,
+    ].filter(Boolean);
+    return parts.join(", ");
+  };
+
+  const fetchAddresses = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        setAddresses([]);
+        return;
       }
-    });
+
+      const res = await fetch(`${API_URL}/api/address`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setAddresses(data.addresses || []);
+      } else {
+        setAddresses([]);
+      }
+    } catch (err) {
+      console.log("❌ fetchAddresses error:", err);
+      setAddresses([]);
+    }
   };
 
-  const handleAddToCart = (product: Product, event: any) => {
-    // Prevent navigation to product details
-    event.stopPropagation();
-    
-    setAddingToCart(product.id);
-    
-    // Add item to cart
-    addItem({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      quantity: 1,
-      size: product.unit,
-      unit: product.unit,
-      image: product.image,
-      discount: product.discount,
-    });
-
-    // Show success feedback
-    setTimeout(() => {
-      setAddingToCart(null);
-      Alert.alert(
-        "Added to Cart! 🎉",
-        `${product.name} has been added to your cart.`,
-        [
-          {
-            text: "Continue Shopping",
-            style: "cancel"
-          },
-          {
-            text: "View Cart",
-            onPress: () => router.push("/(customer)/cart" as any)
-          }
-        ]
-      );
-    }, 300);
+  const init = async () => {
+    setLoading(true);
+    await fetchAddresses();
+    setLoading(false);
   };
 
-  const toggleFavorite = (productId: string, event: any) => {
-    event.stopPropagation();
-    
-    setFavorites(prev => 
-      prev.includes(productId)
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
+  useEffect(() => {
+    init();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAddresses();
+    setRefreshing(false);
+  }, []);
+
+  const deleteAddress = async (id: string) => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/api/address/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        Alert.alert("Deleted", "Address removed successfully");
+        fetchAddresses();
+      } else {
+        Alert.alert("Error", data.message || "Failed to delete");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to delete address");
+    }
+  };
+
+  const setDefault = async (id: string) => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/api/address/${id}/default`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        fetchAddresses();
+      } else {
+        Alert.alert("Error", data.message || "Failed to set default");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to set default");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text style={styles.loadingText}>Loading addresses...</Text>
+      </View>
     );
-  };
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          activeOpacity={0.7}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{categoryName}</Text>
-        <TouchableOpacity 
-          style={styles.cartButton} 
-          activeOpacity={0.7}
-          onPress={() => router.push("/(customer)/cart" as any)}
+
+        <Text style={styles.headerTitle}>Saved Addresses</Text>
+
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => router.push("/(customer)/add-address" as any)}
         >
-          <Ionicons name="cart-outline" size={24} color="#1E293B" />
-          {getItemCount() > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{getItemCount()}</Text>
-            </View>
-          )}
+          <Ionicons name="add" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Products Grid */}
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#22C55E"]}
+            tintColor="#22C55E"
+          />
+        }
       >
-        <Text style={styles.resultText}>
-          {categoryProducts.length} Products Found
-        </Text>
+        {addresses.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="location-outline" size={52} color="#CBD5E1" />
+            <Text style={styles.emptyText}>No address saved yet</Text>
 
-        <View style={styles.productsGrid}>
-          {categoryProducts.map((product) => {
-            const isFavorite = favorites.includes(product.id);
-            const inCart = isInCart(product.id, product.unit);
-            const isAdding = addingToCart === product.id;
-            
-            return (
-              <TouchableOpacity
-                key={product.id}
-                style={styles.productCard}
-                activeOpacity={0.8}
-                onPress={() => handleProductPress(product)}
-              >
-                <View style={styles.productImageContainer}>
-                  <Image 
-                    source={{ uri: product.image }} 
-                    style={styles.productImage}
-                  />
-                  {product.discount > 0 && (
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountText}>{product.discount}% OFF</Text>
-                    </View>
-                  )}
-                  <TouchableOpacity 
-                    style={styles.favoriteButton} 
-                    activeOpacity={0.7}
-                    onPress={(e) => toggleFavorite(product.id, e)}
+            <TouchableOpacity
+              style={styles.bigAddBtn}
+              onPress={() => router.push("/(customer)/add-address" as any)}
+            >
+              <Text style={styles.bigAddBtnText}>+ Add Address</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          addresses.map((addr) => (
+            <View key={addr._id} style={styles.card}>
+              <View style={styles.cardTop}>
+                <Text style={styles.addrTitle}>
+                  {addr.name || "Address"}{" "}
+                  {addr.isDefault ? (
+                    <Text style={styles.defaultTag}> (Default)</Text>
+                  ) : null}
+                </Text>
+
+                <TouchableOpacity onPress={() => deleteAddress(addr._id)}>
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.addrText}>{formatAddress(addr)}</Text>
+
+              {(addr.fullName || addr.phone) ? (
+                <Text style={styles.addrSub}>
+                  {addr.fullName || ""} {addr.phone ? `• ${addr.phone}` : ""}
+                </Text>
+              ) : null}
+
+              <View style={styles.actionsRow}>
+                {!addr.isDefault && (
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => setDefault(addr._id)}
                   >
-                    <Ionicons 
-                      name={isFavorite ? "heart" : "heart-outline"} 
-                      size={20} 
-                      color={isFavorite ? "#EF4444" : "#1E293B"} 
-                    />
+                    <Text style={styles.actionBtnText}>Set Default</Text>
                   </TouchableOpacity>
-                  
-                  {inCart && (
-                    <View style={styles.inCartBadge}>
-                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                      <Text style={styles.inCartText}>In Cart</Text>
-                    </View>
-                  )}
-                </View>
-                
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName} numberOfLines={2}>
-                    {product.name}
+                )}
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnOutline]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(customer)/add-address",
+                      params: { addressId: addr._id },
+                    } as any)
+                  }
+                >
+                  <Text style={[styles.actionBtnText, styles.actionBtnTextOutline]}>
+                    Edit
                   </Text>
-                  <Text style={styles.productUnit}>{product.unit}</Text>
-                  
-                  <View style={styles.productFooter}>
-                    <View style={styles.priceContainer}>
-                      <Text style={styles.productPrice}>₹{product.price}</Text>
-                      {product.discount > 0 && (
-                        <Text style={styles.originalPrice}>
-                          ₹{Math.round(product.price / (1 - product.discount / 100))}
-                        </Text>
-                      )}
-                    </View>
-                    
-                    <TouchableOpacity 
-                      style={[
-                        styles.addButton,
-                        isAdding && styles.addButtonAdding,
-                        inCart && styles.addButtonInCart
-                      ]} 
-                      activeOpacity={0.7}
-                      onPress={(e) => handleAddToCart(product, e)}
-                      disabled={isAdding}
-                    >
-                      {isAdding ? (
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      ) : inCart ? (
-                        <Ionicons name="cart" size={16} color="#FFFFFF" />
-                      ) : (
-                        <Ionicons name="add" size={18} color="#FFFFFF" />
-                      )}
-                    </TouchableOpacity>
-                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
 
-                  <View style={styles.ratingContainer}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{product.rating}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={{ height: 100 }} />
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
+
+  loadingScreen: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
   },
+  loadingText: { marginTop: 12, fontSize: 16, color: "#64748B" },
+
   header: {
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
-  backButton: {
+  backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  addBtn: {
     width: 40,
     height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    flex: 1,
-    textAlign: "center",
-  },
-  cartButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  cartBadge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-  },
-  cartBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  resultText: {
-    fontSize: 14,
-    color: "#64748B",
-    marginBottom: 16,
-  },
-  productsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  productCard: {
-    width: ITEM_WIDTH,
-    marginBottom: 20,
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  productImageContainer: {
-    width: "100%",
-    height: 150,
-    position: "relative",
-  },
-  productImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  discountBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  discountText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  inCartBadge: {
-    position: "absolute",
-    bottom: 8,
-    left: 8,
-    right: 8,
-    backgroundColor: "rgba(34, 197, 94, 0.95)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  inCartText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  productInfo: {
-    padding: 12,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 4,
-    minHeight: 36,
-  },
-  productUnit: {
-    fontSize: 12,
-    color: "#94A3B8",
-    marginBottom: 8,
-  },
-  productFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  priceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#22C55E",
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: "#94A3B8",
-    textDecorationLine: "line-through",
-  },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
     backgroundColor: "#22C55E",
     justifyContent: "center",
     alignItems: "center",
   },
-  addButtonAdding: {
-    backgroundColor: "#16A34A",
+
+  content: { padding: 16 },
+
+  emptyState: { alignItems: "center", paddingVertical: 60 },
+  emptyText: { fontSize: 14, color: "#94A3B8", marginTop: 12 },
+  bigAddBtn: {
+    marginTop: 16,
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  addButtonInCart: {
-    backgroundColor: "#059669",
+  bigAddBtnText: { color: "#FFFFFF", fontWeight: "700" },
+
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  ratingContainer: {
+  cardTop: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 4,
   },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#1E293B",
+  addrTitle: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
+  defaultTag: { fontSize: 13, fontWeight: "700", color: "#22C55E" },
+
+  addrText: { marginTop: 8, fontSize: 13, color: "#475569" },
+  addrSub: { marginTop: 6, fontSize: 12, color: "#94A3B8" },
+
+  actionsRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+
+  actionBtn: {
+    flex: 1,
+    backgroundColor: "#22C55E",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
   },
+  actionBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+
+  actionBtnOutline: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#22C55E",
+  },
+  actionBtnTextOutline: { color: "#22C55E" },
 });
