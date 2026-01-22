@@ -22,6 +22,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files (uploaded images)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
@@ -40,12 +43,12 @@ try {
   console.error('❌ Error loading auth routes:', err.message);
 }
 
-// try {
-//   cartRoutes = require('./routes/cart.routes');
-//   console.log('✅ Cart routes loaded');
-// } catch (err) {
-//   console.error('❌ Error loading cart routes:', err.message);
-// }
+try {
+  cartRoutes = require('./routes/cart.routes');
+  console.log('✅ Cart routes loaded');
+} catch (err) {
+  console.error('❌ Error loading cart routes:', err.message);
+}
 
 try {
   customerRoutes = require('./routes/customer.routes');
@@ -61,33 +64,19 @@ try {
   console.error('❌ Error loading delivery routes:', err.message);
 }
 
-// try {
-//   ordersRoutes = require('./routes/orders.routes');
-//   console.log('✅ Orders routes loaded');
-// } catch (err) {
-//   console.error('❌ Error loading orders routes:', err.message);
-// }
+try {
+  ordersRoutes = require('./routes/order.routes');
+  console.log('✅ Orders routes loaded');
+} catch (err) {
+  console.error('❌ Error loading orders routes:', err.message);
+}
 
-// try {
-//   productsRoutes = require('./routes/products.routes');
-//   console.log('✅ Products routes loaded');
-// } catch (err) {
-//   console.error('❌ Error loading products routes:', err.message);
-// }
-
-// try {
-//   storesRoutes = require('./routes/stores.routes');
-//   console.log('✅ Stores routes loaded');
-// } catch (err) {
-//   console.error('❌ Error loading stores routes:', err.message);
-// }
-
-// try {
-//   uploadRoutes = require('./routes/upload.routes');
-//   console.log('✅ Upload routes loaded');
-// } catch (err) {
-//   console.error('❌ Error loading upload routes:', err.message);
-// }
+try {
+  uploadRoutes = require('./routes/upload.routes');
+  console.log('✅ Upload routes loaded');
+} catch (err) {
+  console.error('❌ Error loading upload routes:', err.message);
+}
 
 try {
   vendorRoutes = require('./routes/vendor.routes');
@@ -101,10 +90,8 @@ if (authRoutes) app.use('/api/auth', authRoutes);
 if (cartRoutes) app.use('/api/cart', cartRoutes);
 if (customerRoutes) app.use('/api/customer', customerRoutes);
 if (deliveryRoutes) app.use('/api/delivery', deliveryRoutes);
-// if (ordersRoutes) app.use('/api/orders', ordersRoutes);
-// if (productsRoutes) app.use('/api/products', productsRoutes);
-// if (storesRoutes) app.use('/api/stores', storesRoutes);
-// if (uploadRoutes) app.use('/api/upload', uploadRoutes);
+if (ordersRoutes) app.use('/api/orders', ordersRoutes);
+if (uploadRoutes) app.use('/api/upload', uploadRoutes);
 if (vendorRoutes) app.use('/api/vendor', vendorRoutes);
 
 // Health check route
