@@ -28,9 +28,10 @@ const auth = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       // Attach user info to request
-      req.userId = decoded.userId; // ⚠️ Changed from req.user to req.userId
-      req.phone = decoded.phone;
-      req.role = decoded.role;
+      req.userId = decoded.id || decoded.userId || decoded._id;
+req.phone = decoded.phone;
+req.role = decoded.role;
+
 
       console.log('✅ Auth successful for user:', req.userId, 'Role:', req.role);
       next();
