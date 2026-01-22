@@ -34,16 +34,18 @@ router.post('/test-login', async (req, res) => {
       });
     }
 
-    const { phone, role, testMode } = req.body;
+   const { phone, role } = req.body;
+
     console.log('🧪 Test Login Request:', { phone, role, testMode });
 
     // Validate request
-    if (!testMode || !phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'Phone number and testMode flag required'
-      });
-    }
+  if (!phone) {
+  return res.status(400).json({
+    success: false,
+    error: "Phone number required"
+  });
+}
+
 
     // Validate phone format (10 digits)
     if (!/^\d{10}$/.test(phone)) {
