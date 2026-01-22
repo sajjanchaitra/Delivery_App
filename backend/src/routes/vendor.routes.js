@@ -46,6 +46,9 @@ router.post("/store", async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+  console.log("REQ USERID:", req.userId);
+console.log("REQ BODY:", req.body);
+
 });
 
 // PUT /api/vendor/store - Update store
