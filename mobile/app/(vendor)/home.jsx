@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,8 +9,8 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from "react-native";
-import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,14 +22,25 @@ const API_URL = "http://13.203.206.134:5000";
 
 export default function VendorHome() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
   const [storeActive, setStoreActive] = useState(true);
   const [greeting, setGreeting] = useState("Good Morning");
+
   const [hasStore, setHasStore] = useState(false);
   const [storeData, setStoreData] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [userName, setUserName] = useState("Vendor");
+
+  // ✅ helper (JSX friendly)
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (typeof imagePath !== "string") return null;
+    if (imagePath.startsWith("http")) return imagePath;
+    return `${API_URL}${imagePath}`;
+  };
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -50,7 +62,7 @@ export default function VendorHome() {
       const userData = await AsyncStorage.getItem("user");
       if (userData) {
         const user = JSON.parse(userData);
-        setUserName(user.name || "Vendor");
+        setUserName(user?.name || "Vendor");
       }
     } catch (error) {
       console.error("Error loading user:", error);
@@ -66,16 +78,15 @@ export default function VendorHome() {
         return;
       }
 
-      // Check if vendor has a store
+      // Check store
       const storeResponse = await fetch(`${API_URL}/api/vendor/store`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
+
       const storeResult = await storeResponse.json();
       console.log("Store check:", storeResult);
 
-      if (!storeResult.hasStore) {
+      if (!storeResult?.hasStore) {
         setHasStore(false);
         setLoading(false);
         return;
@@ -83,18 +94,17 @@ export default function VendorHome() {
 
       setHasStore(true);
       setStoreData(storeResult.store);
-      setStoreActive(storeResult.store?.isOpen ?? true);
+      setStoreActive(storeResult?.store?.isOpen ?? true);
 
-      // Fetch dashboard stats
+      // Dashboard
       const dashboardResponse = await fetch(`${API_URL}/api/vendor/dashboard`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
+
       const dashboardData = await dashboardResponse.json();
       console.log("Dashboard data:", dashboardData);
 
-      if (dashboardData.success) {
+      if (dashboardData?.success) {
         setDashboardStats(dashboardData);
       }
     } catch (error) {
@@ -110,13 +120,12 @@ export default function VendorHome() {
       const token = await AsyncStorage.getItem("authToken");
       const response = await fetch(`${API_URL}/api/vendor/store/toggle`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await response.json();
 
-      if (data.success) {
+      if (data?.success) {
         setStoreActive(data.isOpen);
       }
     } catch (error) {
@@ -130,61 +139,36 @@ export default function VendorHome() {
   };
 
   const quickActions = [
-    {
-      id: "1",
-      label: "Add Product",
-      icon: "add-circle",
-      color: "#22C55E",
-      route: "/(vendor)/add-product",
-    },
-    {
-      id: "2",
-      label: "My Products",
-      icon: "cube",
-      color: "#3B82F6",
-      route: "/(vendor)/products",
-    },
-    {
-      id: "3",
-      label: "All Orders",
-      icon: "receipt",
-      color: "#F59E0B",
-      route: "/(vendor)/orders",
-    },
-    {
-      id: "4",
-      label: "Store Setup",
-      icon: "storefront",
-      color: "#8B5CF6",
-      route: "/(vendor)/store-setup",
-    },
+    { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
+    { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
+    { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
+    { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup" },
   ];
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
         <ActivityIndicator size="large" color="#22C55E" />
         <Text style={{ marginTop: 12, color: "#64748B" }}>Loading...</Text>
       </View>
     );
   }
 
-  // No Store State
+  // ❌ No Store State
   if (!hasStore) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
+
         <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.profileSection}>
               <View style={styles.avatar}>
-                <Ionicons name="person" size={24} color="#FFF" />
+                <Text style={styles.avatarText}>
+                  {userName?.substring(0, 2).toUpperCase() || "VN"}
+                </Text>
               </View>
+
               <View style={styles.greetingContainer}>
                 <Text style={styles.greetingText}>{greeting} 👋</Text>
                 <Text style={styles.storeName}>{userName}</Text>
@@ -204,20 +188,17 @@ export default function VendorHome() {
           <View style={styles.emptyStateIcon}>
             <Ionicons name="storefront-outline" size={64} color="#22C55E" />
           </View>
+
           <Text style={styles.emptyStateTitle}>Setup Your Store</Text>
           <Text style={styles.emptyStateText}>
-            Create your store profile to start selling products and receiving
-            orders
+            Create your store profile to start selling products and receiving orders
           </Text>
 
           <TouchableOpacity
             style={styles.setupButton}
             onPress={() => router.push("/(vendor)/store-setup")}
           >
-            <LinearGradient
-              colors={["#22C55E", "#16A34A"]}
-              style={styles.setupButtonGradient}
-            >
+            <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.setupButtonGradient}>
               <Ionicons name="storefront" size={20} color="#FFF" />
               <Text style={styles.setupButtonText}>Setup Store Now</Text>
             </LinearGradient>
@@ -235,6 +216,8 @@ export default function VendorHome() {
     totalRevenue: 0,
   };
 
+  const storeImageUrl = getImageUrl(storeData?.image || storeData?.logo);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
@@ -243,31 +226,28 @@ export default function VendorHome() {
       <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.profileSection}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {storeData?.name?.substring(0, 2).toUpperCase() || "ST"}
-              </Text>
-            </View>
+            {storeImageUrl ? (
+              <Image source={{ uri: storeImageUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {storeData?.name?.substring(0, 2).toUpperCase() || "ST"}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.greetingContainer}>
               <Text style={styles.greetingText}>{greeting} 👋</Text>
-              <Text style={styles.storeName}>
-                {storeData?.name || "Your Store"}
-              </Text>
+              <Text style={styles.storeName}>{storeData?.name || "Your Store"}</Text>
             </View>
           </View>
 
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconButton}>
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color="#FFF"
-              />
+              <Ionicons name="notifications-outline" size={24} color="#FFF" />
               {stats.pendingOrders > 0 && (
                 <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>
-                    {stats.pendingOrders}
-                  </Text>
+                  <Text style={styles.notifBadgeText}>{stats.pendingOrders}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -292,10 +272,7 @@ export default function VendorHome() {
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              storeActive && styles.toggleButtonActive,
-            ]}
+            style={[styles.toggleButton, storeActive && styles.toggleButtonActive]}
             onPress={toggleStoreStatus}
             activeOpacity={0.8}
           >
@@ -309,7 +286,7 @@ export default function VendorHome() {
         <View style={styles.ratingBadge}>
           <Ionicons name="star" size={14} color="#F59E0B" />
           <Text style={styles.ratingText}>
-            {storeData?.rating?.average?.toFixed(1) || "0.0"}
+            {storeData?.rating?.average ? Number(storeData.rating.average).toFixed(1) : "0.0"}
           </Text>
           <Text style={styles.ratingLabel}>Rating</Text>
         </View>
@@ -332,10 +309,7 @@ export default function VendorHome() {
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
             <View style={[styles.statCard, styles.statCardPrimary]}>
-              <LinearGradient
-                colors={["#22C55E", "#16A34A"]}
-                style={styles.statCardGradient}
-              >
+              <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.statCardGradient}>
                 <View style={styles.statIconContainer}>
                   <Ionicons name="cart" size={24} color="#FFF" />
                 </View>
@@ -345,29 +319,17 @@ export default function VendorHome() {
             </View>
 
             <View style={styles.statCard}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "#FEF3C7" },
-                ]}
-              >
+              <View style={[styles.statIconContainer, { backgroundColor: "#FEF3C7" }]}>
                 <Ionicons name="wallet" size={24} color="#F59E0B" />
               </View>
-              <Text style={styles.statValue}>
-                ₹{stats.todayRevenue?.toLocaleString() || 0}
-              </Text>
+              <Text style={styles.statValue}>₹{stats.todayRevenue?.toLocaleString() || 0}</Text>
               <Text style={styles.statLabel}>Today's Earnings</Text>
             </View>
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "#FEE2E2" },
-                ]}
-              >
+              <View style={[styles.statIconContainer, { backgroundColor: "#FEE2E2" }]}>
                 <Ionicons name="time" size={24} color="#EF4444" />
               </View>
               <Text style={styles.statValue}>{stats.pendingOrders}</Text>
@@ -375,12 +337,7 @@ export default function VendorHome() {
             </View>
 
             <View style={styles.statCard}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "#DBEAFE" },
-                ]}
-              >
+              <View style={[styles.statIconContainer, { backgroundColor: "#DBEAFE" }]}>
                 <Ionicons name="cube" size={24} color="#3B82F6" />
               </View>
               <Text style={styles.statValue}>{stats.totalProducts}</Text>
@@ -420,12 +377,7 @@ export default function VendorHome() {
                 onPress={() => router.push(action.route)}
                 activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.quickActionIcon,
-                    { backgroundColor: `${action.color}15` },
-                  ]}
-                >
+                <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}15` }]}>
                   <Ionicons name={action.icon} size={26} color={action.color} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
@@ -433,72 +385,6 @@ export default function VendorHome() {
             ))}
           </View>
         </View>
-
-        {/* Recent Orders */}
-        {dashboardStats?.recentOrders && dashboardStats.recentOrders.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Orders</Text>
-              <TouchableOpacity onPress={() => router.push("/(vendor)/orders")}>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
-            </View>
-
-            {dashboardStats.recentOrders.map((order) => (
-              <TouchableOpacity
-                key={order._id}
-                style={styles.orderCard}
-                activeOpacity={0.7}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(vendor)/order-details",
-                    params: { orderId: order._id },
-                  })
-                }
-              >
-                <View style={styles.orderLeft}>
-                  <View style={styles.orderIconContainer}>
-                    <Ionicons name="receipt" size={20} color="#22C55E" />
-                  </View>
-                  <View style={styles.orderInfo}>
-                    <Text style={styles.orderNumber}>
-                      #{order._id?.substring(0, 8)}
-                    </Text>
-                    <Text style={styles.orderCustomer}>
-                      {order.customer?.name || "Customer"}
-                    </Text>
-                    <Text style={styles.orderMeta}>
-                      {new Date(order.createdAt).toLocaleString()}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.orderRight}>
-                  <Text style={styles.orderTotal}>₹{order.total}</Text>
-                  <View style={[styles.statusBadge, getStatusStyle(order.status)]}>
-                    <Text style={[styles.statusText, getStatusTextStyle(order.status)]}>
-                      {order.status}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Empty Orders */}
-        {(!dashboardStats?.recentOrders || dashboardStats.recentOrders.length === 0) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Orders</Text>
-            <View style={styles.emptyOrders}>
-              <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyOrdersText}>No orders yet</Text>
-              <Text style={styles.emptyOrdersSubtext}>
-                Orders will appear here when customers place them
-              </Text>
-            </View>
-          </View>
-        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -512,35 +398,23 @@ export default function VendorHome() {
           <Text style={[styles.navLabel, styles.navLabelActive]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/(vendor)/products")}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/(vendor)/products")}>
           <Ionicons name="cube-outline" size={22} color="#94A3B8" />
           <Text style={styles.navLabel}>Products</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItemCenter}
-          onPress={() => router.push("/(vendor)/add-product")}
-        >
+        <TouchableOpacity style={styles.navItemCenter} onPress={() => router.push("/(vendor)/add-product")}>
           <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.addButtonGradient}>
             <Ionicons name="add" size={28} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/(vendor)/orders")}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/(vendor)/orders")}>
           <Ionicons name="receipt-outline" size={22} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/(vendor)/profile")}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/(vendor)/profile")}>
           <Ionicons name="person-outline" size={22} color="#94A3B8" />
           <Text style={styles.navLabel}>Profile</Text>
         </TouchableOpacity>
@@ -549,54 +423,10 @@ export default function VendorHome() {
   );
 }
 
-// Helper functions for status styling
-const getStatusStyle = (status) => {
-  switch (status?.toLowerCase()) {
-    case "pending":
-      return { backgroundColor: "#FEF3C7" };
-    case "confirmed":
-      return { backgroundColor: "#DBEAFE" };
-    case "preparing":
-      return { backgroundColor: "#E0E7FF" };
-    case "ready":
-      return { backgroundColor: "#D1FAE5" };
-    case "delivered":
-      return { backgroundColor: "#DCFCE7" };
-    case "cancelled":
-      return { backgroundColor: "#FEE2E2" };
-    default:
-      return { backgroundColor: "#F1F5F9" };
-  }
-};
-
-const getStatusTextStyle = (status) => {
-  switch (status?.toLowerCase()) {
-    case "pending":
-      return { color: "#D97706" };
-    case "confirmed":
-      return { color: "#2563EB" };
-    case "preparing":
-      return { color: "#4F46E5" };
-    case "ready":
-      return { color: "#059669" };
-    case "delivered":
-      return { color: "#16A34A" };
-    case "cancelled":
-      return { color: "#DC2626" };
-    default:
-      return { color: "#64748B" };
-  }
-};
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC" },
 
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
+  emptyStateContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
   emptyStateIcon: {
     width: 120,
     height: 120,
@@ -606,58 +436,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
-  emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 12,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: "#64748B",
-    textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 22,
-  },
+  emptyStateTitle: { fontSize: 24, fontWeight: "700", color: "#1E293B", marginBottom: 12 },
+  emptyStateText: { fontSize: 15, color: "#64748B", textAlign: "center", marginBottom: 32, lineHeight: 22 },
+
   setupButton: { borderRadius: 14, overflow: "hidden" },
-  setupButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 8,
-  },
+  setupButtonGradient: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingVertical: 16, gap: 8 },
   setupButtonText: { fontSize: 16, fontWeight: "700", color: "#FFF" },
 
-  emptyOrders: {
-    alignItems: "center",
-    paddingVertical: 40,
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    marginTop: 12,
-  },
-  emptyOrdersText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#64748B",
-    marginTop: 12,
-  },
-  emptyOrdersSubtext: { fontSize: 13, color: "#94A3B8", marginTop: 4 },
+  header: { paddingTop: 50, paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
 
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
   profileSection: { flexDirection: "row", alignItems: "center" },
+
   avatar: {
     width: 48,
     height: 48,
@@ -666,19 +456,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  avatarImage: { width: 48, height: 48, borderRadius: 14, backgroundColor: "#E2E8F0" },
   avatarText: { fontSize: 18, fontWeight: "700", color: "#FFF" },
+
   greetingContainer: { marginLeft: 12 },
   greetingText: { fontSize: 13, color: "rgba(255,255,255,0.85)" },
   storeName: { fontSize: 18, fontWeight: "700", color: "#FFF", marginTop: 2 },
+
   headerActions: { flexDirection: "row", gap: 10 },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  iconButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
+
   notifBadge: {
     position: "absolute",
     top: 8,
@@ -692,25 +479,13 @@ const styles = StyleSheet.create({
   },
   notifBadgeText: { fontSize: 10, fontWeight: "700", color: "#FFF" },
 
-  storeStatusCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 14,
-    padding: 14,
-  },
+  storeStatusCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 14, padding: 14 },
   storeStatusLeft: { flexDirection: "row", alignItems: "center" },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   storeStatusLabel: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
   storeStatusValue: { fontSize: 14, fontWeight: "600", color: "#FFF", marginTop: 2 },
 
-  toggleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.2)",
-  },
+  toggleButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.2)" },
   toggleButtonActive: { backgroundColor: "#FFF" },
   toggleText: { fontSize: 12, fontWeight: "700", color: "#FFF" },
   toggleTextActive: { color: "#22C55E" },
@@ -741,29 +516,11 @@ const styles = StyleSheet.create({
   statsContainer: { gap: 12, marginBottom: 20 },
   statsRow: { flexDirection: "row", gap: 12 },
 
-  statCard: {
-    flex: 1,
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
+  statCard: { flex: 1, backgroundColor: "#FFF", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   statCardPrimary: { padding: 0, overflow: "hidden" },
   statCardGradient: { padding: 16, flex: 1 },
 
-  statIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  statIconContainer: { width: 44, height: 44, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.25)", justifyContent: "center", alignItems: "center", marginBottom: 12 },
 
   statValue: { fontSize: 24, fontWeight: "700", color: "#1E293B" },
   statValueLight: { fontSize: 24, fontWeight: "700", color: "#FFF" },
@@ -771,118 +528,24 @@ const styles = StyleSheet.create({
   statLabelLight: { fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 4 },
 
   earningsBanner: { marginBottom: 24, borderRadius: 16, overflow: "hidden" },
-  earningsBannerGradient: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-  },
+  earningsBannerGradient: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20 },
   earningsBannerLabel: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
   earningsBannerValue: { fontSize: 28, fontWeight: "700", color: "#FFF", marginTop: 4 },
-  earningsBannerIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "rgba(34,197,94,0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  earningsBannerIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: "rgba(34,197,94,0.15)", justifyContent: "center", alignItems: "center" },
 
   section: { marginBottom: 24 },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
-  seeAllText: { fontSize: 14, fontWeight: "600", color: "#22C55E" },
 
   quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  quickActionCard: {
-    width: (width - 52) / 2,
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 18,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  quickActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  quickActionCard: { width: (width - 52) / 2, backgroundColor: "#FFF", borderRadius: 16, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  quickActionIcon: { width: 52, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", marginBottom: 12 },
   quickActionLabel: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
 
-  orderCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  orderLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
-  orderIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#F0FDF4",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  orderInfo: { marginLeft: 12, flex: 1 },
-  orderNumber: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
-  orderCustomer: { fontSize: 13, color: "#64748B", marginTop: 2 },
-  orderMeta: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
-  orderRight: { alignItems: "flex-end" },
-  orderTotal: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 6 },
-  statusText: { fontSize: 11, fontWeight: "600", textTransform: "capitalize" },
-
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    backgroundColor: "#FFF",
-    paddingTop: 10,
-    paddingBottom: 28,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-    justifyContent: "space-around",
-    alignItems: "center",
-  },
+  bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: "#FFF", paddingTop: 10, paddingBottom: 28, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: "#F1F5F9", justifyContent: "space-around", alignItems: "center" },
   navItem: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },
   navItemActive: { backgroundColor: "#F0FDF4", padding: 8, borderRadius: 12 },
   navItemCenter: { marginTop: -30 },
-  addButtonGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#22C55E",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
-  },
+  addButtonGradient: { width: 56, height: 56, borderRadius: 16, justifyContent: "center", alignItems: "center", shadowColor: "#22C55E", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6 },
   navLabel: { fontSize: 11, fontWeight: "500", color: "#94A3B8", marginTop: 4 },
   navLabelActive: { color: "#22C55E", fontWeight: "600" },
 });

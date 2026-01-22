@@ -347,9 +347,10 @@ export default function CustomerHome() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Shops Near You</Text>
             {stores.length > 0 && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push("/(customer)/stores" as any)}>
-                <Text style={styles.seeAll}>See all</Text>
-              </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push("/(customer)/stores")}>
+  <Text style={styles.seeAll}>See all</Text>
+</TouchableOpacity>
+
             )}
           </View>
           {stores.length === 0 ? (

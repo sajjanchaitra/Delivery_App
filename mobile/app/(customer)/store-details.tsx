@@ -23,12 +23,20 @@ const { width } = Dimensions.get("window");
 const PRODUCT_CARD_WIDTH = (width - 52) / 2;
 const API_URL = "http://13.203.206.134:5000";
 
+interface StoreAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  landmark?: string;
+}
+
 interface Store {
   _id: string;
   name: string;
   image?: string;
   logo?: string;
-  address?: string;
+  address?: string | StoreAddress | null;
   phone?: string;
   description?: string;
   isOpen?: boolean;
@@ -57,6 +65,21 @@ interface Product {
 }
 
 type SortOption = "newest" | "price-low" | "price-high" | "popular";
+
+// Helper function to format address
+const formatAddress = (address: string | StoreAddress | null | undefined): string => {
+  if (!address) return "";
+  if (typeof address === "string") return address;
+  
+  const parts = [
+    address.street,
+    address.city,
+    address.state,
+    address.pincode,
+  ].filter(Boolean);
+  
+  return parts.join(", ");
+};
 
 export default function StoreDetails() {
   const router = useRouter();
@@ -268,100 +291,106 @@ export default function StoreDetails() {
     );
   };
 
-  const renderHeader = () => (
-    <>
-      {store && (
-        <View style={styles.storeCard}>
-          <Image
-            source={{ uri: store.image || store.logo || "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400" }}
-            style={styles.storeImage}
-          />
-          <View style={styles.storeInfoContainer}>
-            <View style={styles.storeHeader}>
-              <Text style={styles.storeName}>{store.name}</Text>
-              {store.isOpen !== false && (
-                <View style={styles.openBadge}>
-                  <View style={styles.openDot} />
-                  <Text style={styles.openText}>Open</Text>
+  const renderHeader = () => {
+    const addressText = store ? formatAddress(store.address) : "";
+    
+    return (
+      <>
+        {store && (
+          <View style={styles.storeCard}>
+            <Image
+              source={{ uri: store.image || store.logo || "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400" }}
+              style={styles.storeImage}
+            />
+            <View style={styles.storeInfoContainer}>
+              <View style={styles.storeHeader}>
+                <Text style={styles.storeName}>{store.name}</Text>
+                {store.isOpen !== false && (
+                  <View style={styles.openBadge}>
+                    <View style={styles.openDot} />
+                    <Text style={styles.openText}>Open</Text>
+                  </View>
+                )}
+              </View>
+              {addressText ? (
+                <View style={styles.addressRow}>
+                  <Ionicons name="location-outline" size={14} color="#64748B" />
+                  <Text style={styles.storeAddress} numberOfLines={2}>
+                    {addressText}
+                  </Text>
                 </View>
-              )}
-            </View>
-            {store.address && (
-              <View style={styles.addressRow}>
-                <Ionicons name="location-outline" size={14} color="#64748B" />
-                <Text style={styles.storeAddress} numberOfLines={2}>{store.address}</Text>
-              </View>
-            )}
-            <View style={styles.storeMetaRow}>
-              <View style={styles.metaItem}>
-                <Ionicons name="star" size={16} color="#F59E0B" />
-                <Text style={styles.metaText}>{store.rating?.average?.toFixed(1) || "4.5"}</Text>
-              </View>
-              <View style={styles.metaDivider} />
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color="#64748B" />
-                <Text style={styles.metaText}>{store.deliveryTime || "20-30 min"}</Text>
-              </View>
-              <View style={styles.metaDivider} />
-              <View style={styles.metaItem}>
-                <Ionicons name="cube-outline" size={16} color="#64748B" />
-                <Text style={styles.metaText}>{store.inStockProducts || store.totalProducts || 0} items</Text>
+              ) : null}
+              <View style={styles.storeMetaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="star" size={16} color="#F59E0B" />
+                  <Text style={styles.metaText}>{store.rating?.average?.toFixed(1) || "4.5"}</Text>
+                </View>
+                <View style={styles.metaDivider} />
+                <View style={styles.metaItem}>
+                  <Ionicons name="time-outline" size={16} color="#64748B" />
+                  <Text style={styles.metaText}>{store.deliveryTime || "20-30 min"}</Text>
+                </View>
+                <View style={styles.metaDivider} />
+                <View style={styles.metaItem}>
+                  <Ionicons name="cube-outline" size={16} color="#64748B" />
+                  <Text style={styles.metaText}>{store.inStockProducts || store.totalProducts || 0} items</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {topProducts.length > 0 && (
-        <View style={styles.topProductsSection}>
-          <Text style={styles.sectionTitle}>Best Sellers</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topProductsContainer}>
-            {topProducts.map((product) => (
+        {topProducts.length > 0 && (
+          <View style={styles.topProductsSection}>
+            <Text style={styles.sectionTitle}>Best Sellers</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topProductsContainer}>
+              {topProducts.map((product) => (
+                <TouchableOpacity
+                  key={product._id}
+                  style={styles.topProductCard}
+                  onPress={() => router.push({
+                    pathname: "/(customer)/product-details",
+                    params: { productId: product._id },
+                  } as any)}
+                >
+                  <Image
+                    source={{ uri: product.images?.[0] || "https://via.placeholder.com/100" }}
+                    style={styles.topProductImage}
+                  />
+                  <Text style={styles.topProductName} numberOfLines={1}>{product.name}</Text>
+                  <Text style={styles.topProductPrice}>₹{product.discountPrice || product.price}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.categorySection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
+            {categories.map((category, index) => (
               <TouchableOpacity
-                key={product._id}
-                style={styles.topProductCard}
-                onPress={() => router.push({
-                  pathname: "/(customer)/product-details",
-                  params: { productId: product._id },
-                } as any)}
+                key={index}
+                style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
+                onPress={() => setSelectedCategory(category)}
               >
-                <Image
-                  source={{ uri: product.images?.[0] || "https://via.placeholder.com/100" }}
-                  style={styles.topProductImage}
-                />
-                <Text style={styles.topProductName} numberOfLines={1}>{product.name}</Text>
-                <Text style={styles.topProductPrice}>₹{product.discountPrice || product.price}</Text>
+                <Text style={[styles.categoryChipText, selectedCategory === category && styles.categoryChipTextActive]}>
+                  {category}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
-      )}
 
-      <View style={styles.categorySection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
-          {categories.map((category, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
-              onPress={() => setSelectedCategory(category)}
-            >
-              <Text style={[styles.categoryChipText, selectedCategory === category && styles.categoryChipTextActive]}>
-                {category}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <View style={styles.filterBar}>
-        <Text style={styles.resultsText}>{totalProducts} Products</Text>
-        <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-          <Ionicons name="swap-vertical" size={18} color="#64748B" />
-          <Text style={styles.sortButtonText}>{getSortLabel(sortBy)}</Text>
-        </TouchableOpacity>
-      </View>
-    </>
-  );
+        <View style={styles.filterBar}>
+          <Text style={styles.resultsText}>{totalProducts} Products</Text>
+          <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
+            <Ionicons name="swap-vertical" size={18} color="#64748B" />
+            <Text style={styles.sortButtonText}>{getSortLabel(sortBy)}</Text>
+          </TouchableOpacity>
+        </View>
+      </>
+    );
+  };
 
   if (loading && !store) {
     return (
