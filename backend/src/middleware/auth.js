@@ -1,6 +1,8 @@
 // backend/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET || "quickmart-secret-key-2024";
+
 const auth = async (req, res, next) => {
   try {
     // Get token from header
@@ -25,13 +27,13 @@ const auth = async (req, res, next) => {
 
     // Verify token
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET);
       
       // Attach user info to request
       req.userId = decoded.id || decoded.userId || decoded._id;
-req.phone = decoded.phone;
-req.role = decoded.role;
-
+      req.phone = decoded.phone;
+      req.role = decoded.role;
+      req.userRole = decoded.role; // For compatibility
 
       console.log('✅ Auth successful for user:', req.userId, 'Role:', req.role);
       next();
@@ -64,7 +66,7 @@ req.role = decoded.role;
 const isVendor = (req, res, next) => {
   console.log('🔍 Checking vendor role for user:', req.userId, 'Role:', req.role);
   
-  if (req.role !== 'vendor') {
+  if (req.role !== 'vendor' && req.role !== 'admin') {
     return res.status(403).json({
       success: false,
       error: 'Access denied. Vendor role required.',
@@ -76,7 +78,7 @@ const isVendor = (req, res, next) => {
 };
 
 const isCustomer = (req, res, next) => {
-  if (req.role !== 'customer') {
+  if (req.role !== 'customer' && req.role !== 'admin') {
     return res.status(403).json({
       success: false,
       error: 'Access denied. Customer role required.',
@@ -86,7 +88,7 @@ const isCustomer = (req, res, next) => {
 };
 
 const isDelivery = (req, res, next) => {
-  if (req.role !== 'delivery') {
+  if (req.role !== 'delivery' && req.role !== 'admin') {
     return res.status(403).json({
       success: false,
       error: 'Access denied. Delivery partner role required.',
