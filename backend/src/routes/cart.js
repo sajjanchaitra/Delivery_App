@@ -49,7 +49,7 @@ try {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
       req.user = { id: decoded.id || decoded.userId || decoded._id };
-      // req.userId = req.userId;
+      req.userId = req.user.id;  // ✅ CORRECT
       next();
     } catch (error) {
       res.status(401).json({ success: false, error: 'Invalid token' });
