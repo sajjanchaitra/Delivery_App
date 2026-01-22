@@ -97,7 +97,7 @@ router.get('/stores', async (req, res) => {
     console.log('Store query:', JSON.stringify(query));
 
     let stores = await Store.find(query)
-      .select('name description logo images address rating isOpen categories deliveryTime deliveryFee minOrder phone')
+      .select('name description logo image images address rating isOpen categories deliveryTime deliveryFee minOrder phone deliverySettings')
       .skip((parseInt(page) - 1) * parseInt(limit))
       .limit(parseInt(limit))
       .lean();
@@ -106,17 +106,32 @@ router.get('/stores', async (req, res) => {
     if (stores.length === 0) {
       console.log('No stores with filter, trying all stores...');
       stores = await Store.find({})
-        .select('name description logo images address rating isOpen categories deliveryTime deliveryFee minOrder phone')
+        .select('name description logo image images address rating isOpen categories deliveryTime deliveryFee minOrder phone deliverySettings')
         .limit(parseInt(limit))
         .lean();
     }
+
+    // Add product count to each store
+    const storesWithProductCount = await Promise.all(
+      stores.map(async (store) => {
+        const productCount = await Product.countDocuments({
+          store: store._id,
+          isActive: { $ne: false }
+        });
+        return {
+          ...store,
+          productCount,
+          totalProducts: productCount
+        };
+      })
+    );
 
     const total = await Store.countDocuments(query);
 
     console.log(`✅ Found ${stores.length} stores`);
     res.json({
       success: true,
-      stores,
+      stores: storesWithProductCount,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -148,19 +163,99 @@ router.get('/stores/:storeId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Store not found' });
     }
 
-    // Get products for this store
-    const products = await Product.find({
-      store: storeId,
-      isActive: { $ne: false }
-    }).lean();
+    // Get product count and top products for this store
+    const [productCount, topProducts] = await Promise.all([
+      Product.countDocuments({ store: storeId, isActive: { $ne: false } }),
+      Product.find({ store: storeId, isActive: { $ne: false } })
+        .sort({ soldCount: -1 })
+        .limit(5)
+        .lean()
+    ]);
 
-    console.log(`✅ Found store: ${store.name} with ${products.length} products`);
+    // Format address as string if it's an object
+    let addressString = store.address;
+    if (store.address && typeof store.address === 'object') {
+      addressString = [
+        store.address.street,
+        store.address.city,
+        store.address.state,
+        store.address.pincode
+      ].filter(Boolean).join(', ');
+    }
+
+    console.log(`✅ Found store: ${store.name} with ${productCount} products`);
     res.json({
       success: true,
-      store: { ...store, products }
+      store: {
+        ...store,
+        address: addressString,
+        totalProducts: productCount,
+        inStockProducts: productCount
+      },
+      topProducts
     });
   } catch (error) {
     console.error('❌ Error fetching store:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// GET /api/customer/stores/:storeId/products
+// ============================================
+router.get('/stores/:storeId/products', async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { category, sort, page = 1, limit = 20 } = req.query;
+    
+    console.log('📦 GET /api/customer/stores/:storeId/products -', storeId);
+
+    if (!mongoose.Types.ObjectId.isValid(storeId)) {
+      return res.status(400).json({ success: false, error: 'Invalid store ID' });
+    }
+
+    const query = { 
+      store: storeId,
+      isActive: { $ne: false } 
+    };
+
+    if (category && category !== 'All') {
+      query.category = category;
+    }
+
+    // Sort options
+    let sortOption = { createdAt: -1 };
+    if (sort === 'price-low') sortOption = { price: 1 };
+    else if (sort === 'price-high') sortOption = { price: -1 };
+    else if (sort === 'popular') sortOption = { soldCount: -1 };
+    else if (sort === 'createdAt') sortOption = { createdAt: -1 };
+
+    const products = await Product.find(query)
+      .sort(sortOption)
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Product.countDocuments(query);
+
+    // Get unique categories from store products
+    const allProducts = await Product.find({ store: storeId, isActive: { $ne: false } }).select('category').lean();
+    const categories = ['All', ...new Set(allProducts.map(p => p.category).filter(Boolean))];
+
+    console.log(`✅ Found ${products.length} products for store ${storeId}`);
+    res.json({
+      success: true,
+      products,
+      categories,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching store products:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -171,7 +266,7 @@ router.get('/stores/:storeId', async (req, res) => {
 router.get('/products', async (req, res) => {
   try {
     console.log('📦 GET /api/customer/products');
-    const { category, store, search, sort, page = 1, limit = 20, minPrice, maxPrice } = req.query;
+    const { category, storeId, store, search, sort, page = 1, limit = 20, minPrice, maxPrice } = req.query;
 
     const query = { isActive: { $ne: false } };
 
@@ -179,8 +274,9 @@ router.get('/products', async (req, res) => {
       query.category = category;
     }
 
-    if (store) {
-      query.store = store;
+    // Support both storeId and store query params
+    if (storeId || store) {
+      query.store = storeId || store;
     }
 
     if (search) {
@@ -380,6 +476,26 @@ router.get('/home', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error fetching home data:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// GET /api/customer/profile
+// ============================================
+router.get('/profile', async (req, res) => {
+  try {
+    // This requires auth middleware - return basic info if no auth
+    if (!req.userId) {
+      return res.json({ success: true, customer: null });
+    }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.userId).select('-password').lean();
+    
+    res.json({ success: true, customer: user });
+  } catch (error) {
+    console.error('❌ Error fetching profile:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
