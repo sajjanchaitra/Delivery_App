@@ -34,7 +34,8 @@ try {
 // Import auth middleware with fallback
 let auth;
 try {
-  auth = require('../middleware/auth');
+  const authModule = require('../middleware/auth');
+  auth = authModule.auth || authModule; // Handle both export styles
 } catch (e) {
   console.log('Auth middleware not found, using fallback');
   // Simple auth middleware fallback
@@ -47,14 +48,14 @@ try {
       
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      req.user = decoded;
+      req.user = { id: decoded.id || decoded.userId || decoded._id };
+      req.userId = req.user.id;
       next();
     } catch (error) {
       res.status(401).json({ success: false, error: 'Invalid token' });
     }
   };
 }
-
 // All cart routes require authentication
 router.use(auth);
 
