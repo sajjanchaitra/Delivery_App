@@ -145,8 +145,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 const startServer = async () => {
   try {
     // Connect to database
+    const seedCategories = require("./seed/seedCategories");
     await connectDB();
 
+    await seedCategories();
     // Start listening
     app.listen(PORT, HOST, () => {
       console.log('\n🚀 ================================');
