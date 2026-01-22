@@ -44,7 +44,7 @@ try {
 }
 
 try {
-  cartRoutes = require('./routes/cart.routes');
+  cartRoutes = require('./routes/cart');
   console.log('✅ Cart routes loaded');
 } catch (err) {
   console.error('❌ Error loading cart routes:', err.message);
@@ -65,7 +65,7 @@ try {
 }
 
 try {
-  ordersRoutes = require('./routes/order.routes');
+  ordersRoutes = require('./routes/orders');
   console.log('✅ Orders routes loaded');
 } catch (err) {
   console.error('❌ Error loading orders routes:', err.message);

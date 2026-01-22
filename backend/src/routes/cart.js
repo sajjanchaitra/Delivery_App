@@ -1,19 +1,66 @@
-// backend/src/routes/cart.js
-// COPY THIS FILE TO: backend/src/routes/cart.js
-
+// backend/src/routes/cart.routes.js
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// Import models - adjust paths if needed
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-const auth = require('../middleware/auth');
+// Import models with fallback
+let Cart, Product;
+
+try {
+  Cart = require('../models/Cart');
+} catch (e) {
+  console.log('Cart model not found, using fallback');
+  const cartItemSchema = new mongoose.Schema({
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    quantity: { type: Number, required: true, min: 1, default: 1 }
+  });
+  
+  const cartSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    store: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },
+    items: [cartItemSchema]
+  }, { timestamps: true });
+  
+  Cart = mongoose.model('Cart', cartSchema);
+}
+
+try {
+  Product = require('../models/Product');
+} catch (e) {
+  console.log('Product model not found, using fallback');
+  Product = mongoose.model('Product', new mongoose.Schema({}, { strict: false }));
+}
+
+// Import auth middleware with fallback
+let auth;
+try {
+  auth = require('../middleware/auth');
+} catch (e) {
+  console.log('Auth middleware not found, using fallback');
+  // Simple auth middleware fallback
+  auth = async (req, res, next) => {
+    try {
+      const token = req.header('Authorization')?.replace('Bearer ', '');
+      if (!token) {
+        return res.status(401).json({ success: false, error: 'No authentication token' });
+      }
+      
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      req.user = decoded;
+      next();
+    } catch (error) {
+      res.status(401).json({ success: false, error: 'Invalid token' });
+    }
+  };
+}
 
 // All cart routes require authentication
 router.use(auth);
 
+// ============================================
 // GET /api/cart - Get user's cart
+// ============================================
 router.get('/', async (req, res) => {
   try {
     console.log('🛒 GET /api/cart - User:', req.user.id);
@@ -43,7 +90,9 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ============================================
 // POST /api/cart/add - Add item to cart
+// ============================================
 router.post('/add', async (req, res) => {
   try {
     const { productId, quantity = 1 } = req.body;
@@ -118,7 +167,9 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// ============================================
 // POST /api/cart/update - Update item quantity
+// ============================================
 router.post('/update', async (req, res) => {
   try {
     const { productId, quantity } = req.body;
@@ -169,7 +220,9 @@ router.post('/update', async (req, res) => {
   }
 });
 
+// ============================================
 // POST /api/cart/remove - Remove item from cart
+// ============================================
 router.post('/remove', async (req, res) => {
   try {
     const { productId } = req.body;
@@ -208,7 +261,9 @@ router.post('/remove', async (req, res) => {
   }
 });
 
+// ============================================
 // POST /api/cart/clear - Clear entire cart
+// ============================================
 router.post('/clear', async (req, res) => {
   try {
     console.log('🛒 POST /api/cart/clear - User:', req.user.id);
