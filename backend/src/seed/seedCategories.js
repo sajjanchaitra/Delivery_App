@@ -1,25 +1,32 @@
 const Category = require("../models/Category");
 
-const defaultCategories = [
-  { name: "Vegetables", image: "", isActive: true },
-  { name: "Fruits", image: "", isActive: true },
-  { name: "Dairy", image: "", isActive: true },
-  { name: "Bakery", image: "", isActive: true },
-  { name: "Beverages", image: "", isActive: true },
-  { name: "Snacks", image: "", isActive: true },
-  { name: "Meat", image: "", isActive: true },
-  { name: "Seafood", image: "", isActive: true },
+const categories = [
+  { name: "Grocery", image: "/uploads/categories/grocery.jpg" },
+  { name: "Vegetables", image: "/uploads/categories/vegetables.jpg" },
+  { name: "Fruits", image: "/uploads/categories/fruits.jpg" },
+  { name: "Dairy", image: "/uploads/categories/dairy.jpg" },
+  { name: "Bakery", image: "/uploads/categories/bakery.jpg" },
+  { name: "Meat", image: "/uploads/categories/meat.jpg" },
+  { name: "Pharmacy", image: "/uploads/categories/pharmacy.jpg" },
+  { name: "Restaurant", image: "/uploads/categories/restaurant.jpg" },
 ];
 
 async function seedCategories() {
-  const count = await Category.countDocuments();
-  if (count > 0) {
-    console.log("✅ Categories already exist, skipping seed");
-    return;
-  }
+  try {
+    console.log("🌱 Seeding categories...");
 
-  await Category.insertMany(defaultCategories);
-  console.log("✅ Default categories inserted");
+    for (const cat of categories) {
+      await Category.updateOne(
+        { name: cat.name },
+        { $set: { image: cat.image, isActive: true } },
+        { upsert: true }
+      );
+    }
+
+    console.log("✅ Categories inserted/updated successfully");
+  } catch (err) {
+    console.log("❌ Seed error:", err.message);
+  }
 }
 
 module.exports = seedCategories;
