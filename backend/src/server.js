@@ -85,6 +85,9 @@ try {
   console.error('❌ Error loading vendor routes:', err.message);
 }
 
+const addressRoutes = require("./routes/address.routes");
+app.use("/api/address", addressRoutes);
+
 // Register routes only if they loaded successfully
 if (authRoutes) app.use('/api/auth', authRoutes);
 if (cartRoutes) app.use('/api/cart', cartRoutes);
