@@ -1,124 +1,307 @@
+// backend/src/routes/orders.routes.js
 const express = require("express");
-const Order = require("../models/Order");
-const Product = require("../models/Product");
-const Store = require("../models/Store");
-const { auth, isVendor } = require("../middleware/auth");
-
 const router = express.Router();
+const mongoose = require("mongoose");
+const Order = require("../models/Order");
+const Cart = require("../models/Cart");
+const Store = require("../models/Store");
+const Product = require("../models/Product");
+const User = require("../models/User");
 
-// POST /api/orders - Create order
-router.post("/", auth, async (req, res) => {
+// Import auth middleware
+const { auth } = require("../middleware/auth");
+
+// All routes require authentication
+router.use(auth);
+
+// ============================================
+// CUSTOMER ROUTES
+// ============================================
+
+// POST /api/orders - Create new order (Customer)
+router.post("/", async (req, res) => {
   try {
-    const { storeId, items, deliveryAddress, customerName, customerPhone } = req.body;
+    const customerId = req.userId;
+    console.log("📦 POST /api/orders - Customer:", customerId);
 
-    const store = await Store.findById(storeId);
-    if (!store) return res.status(404).json({ error: "Store not found" });
+    const {
+      deliveryAddress,
+      customerPhone,
+      customerName,
+      customerNote,
+      paymentMethod,
+    } = req.body;
 
-    let subtotal = 0;
-    const orderItems = [];
-
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (product) {
-        const price = product.discountPrice || product.price;
-        subtotal += price * item.quantity;
-        orderItems.push({
-          product: product._id,
-          name: product.name,
-          price,
-          quantity: item.quantity,
-          unit: product.unit,
-        });
-      }
+    // Validate required fields
+    if (
+      !deliveryAddress ||
+      !deliveryAddress.street ||
+      !deliveryAddress.city ||
+      !deliveryAddress.pincode
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Delivery address is required" });
+    }
+    if (!customerPhone) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Phone number is required" });
     }
 
-    const total = subtotal + (store.deliveryFee || 0);
+    // Get cart
+    const cart = await Cart.findOne({ user: customerId }).populate({
+      path: "items.product",
+      select: "name price discountPrice salePrice images store vendor",
+    });
 
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ success: false, error: "Cart is empty" });
+    }
+
+    // Get store details
+    const store = await Store.findById(cart.store).populate("vendor");
+    if (!store) {
+      return res.status(400).json({ success: false, error: "Store not found" });
+    }
+
+    // Calculate totals
+    let subtotal = 0;
+    const orderItems = cart.items.map((item) => {
+      const price =
+        item.product.discountPrice ||
+        item.product.salePrice ||
+        item.product.price;
+      const itemTotal = price * item.quantity;
+      subtotal += itemTotal;
+
+      return {
+        product: item.product._id,
+        name: item.product.name,
+        price: price,
+        quantity: item.quantity,
+        total: itemTotal,
+        image: item.product.images?.[0] || "",
+      };
+    });
+
+    const freeDeliveryAbove = store.deliverySettings?.freeDeliveryAbove || 500;
+    const baseDeliveryFee = store.deliverySettings?.deliveryFee || 30;
+    const deliveryFee = subtotal >= freeDeliveryAbove ? 0 : baseDeliveryFee;
+    const total = subtotal + deliveryFee;
+
+    // Create order
     const order = new Order({
-      customer: req.userId,
+      customer: customerId,
       store: store._id,
-      vendor: store.vendor,
+      vendor: store.vendor._id || store.vendor,
       items: orderItems,
       subtotal,
-      deliveryFee: store.deliveryFee || 0,
+      deliveryFee,
       total,
       deliveryAddress,
-      customerName,
       customerPhone,
+      customerName: customerName || "Customer",
+      customerNote: customerNote || "",
+      paymentMethod: paymentMethod || "cod",
+      paymentStatus: paymentMethod === "cod" ? "pending" : "pending",
+      status: "pending",
+      statusHistory: [
+        {
+          status: "pending",
+          timestamp: new Date(),
+          note: "Order placed by customer",
+        },
+      ],
+      estimatedDeliveryTime:
+        store.deliverySettings?.estimatedDeliveryTime || "30-45 mins",
     });
 
     await order.save();
-    res.status(201).json({ success: true, order });
+
+    // Clear cart
+    cart.items = [];
+    cart.store = null;
+    await cart.save();
+
+    // Update store stats
+    await Store.findByIdAndUpdate(store._id, {
+      $inc: { "stats.totalOrders": 1 },
+    });
+
+    console.log("✅ Order created:", order.orderNumber);
+
+    // Populate and return
+    const populatedOrder = await Order.findById(order._id)
+      .populate("store", "name phone address image logo")
+      .populate("customer", "name phone email");
+
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully",
+      order: populatedOrder,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error creating order:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/orders/my-orders - Customer's orders
-router.get("/my-orders", auth, async (req, res) => {
+// GET /api/orders - Get customer's orders
+router.get("/", async (req, res) => {
   try {
-    const orders = await Order.find({ customer: req.userId })
-      .populate("store", "name")
-      .sort({ createdAt: -1 });
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    const customerId = req.userId;
+    const { status, page = 1, limit = 20 } = req.query;
+    console.log("📦 GET /api/orders - Customer:", customerId);
 
-// GET /api/orders/vendor-orders - Vendor's orders
-router.get("/vendor-orders", auth, isVendor, async (req, res) => {
-  try {
-    const orders = await Order.find({ vendor: req.userId })
-      .populate("customer", "name phone")
-      .sort({ createdAt: -1 });
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET /api/orders/:id
-router.get("/:id", auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id)
-      .populate("store", "name")
-      .populate("customer", "name phone");
-    res.json({ success: true, order });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// PATCH /api/orders/:id/status - Update status
-router.patch("/:id/status", auth, isVendor, async (req, res) => {
-  try {
-    const order = await Order.findOneAndUpdate(
-      { _id: req.params.id, vendor: req.userId },
-      { status: req.body.status },
-      { new: true }
-    );
-    res.json({ success: true, order });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// PATCH /api/orders/:id/cancel
-router.patch("/:id/cancel", auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    
-    if (!["pending", "confirmed"].includes(order.status)) {
-      return res.status(400).json({ error: "Cannot cancel this order" });
+    const query = { customer: customerId };
+    if (status && status !== "all") {
+      query.status = status;
     }
-    
-    order.status = "cancelled";
-    await order.save();
+
+    const orders = await Order.find(query)
+      .populate("store", "name phone image logo")
+      .populate("deliveryPartner", "name phone")
+      .sort({ createdAt: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    console.log(`✅ Found ${orders.length} orders`);
+    res.json({
+      success: true,
+      orders,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching orders:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/orders/:orderId - Get single order
+router.get("/:orderId", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log("📦 GET /api/orders/:orderId -", orderId);
+
+    const order = await Order.findById(orderId)
+      .populate("store", "name phone address image logo")
+      .populate("customer", "name phone email")
+      .populate("deliveryPartner", "name phone")
+      .populate("items.product", "name images")
+      .lean();
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
     res.json({ success: true, order });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error fetching order:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/orders/:orderId/cancel - Cancel order (Customer)
+router.patch("/:orderId/cancel", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+    const customerId = req.userId;
+
+    const order = await Order.findOne({ _id: orderId, customer: customerId });
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    // Can only cancel if pending or confirmed
+    if (!["pending", "confirmed"].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Order cannot be cancelled at this stage",
+      });
+    }
+
+    order.status = "cancelled";
+    order.cancelledAt = new Date();
+    order.cancellationReason = reason || "Cancelled by customer";
+    order.cancelledBy = "customer";
+    order.statusHistory.push({
+      status: "cancelled",
+      timestamp: new Date(),
+      note: reason || "Cancelled by customer",
+      updatedBy: customerId,
+    });
+
+    await order.save();
+
+    console.log("✅ Order cancelled:", order.orderNumber);
+    res.json({ success: true, message: "Order cancelled", order });
+  } catch (error) {
+    console.error("❌ Error cancelling order:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/orders/:orderId/rate - Rate order (Customer)
+router.post("/:orderId/rate", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { rating, review, type } = req.body;
+    const customerId = req.userId;
+
+    const order = await Order.findOne({ _id: orderId, customer: customerId });
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    if (order.status !== "delivered") {
+      return res.status(400).json({
+        success: false,
+        error: "Can only rate delivered orders",
+      });
+    }
+
+    if (type === "delivery" && order.deliveryPartner) {
+      order.deliveryRating = {
+        rating,
+        review: review || "",
+        createdAt: new Date(),
+      };
+    } else {
+      order.customerRating = {
+        rating,
+        review: review || "",
+        createdAt: new Date(),
+      };
+
+      // Update store rating
+      const store = await Store.findById(order.store);
+      if (store) {
+        const newCount = (store.rating?.count || 0) + 1;
+        const currentAvg = store.rating?.average || 0;
+        const newAverage = (currentAvg * (newCount - 1) + rating) / newCount;
+        store.rating = { average: newAverage, count: newCount };
+        await store.save();
+      }
+    }
+
+    await order.save();
+
+    res.json({ success: true, message: "Rating submitted", order });
+  } catch (error) {
+    console.error("❌ Error rating order:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

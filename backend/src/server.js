@@ -34,7 +34,7 @@ app.use((req, res, next) => {
 // ==================== ROUTES ====================
 // Import routes - with error handling
 let authRoutes, cartRoutes, customerRoutes, deliveryRoutes, ordersRoutes;
-let productsRoutes, storesRoutes, uploadRoutes, vendorRoutes;
+let productsRoutes, storesRoutes, uploadRoutes, vendorRoutes, adminRoutes;
 
 try {
   authRoutes = require('./routes/auth.routes');
@@ -85,8 +85,21 @@ try {
   console.error('❌ Error loading vendor routes:', err.message);
 }
 
-const addressRoutes = require("./routes/address.routes");
-app.use("/api/address", addressRoutes);
+try {
+  adminRoutes = require('./routes/admin.routes');
+  console.log('✅ Admin routes loaded');
+} catch (err) {
+  console.error('❌ Error loading admin routes:', err.message);
+}
+
+// Address routes
+let addressRoutes;
+try {
+  addressRoutes = require("./routes/address.routes");
+  console.log('✅ Address routes loaded');
+} catch (err) {
+  console.error('❌ Error loading address routes:', err.message);
+}
 
 // Register routes only if they loaded successfully
 if (authRoutes) app.use('/api/auth', authRoutes);
@@ -96,6 +109,8 @@ if (deliveryRoutes) app.use('/api/delivery', deliveryRoutes);
 if (ordersRoutes) app.use('/api/orders', ordersRoutes);
 if (uploadRoutes) app.use('/api/upload', uploadRoutes);
 if (vendorRoutes) app.use('/api/vendor', vendorRoutes);
+if (adminRoutes) app.use('/api/admin', adminRoutes);
+if (addressRoutes) app.use("/api/address", addressRoutes);
 
 // Health check route
 app.get('/', (req, res) => {
@@ -103,7 +118,18 @@ app.get('/', (req, res) => {
     success: true,
     message: 'Delivery App API is running',
     version: '1.0.0',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    routes: {
+      auth: '/api/auth',
+      cart: '/api/cart',
+      customer: '/api/customer',
+      delivery: '/api/delivery',
+      orders: '/api/orders',
+      upload: '/api/upload',
+      vendor: '/api/vendor',
+      admin: '/api/admin',
+      address: '/api/address',
+    }
   });
 });
 
@@ -111,7 +137,8 @@ app.get('/', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Route not found'
+    error: 'Route not found',
+    path: req.path
   });
 });
 
@@ -130,7 +157,6 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/delivery_app';
     
-    // These options are no longer needed in Mongoose 6+
     await mongoose.connect(mongoURI);
 
     console.log('✅ MongoDB connected successfully');
@@ -148,10 +174,16 @@ const HOST = process.env.HOST || '0.0.0.0';
 const startServer = async () => {
   try {
     // Connect to database
-    const seedCategories = require("./seed/seedCategories");
     await connectDB();
 
-    await seedCategories();
+    // Seed categories (optional)
+    try {
+      const seedCategories = require("./seed/seedCategories");
+      await seedCategories();
+    } catch (err) {
+      console.log('⚠️ Category seeding skipped:', err.message);
+    }
+
     // Start listening
     app.listen(PORT, HOST, () => {
       console.log('\n🚀 ================================');

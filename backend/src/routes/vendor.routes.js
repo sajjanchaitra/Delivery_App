@@ -233,9 +233,11 @@ router.patch("/products/:id/stock", async (req, res) => {
   }
 });
 
+// Add these routes to your existing vendor.routes.js
+
 // ==================== ORDER MANAGEMENT ====================
 
-// GET /api/vendor/orders - Get all orders
+// GET /api/vendor/orders - Get all orders for vendor's store
 router.get("/orders", async (req, res) => {
   try {
     const store = await Store.findOne({ vendor: req.userId });
@@ -244,22 +246,27 @@ router.get("/orders", async (req, res) => {
     }
 
     const { status, page = 1, limit = 20 } = req.query;
-    let query = { store: store._id };
+    const query = { store: store._id };
 
     if (status && status !== "all") {
-      query.status = status;
+      if (status === "active") {
+        query.status = { $in: ["pending", "confirmed", "preparing", "ready"] };
+      } else {
+        query.status = status;
+      }
     }
 
     const orders = await Order.find(query)
-      .populate("customer", "name phone")
+      .populate("customer", "name phone email")
       .populate("deliveryPartner", "name phone")
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await Order.countDocuments(query);
 
-    // Get order counts by status
+    // Get counts by status
     const statusCounts = await Order.aggregate([
       { $match: { store: store._id } },
       { $group: { _id: "$status", count: { $sum: 1 } } },
@@ -273,26 +280,29 @@ router.get("/orders", async (req, res) => {
         return acc;
       }, {}),
       pagination: {
-        total,
         page: parseInt(page),
-        pages: Math.ceil(total / limit),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
       },
     });
   } catch (error) {
+    console.error("❌ Error fetching vendor orders:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/vendor/orders/:id - Get single order
-router.get("/orders/:id", async (req, res) => {
+// GET /api/vendor/orders/:orderId - Get single order details
+router.get("/orders/:orderId", async (req, res) => {
   try {
-    const order = await Order.findOne({
-      _id: req.params.id,
-      vendor: req.userId,
-    })
+    const { orderId } = req.params;
+    const store = await Store.findOne({ vendor: req.userId });
+
+    const order = await Order.findOne({ _id: orderId, store: store._id })
       .populate("customer", "name phone email")
       .populate("deliveryPartner", "name phone")
-      .populate("items.product", "name images");
+      .populate("items.product", "name images")
+      .lean();
 
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
@@ -300,44 +310,116 @@ router.get("/orders/:id", async (req, res) => {
 
     res.json({ success: true, order });
   } catch (error) {
+    console.error("❌ Error fetching order:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// PATCH /api/vendor/orders/:id/status - Update order status
-router.patch("/orders/:id/status", async (req, res) => {
+// PATCH /api/vendor/orders/:orderId/status - Update order status
+router.patch("/orders/:orderId/status", async (req, res) => {
   try {
+    const { orderId } = req.params;
     const { status, note } = req.body;
-    const validStatuses = ["confirmed", "preparing", "ready", "cancelled"];
+    const vendorId = req.userId;
 
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ success: false, error: "Invalid status" });
-    }
-
-    const order = await Order.findOne({
-      _id: req.params.id,
-      vendor: req.userId,
-    });
+    const store = await Store.findOne({ vendor: vendorId });
+    const order = await Order.findOne({ _id: orderId, store: store._id });
 
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    // Validate status transition
+    const validTransitions = {
+      pending: ["confirmed", "cancelled"],
+      confirmed: ["preparing", "cancelled"],
+      preparing: ["ready", "cancelled"],
+      ready: ["assigned", "picked_up"],
+    };
+
+    if (validTransitions[order.status] && !validTransitions[order.status].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot change status from ${order.status} to ${status}`,
+      });
     }
 
     order.status = status;
     order.statusHistory.push({
       status,
       timestamp: new Date(),
-      note: note || "",
+      note: note || `Status updated to ${status}`,
+      updatedBy: vendorId,
     });
 
+    // Set timestamps
+    if (status === "confirmed") order.confirmedAt = new Date();
+    if (status === "preparing") order.preparedAt = new Date();
     if (status === "cancelled") {
+      order.cancelledAt = new Date();
       order.cancellationReason = note || "Cancelled by vendor";
+      order.cancelledBy = "vendor";
     }
 
     await order.save();
 
-    res.json({ success: true, order });
+    // Return updated order
+    const updatedOrder = await Order.findById(orderId)
+      .populate("customer", "name phone")
+      .populate("deliveryPartner", "name phone")
+      .lean();
+
+    console.log(`✅ Order ${order.orderNumber} status updated to ${status}`);
+    res.json({ success: true, order: updatedOrder });
   } catch (error) {
+    console.error("❌ Error updating order status:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/vendor/orders/stats - Get order statistics
+router.get("/orders-stats", async (req, res) => {
+  try {
+    const store = await Store.findOne({ vendor: req.userId });
+    if (!store) {
+      return res.status(404).json({ success: false, error: "Store not found" });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalOrders,
+      todayOrders,
+      pendingOrders,
+      totalRevenue,
+      todayRevenue,
+    ] = await Promise.all([
+      Order.countDocuments({ store: store._id }),
+      Order.countDocuments({ store: store._id, createdAt: { $gte: today } }),
+      Order.countDocuments({ store: store._id, status: { $in: ["pending", "confirmed", "preparing"] } }),
+      Order.aggregate([
+        { $match: { store: store._id, status: "delivered" } },
+        { $group: { _id: null, total: { $sum: "$total" } } },
+      ]),
+      Order.aggregate([
+        { $match: { store: store._id, status: "delivered", createdAt: { $gte: today } } },
+        { $group: { _id: null, total: { $sum: "$total" } } },
+      ]),
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalOrders,
+        todayOrders,
+        pendingOrders,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        todayRevenue: todayRevenue[0]?.total || 0,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching order stats:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
