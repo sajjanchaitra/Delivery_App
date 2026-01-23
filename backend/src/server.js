@@ -95,7 +95,8 @@ try {
 // Address routes
 let addressRoutes;
 try {
-  addressRoutes = require("./routes/address.routes");
+  addressRoutes = require("./routes/address.routes.js");
+
   console.log('✅ Address routes loaded');
 } catch (err) {
   console.error('❌ Error loading address routes:', err.message);
