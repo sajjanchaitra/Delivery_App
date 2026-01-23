@@ -1,17 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const Address = require("../models/Address");
-
-// ⚠️ make sure auth middleware sets req.userId
-const requireAuth = (req, res, next) => {
-  if (!req.userId) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-  next();
-};
+const { auth } = require("../middleware/auth"); // ✅ IMPORTANT
 
 // GET all addresses
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", auth, async (req, res) => {
   try {
     const addresses = await Address.find({ user: req.userId })
       .sort({ isDefault: -1, createdAt: -1 })
@@ -24,11 +17,10 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // ADD new address
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const payload = req.body;
 
-    // if first address => make default
     const existingCount = await Address.countDocuments({ user: req.userId });
 
     const newAddress = await Address.create({
@@ -37,7 +29,6 @@ router.post("/", requireAuth, async (req, res) => {
       isDefault: existingCount === 0 ? true : !!payload.isDefault,
     });
 
-    // if set default true -> unset others
     if (newAddress.isDefault) {
       await Address.updateMany(
         { user: req.userId, _id: { $ne: newAddress._id } },
@@ -52,7 +43,7 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // UPDATE address
-router.put("/:id", requireAuth, async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
     const payload = req.body;
@@ -67,7 +58,6 @@ router.put("/:id", requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: "Address not found" });
     }
 
-    // if set default true -> unset others
     if (updated.isDefault) {
       await Address.updateMany(
         { user: req.userId, _id: { $ne: updated._id } },
@@ -82,7 +72,7 @@ router.put("/:id", requireAuth, async (req, res) => {
 });
 
 // DELETE address
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -92,7 +82,6 @@ router.delete("/:id", requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: "Address not found" });
     }
 
-    // if deleted was default -> make latest address default
     if (deleted.isDefault) {
       const latest = await Address.findOne({ user: req.userId }).sort({ createdAt: -1 });
       if (latest) {
@@ -108,7 +97,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
 });
 
 // SET DEFAULT
-router.patch("/:id/default", requireAuth, async (req, res) => {
+router.patch("/:id/default", auth, async (req, res) => {
   try {
     const { id } = req.params;
 
