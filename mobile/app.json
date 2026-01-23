@@ -37,6 +37,8 @@
 
     "plugins": [
       "expo-router",
+      "./app.plugin.js",
+
       [
         "expo-splash-screen",
         {
