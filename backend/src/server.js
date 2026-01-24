@@ -101,7 +101,8 @@ try {
 } catch (err) {
   console.error('❌ Error loading address routes:', err.message);
 }
-
+const bulkUploadRoutes = require('./routes/bulk-upload.routes');
+app.use('/api/vendor/products', bulkUploadRoutes);
 // Register routes only if they loaded successfully
 if (authRoutes) app.use('/api/auth', authRoutes);
 if (cartRoutes) app.use('/api/cart', cartRoutes);
