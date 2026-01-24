@@ -32,17 +32,46 @@ router.post("/", async (req, res) => {
       paymentMethod,
     } = req.body;
 
+    // ✅ FIX: Normalize delivery address (supports both formats)
+    let normalizedAddress = null;
+
+    if (deliveryAddress) {
+      // If frontend sends "street"
+      if (deliveryAddress.street) {
+        normalizedAddress = {
+          street: deliveryAddress.street,
+          landmark: deliveryAddress.landmark || "",
+          city: deliveryAddress.city || "",
+          state: deliveryAddress.state || "",
+          pincode: deliveryAddress.pincode || "",
+        };
+      }
+      // If frontend sends houseNo/area (your current app)
+      else if (deliveryAddress.houseNo || deliveryAddress.area) {
+        normalizedAddress = {
+          street: `${deliveryAddress.houseNo || ""}${
+            deliveryAddress.area ? ", " + deliveryAddress.area : ""
+          }`.trim(),
+          landmark: deliveryAddress.landmark || "",
+          city: deliveryAddress.city || "",
+          state: deliveryAddress.state || "",
+          pincode: deliveryAddress.pincode || "",
+        };
+      }
+    }
+
     // Validate required fields
     if (
-      !deliveryAddress ||
-      !deliveryAddress.street ||
-      !deliveryAddress.city ||
-      !deliveryAddress.pincode
+      !normalizedAddress ||
+      !normalizedAddress.street ||
+      !normalizedAddress.city ||
+      !normalizedAddress.pincode
     ) {
       return res
         .status(400)
         .json({ success: false, error: "Delivery address is required" });
     }
+
     if (!customerPhone) {
       return res
         .status(400)
@@ -72,6 +101,7 @@ router.post("/", async (req, res) => {
         item.product.discountPrice ||
         item.product.salePrice ||
         item.product.price;
+
       const itemTotal = price * item.quantity;
       subtotal += itemTotal;
 
@@ -99,7 +129,10 @@ router.post("/", async (req, res) => {
       subtotal,
       deliveryFee,
       total,
-      deliveryAddress,
+
+      // ✅ FIX: Save normalized address
+      deliveryAddress: normalizedAddress,
+
       customerPhone,
       customerName: customerName || "Customer",
       customerNote: customerNote || "",
@@ -223,7 +256,6 @@ router.patch("/:orderId/cancel", async (req, res) => {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
 
-    // Can only cancel if pending or confirmed
     if (!["pending", "confirmed"].includes(order.status)) {
       return res.status(400).json({
         success: false,
@@ -285,7 +317,6 @@ router.post("/:orderId/rate", async (req, res) => {
         createdAt: new Date(),
       };
 
-      // Update store rating
       const store = await Store.findById(order.store);
       if (store) {
         const newCount = (store.rating?.count || 0) + 1;
