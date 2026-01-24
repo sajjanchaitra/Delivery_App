@@ -10,6 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from "react-native";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -86,87 +87,100 @@ export default function AdminLogin() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.content}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={0}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="shield-checkmark" size={64} color="#EF4444" />
-          </View>
-
-          <Text style={styles.title}>Admin Login</Text>
-          <Text style={styles.subtitle}>Enter your password to continue</Text>
-          <View style={styles.phoneContainer}>
-            <Text style={styles.adminName}>{adminName}</Text>
-            <Text style={styles.phone}>+91 {phone}</Text>
-          </View>
-        </View>
-
-        {/* Password Input */}
-        <View style={styles.inputSection}>
-          <Text style={styles.label}>Password</Text>
-          <View
-            style={[styles.inputContainer, focused && styles.inputFocused]}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name="lock-closed"
-              size={20}
-              color="#64748B"
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter admin password"
-              placeholderTextColor="#94A3B8"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoFocus
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              onSubmitEditing={handleLogin}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
+            <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          </TouchableOpacity>
+
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="shield-checkmark" size={64} color="#EF4444" />
+            </View>
+
+            <Text style={styles.title}>Admin Login</Text>
+            <Text style={styles.subtitle}>Enter your password to continue</Text>
+            <View style={styles.phoneContainer}>
+              <Text style={styles.adminName}>{adminName}</Text>
+              <Text style={styles.phone}>+91 {phone}</Text>
+            </View>
+          </View>
+
+          {/* Password Input */}
+          <View style={styles.inputSection}>
+            <Text style={styles.label}>Password</Text>
+            <View
+              style={[styles.inputContainer, focused && styles.inputFocused]}
             >
               <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
+                name="lock-closed"
                 size={20}
                 color="#64748B"
+                style={styles.inputIcon}
               />
-            </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter admin password"
+                placeholderTextColor="#94A3B8"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoFocus
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onSubmitEditing={handleLogin}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={20}
+                  color="#64748B"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* Login Button */}
-        <TouchableOpacity
-          style={[styles.button, !password && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={!password || loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <>
-              <Ionicons name="log-in" size={20} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Login as Admin</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          {/* Login Button */}
+          <TouchableOpacity
+            style={[styles.button, !password && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={!password || loading}
+            activeOpacity={0.8}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Ionicons name="log-in" size={20} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Login as Admin</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
-        <Text style={styles.helpText}>
-          Contact system administrator if you forgot your password
-        </Text>
+          <Text style={styles.helpText}>
+            Contact system administrator if you forgot your password
+          </Text>
+
+          {/* Extra space for keyboard */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -177,10 +191,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  content: {
+  keyboardView: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 50,
+    paddingBottom: 40,
   },
   backButton: {
     width: 44,
@@ -190,6 +211,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 32,
+    alignSelf: "flex-start",
   },
   header: {
     alignItems: "center",
@@ -214,6 +236,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#64748B",
     marginBottom: 16,
+    textAlign: "center",
   },
   phoneContainer: {
     backgroundColor: "#F8FAFC",
