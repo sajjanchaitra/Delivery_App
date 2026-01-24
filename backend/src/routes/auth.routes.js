@@ -110,6 +110,125 @@ router.post("/test-login", async (req, res) => {
   }
 });
 
+
+// ==================== CHECK IF PHONE IS ADMIN ====================
+/**
+ * POST /api/auth/check-admin
+ * Check if phone number belongs to admin
+ */
+router.post("/check-admin", async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone is required",
+      });
+    }
+
+    const user = await User.findOne({ phone, role: "admin" });
+
+    res.json({
+      success: true,
+      isAdmin: !!user,
+      name: user ? user.name : null,
+    });
+  } catch (error) {
+    console.error("❌ Check Admin Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// ==================== ADMIN LOGIN WITH PASSWORD ====================
+/**
+ * POST /api/auth/admin-login
+ * Admin authentication with password
+ */
+router.post("/admin-login", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    console.log("🔐 Admin Login Request:");
+    console.log("   Phone:", phone);
+
+    if (!phone || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone and password are required",
+      });
+    }
+
+    // Find admin user
+    const user = await User.findOne({ phone, role: "admin" });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        error: "Admin account not configured properly",
+      });
+    }
+
+    // Verify password
+    const bcrypt = require('bcryptjs');
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    console.log("✅ Admin logged in successfully!");
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user._id.toString(),
+          _id: user._id.toString(),
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          email: user.email || "",
+          profileImage: user.profileImage || "",
+          isPhoneVerified: user.isPhoneVerified,
+          createdAt: user.createdAt,
+        },
+      },
+      message: "Admin login successful",
+    });
+  } catch (error) {
+    console.error("❌ Admin Login Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // ==================== SEND OTP (PLACEHOLDER) ====================
 router.post("/send-otp", async (req, res) => {
   try {

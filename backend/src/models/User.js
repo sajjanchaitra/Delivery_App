@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true, trim: true },
     name: { type: String, default: "User" },
     email: { type: String, trim: true, lowercase: true },
+    password: { type: String }, // ✅ Add password field for admin
     profileImage: { type: String, default: "" },
     role: { 
       type: String, 
@@ -13,7 +14,7 @@ const userSchema = new mongoose.Schema(
       default: "customer" 
     },
     
-    // ✅ UPDATED: Address as object for delivery partners and vendors
+    // Address as object for delivery partners and vendors
     address: {
       street: { type: String, trim: true },
       city: { type: String, trim: true },
@@ -21,21 +22,21 @@ const userSchema = new mongoose.Schema(
       pincode: { type: String, trim: true }
     },
     
-    // ✅ ADDED: Vehicle details for delivery partners
+    // Vehicle details for delivery partners
     vehicle: {
       type: { type: String },
       number: { type: String },
       model: { type: String }
     },
     
-    // ✅ ADDED: Documents for delivery partners
+    // Documents for delivery partners
     documents: {
       aadhar: { type: String },
       pan: { type: String },
       drivingLicense: { type: String }
     },
     
-    // ✅ ADDED: Online status for delivery partners
+    // Online status for delivery partners
     isOnline: { type: Boolean, default: false },
     
     location: {
@@ -48,7 +49,7 @@ const userSchema = new mongoose.Schema(
     lastLogin: { type: Date, default: null },
     lastLogout: { type: Date, default: null },
     
-    // For delivery partners (legacy - can be removed if using new fields above)
+    // For delivery partners (legacy)
     deliveryDetails: {
       vehicleType: {
         type: String,
