@@ -42,18 +42,47 @@ router.put("/profile", async (req, res) => {
     const deliveryPartnerId = req.userId;
     const { name, email, address, vehicle, documents } = req.body;
     console.log("🚚 PUT /api/delivery/profile -", deliveryPartnerId);
+    console.log("📦 Update data:", { name, email, address, vehicle, documents });
 
     const updateData = {};
+    
     if (name) updateData.name = name;
     if (email) updateData.email = email;
-    if (address) updateData.address = address;
-    if (vehicle) updateData.vehicle = vehicle;
-    if (documents) updateData.documents = documents;
+    
+    // Handle address object properly
+    if (address) {
+      updateData.address = {
+        street: address.street || '',
+        city: address.city || '',
+        state: address.state || '',
+        pincode: address.pincode || ''
+      };
+    }
+    
+    // Handle vehicle object properly
+    if (vehicle) {
+      updateData.vehicle = {
+        type: vehicle.type || '',
+        number: vehicle.number || '',
+        model: vehicle.model || ''
+      };
+    }
+    
+    // Handle documents object properly
+    if (documents) {
+      updateData.documents = {
+        aadhar: documents.aadhar || '',
+        pan: documents.pan || '',
+        drivingLicense: documents.drivingLicense || ''
+      };
+    }
+
+    console.log("📝 Final update data:", JSON.stringify(updateData, null, 2));
 
     const updatedDriver = await User.findByIdAndUpdate(
       deliveryPartnerId,
       { $set: updateData },
-      { new: true }
+      { new: true, runValidators: true } // Added runValidators
     ).select("-password");
 
     if (!updatedDriver) {
@@ -61,13 +90,23 @@ router.put("/profile", async (req, res) => {
     }
 
     console.log("✅ Profile updated successfully");
-    res.json({ success: true, driver: updatedDriver, profile: updatedDriver });
+    console.log("✅ Updated driver data:", JSON.stringify(updatedDriver, null, 2));
+    
+    res.json({ 
+      success: true, 
+      driver: updatedDriver, 
+      profile: updatedDriver,
+      message: "Profile updated successfully"
+    });
   } catch (error) {
     console.error("❌ Error updating profile:", error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error details:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to update profile"
+    });
   }
 });
-
 // PUT /api/delivery/status - Update online status
 router.put("/status", async (req, res) => {
   try {
