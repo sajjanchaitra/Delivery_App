@@ -1,4 +1,6 @@
 // backend/src/models/Product.js
+// Updated Product Model with Multi-Type Support
+
 const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
@@ -13,81 +15,141 @@ const productSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    name: {
+    
+    // Basic Info
+    name: { type: String, required: true, trim: true },
+    description: { type: String, default: "" },
+    category: { type: String, required: true },
+    brand: { type: String, default: "" },
+    
+    // Product Type
+    productType: {
       type: String,
-      required: true,
-      trim: true,
+      enum: ["general", "medical", "food"],
+      default: "general",
     },
-    description: {
-      type: String,
-      default: "",
-    },
+    
+    // Images
     images: [{ type: String }],
-    category: {
-      type: String,
-      required: true,
-    },
-    subCategory: {
-      type: String,
-      default: "",
-    },
+    thumbnail: { type: String, default: "" },
+    
     // Pricing
-    price: {
-      type: Number,
-      required: true,
+    price: { type: Number, required: true }, // MRP
+    discountPrice: { type: Number }, // Selling price
+    salePrice: { type: Number }, // Sale price (temporary)
+    costPrice: { type: Number }, // Purchase price (for profit calc)
+    
+    // Quantity & Stock
+    quantity: { type: String, default: "1" }, // Display quantity (e.g., "500g", "1L")
+    unit: { type: String, default: "pcs" }, // kg, g, L, ml, pcs, strip, etc.
+    packSize: { type: String, default: "1" },
+    
+    stock: { type: Number, default: 0 },
+    minStock: { type: Number, default: 5 }, // Alert threshold
+    maxStock: { type: Number, default: 1000 },
+    
+    // Identifiers
+    sku: { type: String, default: "" },
+    barcode: { type: String, default: "" },
+    hsnCode: { type: String, default: "" },
+    
+    // Tax
+    gstRate: { type: Number, default: 0 }, // Percentage
+    
+    // ==================== MEDICAL PRODUCT FIELDS ====================
+    genericName: { type: String, default: "" }, // Salt composition
+    manufacturer: { type: String, default: "" },
+    batchNumber: { type: String, default: "" },
+    expiryDate: { type: Date },
+    manufactureDate: { type: Date },
+    prescriptionRequired: { type: Boolean, default: false },
+    isControlled: { type: Boolean, default: false }, // Schedule H, H1, X
+    drugSchedule: { type: String, default: "" }, // H, H1, X, G
+    composition: { type: String, default: "" },
+    dosage: { type: String, default: "" },
+    sideEffects: { type: String, default: "" },
+    storage: { type: String, default: "" }, // Storage instructions
+    
+    // ==================== FOOD/RESTAURANT FIELDS ====================
+    foodType: { 
+      type: String, 
+      enum: ["veg", "nonveg", "egg"], 
+      default: "veg" 
     },
-    discountPrice: {
-      type: Number,
-      default: null,
+    spiceLevel: { 
+      type: String, 
+      enum: ["none", "mild", "medium", "hot", "extra_hot"], 
+      default: "medium" 
     },
-    // Quantity & Unit
-    quantity: {
-      type: String,
-      required: true,
+    cuisine: { type: String, default: "" },
+    preparationTime: { type: Number, default: 20 }, // minutes
+    serves: { type: String, default: "1" }, // Serving size
+    calories: { type: Number, default: 0 },
+    
+    ingredients: [{ type: String }],
+    allergens: [{ type: String }], // Nuts, Dairy, Gluten, etc.
+    nutritionInfo: {
+      calories: { type: Number, default: 0 },
+      protein: { type: Number, default: 0 },
+      carbs: { type: Number, default: 0 },
+      fat: { type: Number, default: 0 },
+      fiber: { type: Number, default: 0 },
     },
-    unit: {
-      type: String,
-      enum: ["kg", "g", "ml", "l", "piece", "dozen", "pack", "box"],
-      default: "piece",
-    },
-    // Stock
-    inStock: {
-      type: Boolean,
-      default: true,
-    },
-    stockQuantity: {
-      type: Number,
-      default: 100,
-    },
-    // Variants
-    variants: [{
+    
+    // Add-ons and Variants (for food)
+    addons: [{
       name: { type: String },
       price: { type: Number },
-      discountPrice: { type: Number },
-      stockQuantity: { type: Number, default: 100 },
-      inStock: { type: Boolean, default: true },
+      isAvailable: { type: Boolean, default: true },
     }],
-    // Tags
-    tags: [{ type: String }],
-    // Status
-    isActive: {
-      type: Boolean,
-      default: true,
+    
+    variants: [{
+      name: { type: String }, // e.g., "Small", "Medium", "Large"
+      price: { type: Number },
+      discountPrice: { type: Number },
+      isAvailable: { type: Boolean, default: true },
+    }],
+    
+    customizations: [{
+      name: { type: String }, // e.g., "Choose your base"
+      required: { type: Boolean, default: false },
+      maxSelection: { type: Number, default: 1 },
+      options: [{
+        name: { type: String },
+        price: { type: Number, default: 0 },
+      }],
+    }],
+    
+    // ==================== AVAILABILITY ====================
+    inStock: { type: Boolean, default: true },
+    isAvailable: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true },
+    isFeatured: { type: Boolean, default: false },
+    isOnSale: { type: Boolean, default: false },
+    
+    // Availability timing (for restaurants)
+    availableFrom: { type: String, default: "00:00" },
+    availableTill: { type: String, default: "23:59" },
+    availableDays: {
+      type: [String],
+      default: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
     },
-    isFeatured: {
-      type: Boolean,
-      default: false,
-    },
-    // Ratings
+    
+    // ==================== STATS ====================
+    soldCount: { type: Number, default: 0 },
+    viewCount: { type: Number, default: 0 },
     rating: {
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 },
     },
-    // Stats
-    soldCount: {
-      type: Number,
-      default: 0,
-    },
+    
+    // ==================== SEO & SEARCH ====================
+    tags: [{ type: String }],
+    searchKeywords: [{ type: String }],
+    
+    // ==================== ORDERING ====================
+    sortOrder: { type: Number, default: 0 },
+    
   },
   { timestamps: true }
 );
@@ -96,6 +158,75 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ store: 1, isActive: 1 });
 productSchema.index({ vendor: 1 });
 productSchema.index({ category: 1 });
-productSchema.index({ name: "text", description: "text" });
+productSchema.index({ productType: 1 });
+productSchema.index({ name: "text", description: "text", tags: "text" });
+productSchema.index({ price: 1 });
+productSchema.index({ inStock: 1 });
+productSchema.index({ createdAt: -1 });
+productSchema.index({ soldCount: -1 });
+productSchema.index({ barcode: 1 });
+productSchema.index({ sku: 1 });
+
+// Virtual for final selling price
+productSchema.virtual("finalPrice").get(function() {
+  return this.salePrice || this.discountPrice || this.price;
+});
+
+// Virtual for discount percentage
+productSchema.virtual("discountPercent").get(function() {
+  const final = this.salePrice || this.discountPrice;
+  if (!final || final >= this.price) return 0;
+  return Math.round(((this.price - final) / this.price) * 100);
+});
+
+// Method to check if product is available now (for restaurants)
+productSchema.methods.isAvailableNow = function() {
+  if (!this.isActive || !this.isAvailable || !this.inStock) return false;
+  
+  const now = new Date();
+  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const today = days[now.getDay()];
+  
+  if (!this.availableDays.includes(today)) return false;
+  
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const [fromHour, fromMin] = this.availableFrom.split(":").map(Number);
+  const [tillHour, tillMin] = this.availableTill.split(":").map(Number);
+  
+  const fromTime = fromHour * 60 + fromMin;
+  const tillTime = tillHour * 60 + tillMin;
+  
+  return currentTime >= fromTime && currentTime <= tillTime;
+};
+
+// Method to check if medicine is expired
+productSchema.methods.isExpired = function() {
+  if (!this.expiryDate) return false;
+  return new Date() > new Date(this.expiryDate);
+};
+
+// Method to check if medicine is expiring soon (within 3 months)
+productSchema.methods.isExpiringSoon = function() {
+  if (!this.expiryDate) return false;
+  const threeMonthsLater = new Date();
+  threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+  return new Date(this.expiryDate) <= threeMonthsLater;
+};
+
+// Pre-save middleware to update search keywords
+productSchema.pre("save", function(next) {
+  // Auto-generate search keywords
+  const keywords = [
+    this.name,
+    this.brand,
+    this.category,
+    this.genericName,
+    this.manufacturer,
+    ...this.tags,
+  ].filter(Boolean);
+  
+  this.searchKeywords = [...new Set(keywords.map(k => k.toLowerCase()))];
+  next();
+});
 
 module.exports = mongoose.model("Product", productSchema);
