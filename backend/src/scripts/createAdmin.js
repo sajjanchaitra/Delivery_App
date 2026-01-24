@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 require("dotenv").config();
 
-const ADMIN_PHONE = "1234567890"; // ✅ Set your admin phone number
+const ADMIN_PHONE = "9876543210"; // ✅ Set your admin phone number
 const ADMIN_PASSWORD = "Admin@123"; // ✅ Set your admin password
 const ADMIN_NAME = "Super Admin";
 const ADMIN_EMAIL = "admin@quickmart.com";
