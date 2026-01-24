@@ -36,6 +36,38 @@ router.get("/profile", async (req, res) => {
   }
 });
 
+// PUT /api/delivery/profile - Update delivery partner profile
+router.put("/profile", async (req, res) => {
+  try {
+    const deliveryPartnerId = req.userId;
+    const { name, email, address, vehicle, documents } = req.body;
+    console.log("🚚 PUT /api/delivery/profile -", deliveryPartnerId);
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (address) updateData.address = address;
+    if (vehicle) updateData.vehicle = vehicle;
+    if (documents) updateData.documents = documents;
+
+    const updatedDriver = await User.findByIdAndUpdate(
+      deliveryPartnerId,
+      { $set: updateData },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedDriver) {
+      return res.status(404).json({ success: false, error: "Driver not found" });
+    }
+
+    console.log("✅ Profile updated successfully");
+    res.json({ success: true, driver: updatedDriver, profile: updatedDriver });
+  } catch (error) {
+    console.error("❌ Error updating profile:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // PUT /api/delivery/status - Update online status
 router.put("/status", async (req, res) => {
   try {
