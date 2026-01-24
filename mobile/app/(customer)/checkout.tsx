@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,12 +20,15 @@ const API_URL = "http://13.203.206.134:5000";
 
 interface Address {
   _id: string;
-  label: string;
-  street: string;
+  name?: string; // home/work/other
+  fullName?: string;
+  phone?: string;
+  houseNo?: string;
+  area?: string;
   landmark?: string;
-  city: string;
-  state: string;
-  pincode: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
   isDefault?: boolean;
 }
 
@@ -78,13 +81,18 @@ const getImageUrl = (imagePath: string | null | undefined): string => {
 
 export default function CheckoutScreen() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+
   const [cart, setCart] = useState<Cart | null>(null);
+
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+
   const [selectedPayment, setSelectedPayment] = useState<string>("cod");
   const [customerNote, setCustomerNote] = useState("");
+
   const [userName, setUserName] = useState("");
   const [userPhone, setUserPhone] = useState("");
 
@@ -121,6 +129,7 @@ export default function CheckoutScreen() {
       const response = await fetch(`${API_URL}/api/cart`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await response.json();
 
       if (data.success && data.cart) {
@@ -131,6 +140,7 @@ export default function CheckoutScreen() {
     }
   };
 
+  // ✅ FIX: fetch addresses from correct backend route
   const fetchAddresses = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
@@ -139,10 +149,12 @@ export default function CheckoutScreen() {
       const response = await fetch(`${API_URL}/api/address`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await response.json();
 
       if (data.success && data.addresses) {
         setAddresses(data.addresses);
+
         const defaultAddr = data.addresses.find((a: Address) => a.isDefault);
         if (defaultAddr) {
           setSelectedAddress(defaultAddr._id);
@@ -169,6 +181,19 @@ export default function CheckoutScreen() {
   const deliveryFee = subtotal >= freeDeliveryThreshold ? 0 : baseDeliveryFee;
   const total = subtotal + deliveryFee;
 
+  // Helper for UI label
+  const getAddressTitle = (a: Address) => {
+    const t = (a.name || "home").toLowerCase();
+    if (t === "work") return "Work";
+    if (t === "other") return "Other";
+    return "Home";
+  };
+
+  const getAddressLine = (a: Address) => {
+    const parts = [a.houseNo, a.area, a.landmark, a.city, a.state, a.pincode].filter(Boolean);
+    return parts.join(", ");
+  };
+
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
       Alert.alert("Address Required", "Please select a delivery address");
@@ -188,13 +213,16 @@ export default function CheckoutScreen() {
 
     Alert.alert(
       "Confirm Order",
-      `Deliver to: ${selectedAddr.label}\nPayment: ${selectedPayment === "cod" ? "Cash on Delivery" : "Online"}\nTotal: ₹${total}`,
+      `Deliver to: ${getAddressTitle(selectedAddr)}\nPayment: ${
+        selectedPayment === "cod" ? "Cash on Delivery" : "Online"
+      }\nTotal: ₹${total}`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Place Order",
           onPress: async () => {
             setPlacing(true);
+
             try {
               const token = await AsyncStorage.getItem("authToken");
               if (!token) {
@@ -202,13 +230,15 @@ export default function CheckoutScreen() {
                 return;
               }
 
+              // ✅ FIX: send address in correct format backend expects
               const orderData = {
                 deliveryAddress: {
-                  street: selectedAddr.street,
+                  houseNo: selectedAddr.houseNo || "",
+                  area: selectedAddr.area || "",
                   landmark: selectedAddr.landmark || "",
-                  city: selectedAddr.city,
-                  state: selectedAddr.state,
-                  pincode: selectedAddr.pincode,
+                  city: selectedAddr.city || "",
+                  state: selectedAddr.state || "",
+                  pincode: selectedAddr.pincode || "",
                 },
                 customerPhone: userPhone,
                 customerName: userName,
@@ -276,6 +306,7 @@ export default function CheckoutScreen() {
           <Text style={styles.headerTitle}>Checkout</Text>
           <View style={styles.placeholder} />
         </View>
+
         <View style={styles.emptyContainer}>
           <Ionicons name="cart-outline" size={64} color="#CBD5E1" />
           <Text style={styles.emptyTitle}>Cart is Empty</Text>
@@ -326,25 +357,27 @@ export default function CheckoutScreen() {
                   <View style={styles.addressHeader}>
                     <View style={styles.addressLabelContainer}>
                       <Ionicons
-                        name={selectedAddressData.label === "Home" ? "home" : selectedAddressData.label === "Office" ? "briefcase" : "location"}
+                        name={
+                          getAddressTitle(selectedAddressData) === "Home"
+                            ? "home"
+                            : getAddressTitle(selectedAddressData) === "Work"
+                            ? "briefcase"
+                            : "location"
+                        }
                         size={18}
                         color="#22C55E"
                       />
-                      <Text style={styles.addressLabel}>{selectedAddressData.label}</Text>
+                      <Text style={styles.addressLabel}>{getAddressTitle(selectedAddressData)}</Text>
                     </View>
+
                     {selectedAddressData.isDefault && (
                       <View style={styles.defaultBadge}>
                         <Text style={styles.defaultText}>Default</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.addressText}>
-                    {selectedAddressData.street}
-                    {selectedAddressData.landmark ? `, ${selectedAddressData.landmark}` : ""}
-                  </Text>
-                  <Text style={styles.addressText}>
-                    {selectedAddressData.city}, {selectedAddressData.state} - {selectedAddressData.pincode}
-                  </Text>
+
+                  <Text style={styles.addressText}>{getAddressLine(selectedAddressData)}</Text>
                 </View>
               )}
 
@@ -358,11 +391,11 @@ export default function CheckoutScreen() {
                     </View>
                     <View style={styles.addressContent}>
                       <View style={styles.addressLabelContainer}>
-                        <Ionicons name={addr.label === "Home" ? "home" : addr.label === "Office" ? "briefcase" : "location"} size={16} color="#64748B" />
-                        <Text style={styles.addressLabelAlt}>{addr.label}</Text>
+                        <Ionicons name="location" size={16} color="#64748B" />
+                        <Text style={styles.addressLabelAlt}>{getAddressTitle(addr)}</Text>
                       </View>
                       <Text style={styles.addressTextAlt} numberOfLines={1}>
-                        {addr.street}, {addr.city}
+                        {getAddressLine(addr)}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -387,6 +420,7 @@ export default function CheckoutScreen() {
                 <Text style={styles.storeHeaderText}>{cart.store.name}</Text>
               </View>
             )}
+
             {cart.items.map((item) => {
               const price = item.product.discountPrice || item.product.salePrice || item.product.price;
               return (
@@ -440,15 +474,22 @@ export default function CheckoutScreen() {
               onPress={() => setSelectedPayment(method.id)}
             >
               <View style={styles.radioButton}>
-                <View style={styles.radioOuter}>{selectedPayment === method.id && <View style={styles.radioInner} />}</View>
+                <View style={styles.radioOuter}>
+                  {selectedPayment === method.id && <View style={styles.radioInner} />}
+                </View>
               </View>
+
               <View style={[styles.paymentIconContainer, selectedPayment === method.id && styles.paymentIconActive]}>
                 <Ionicons name={method.icon as any} size={20} color={selectedPayment === method.id ? "#22C55E" : "#64748B"} />
               </View>
+
               <View style={styles.paymentInfo}>
-                <Text style={[styles.paymentName, selectedPayment === method.id && styles.paymentNameActive]}>{method.name}</Text>
+                <Text style={[styles.paymentName, selectedPayment === method.id && styles.paymentNameActive]}>
+                  {method.name}
+                </Text>
                 <Text style={styles.paymentDesc}>{method.description}</Text>
               </View>
+
               {selectedPayment === method.id && <Ionicons name="checkmark-circle" size={24} color="#22C55E" />}
             </TouchableOpacity>
           ))}
@@ -462,14 +503,20 @@ export default function CheckoutScreen() {
               <Text style={styles.billLabel}>Subtotal ({cart.items.length} items)</Text>
               <Text style={styles.billValue}>₹{subtotal}</Text>
             </View>
+
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Delivery Fee</Text>
-              <Text style={[styles.billValue, deliveryFee === 0 && styles.freeText]}>{deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`}</Text>
+              <Text style={[styles.billValue, deliveryFee === 0 && styles.freeText]}>
+                {deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`}
+              </Text>
             </View>
+
             {subtotal < freeDeliveryThreshold && (
               <Text style={styles.freeDeliveryHint}>Add ₹{freeDeliveryThreshold - subtotal} more for free delivery</Text>
             )}
+
             <View style={styles.divider} />
+
             <View style={styles.billRow}>
               <Text style={styles.totalLabel}>Total Amount</Text>
               <Text style={styles.totalValue}>₹{total}</Text>
@@ -510,7 +557,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC" },
   loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" },
   loadingText: { marginTop: 12, fontSize: 16, color: "#64748B" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
   backButton: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
   placeholder: { width: 40 },
@@ -528,7 +585,18 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
   sectionTitleSmall: { fontSize: 14, fontWeight: "600", color: "#1E293B", marginBottom: 8 },
   changeText: { fontSize: 14, fontWeight: "600", color: "#22C55E" },
-  addAddressCard: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 20, borderWidth: 2, borderColor: "#22C55E", borderStyle: "dashed", gap: 8 },
+  addAddressCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: "#22C55E",
+    borderStyle: "dashed",
+    gap: 8,
+  },
   addAddressText: { fontSize: 15, fontWeight: "600", color: "#22C55E" },
   addressCard: { backgroundColor: "#FFFFFF", borderRadius: 12, padding: 16, borderWidth: 2, borderColor: "#22C55E", marginBottom: 12 },
   addressCardAlt: { flexDirection: "row", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#E2E8F0", alignItems: "center" },
@@ -572,7 +640,21 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 8 },
   totalLabel: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
   totalValue: { fontSize: 18, fontWeight: "700", color: "#22C55E" },
-  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#FFFFFF", paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: "#F1F5F9", flexDirection: "row", alignItems: "center", gap: 16 },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
   totalSection: { alignItems: "flex-start" },
   bottomLabel: { fontSize: 12, color: "#64748B" },
   bottomTotal: { fontSize: 22, fontWeight: "700", color: "#1E293B" },

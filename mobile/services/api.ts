@@ -278,13 +278,14 @@ class ApiService {
   }
 
   addAddress(address: any): Promise<ApiResponse> {
-    return this.post("/api/customer/addresses", address);
-  }
-
-  deleteAddress(addressId: string): Promise<ApiResponse> {
-    return this.delete(`/api/customer/addresses/${addressId}`);
-  }
-
+  return this.post("/api/address", address);
+}
+deleteAddress(addressId: string): Promise<ApiResponse> {
+  return this.delete(`/api/address/${addressId}`);
+}
+getAddresses(): Promise<ApiResponse> {
+  return this.get("/api/address");
+}
   toggleFavoriteStore(storeId: string): Promise<ApiResponse> {
     return this.post(`/api/customer/favorites/stores/${storeId}`);
   }
