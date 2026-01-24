@@ -13,112 +13,81 @@ const JWT_SECRET = process.env.JWT_SECRET || "quickmart-secret-key-2024";
  * POST /api/auth/test-login
  * For development/testing - Creates real JWT token without OTP verification
  */
+// POST /api/auth/test-login
 router.post("/test-login", async (req, res) => {
   try {
-    const { phone, role = "customer", testMode = true } = req.body;
-
+    const { phone, role } = req.body;
     console.log("🧪 Test Login Request:");
     console.log("   Phone:", phone);
     console.log("   Role:", role);
 
-    // Validate phone
-    if (!phone) {
+    if (!phone || !role) {
       return res.status(400).json({
         success: false,
-        error: "Phone number is required",
+        error: "Phone and role are required",
       });
     }
 
-    // Validate role
-    const validRoles = ["customer", "vendor", "delivery", "admin"];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid role. Must be: ${validRoles.join(", ")}`,
-      });
-    }
-
-    // Normalize phone number
-    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-    const normalizedPhone = `+91${cleanPhone}`;
-
-    // Find or Create User
-    let user = await User.findOne({ phone: normalizedPhone });
-    let isNewUser = false;
+    // Find existing user
+    let user = await User.findOne({ phone, role });
 
     if (user) {
       console.log("👤 Found existing user:", user._id);
-      // Update role if different
-      if (user.role !== role) {
-        user.role = role;
-      }
-      user.isPhoneVerified = true;
-      user.lastLogin = new Date();
-      await user.save();
-    } else {
-      console.log("🆕 Creating new user");
-      isNewUser = true;
       
-      // Generate name based on role
-      const roleNames = {
-        customer: "Test Customer",
-        vendor: "Test Vendor",
-        delivery: "Test Delivery Partner",
-        admin: "Test Admin",
-      };
+      // DON'T call user.save() - just generate token
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET || "your-secret-key",
+        { expiresIn: "30d" }
+      );
 
-      user = new User({
-        phone: normalizedPhone,
-        role: role,
-        isPhoneVerified: true,
-        lastLogin: new Date(),
-        name: roleNames[role] || "Test User",
-        email: `test_${cleanPhone}@example.com`,
+      return res.json({
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+        },
+        message: "Test login successful",
       });
-      await user.save();
-      console.log("✅ New user created:", user._id);
     }
 
-    // Generate REAL JWT Token
+    // Create new user only if not found
+    console.log("👤 Creating new test user");
+    const newUser = new User({
+      phone,
+      role,
+      name: `Test ${role}`,
+      password: await bcrypt.hash("test123", 10), // Hash a default password
+      isVerified: true,
+    });
+
+    await newUser.save();
+
     const token = jwt.sign(
-      {
-        userId: user._id.toString(),
-        phone: user.phone,
-        role: user.role,
-      },
-      JWT_SECRET,
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "30d" }
     );
 
-    console.log("✅ Test Login Successful!");
-    console.log("   User ID:", user._id);
-    console.log("   Role:", user.role);
-
-    res.status(200).json({
+    res.json({
       success: true,
-      message: isNewUser ? "Test account created" : "Test login successful",
-      data: {
-        token: token,
-        user: {
-          id: user._id.toString(),
-          _id: user._id.toString(),
-          phone: user.phone,
-          role: user.role,
-          name: user.name,
-          email: user.email || "",
-          profileImage: user.profileImage || "",
-          isPhoneVerified: user.isPhoneVerified,
-          createdAt: user.createdAt,
-        },
-        isNewUser,
-        testMode: true,
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        phone: newUser.phone,
+        role: newUser.role,
       },
+      message: "Test user created and logged in",
     });
   } catch (error) {
     console.error("❌ Test Login Error:", error);
     res.status(500).json({
       success: false,
-      error: error.message || "Server error during test login",
+      error: error.message,
     });
   }
 });
