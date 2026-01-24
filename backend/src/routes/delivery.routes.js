@@ -28,7 +28,8 @@ router.get("/profile", async (req, res) => {
       return res.status(404).json({ success: false, error: "Driver not found" });
     }
 
-    res.json({ success: true, driver });
+    // Return both 'driver' and 'profile' for compatibility
+    res.json({ success: true, driver, profile: driver });
   } catch (error) {
     console.error("❌ Error fetching profile:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -51,21 +52,64 @@ router.put("/status", async (req, res) => {
   }
 });
 
-// GET /api/delivery/available-orders - Get orders ready for pickup
-router.get("/available-orders", async (req, res) => {
+// PATCH /api/delivery/status - Update online status (alternative)
+router.patch("/status", async (req, res) => {
   try {
     const deliveryPartnerId = req.userId;
+    const { isOnline } = req.body;
+    console.log("🚚 PATCH /api/delivery/status -", isOnline);
+
+    await User.findByIdAndUpdate(deliveryPartnerId, { isOnline });
+
+    res.json({ success: true, message: `You are now ${isOnline ? "online" : "offline"}` });
+  } catch (error) {
+    console.error("❌ Error updating status:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// AVAILABLE ORDERS - VISIBLE TO ALL DELIVERY PARTNERS
+// ============================================
+
+// GET /api/delivery/orders/available - Get orders available for pickup
+router.get("/orders/available", async (req, res) => {
+  try {
+    console.log("🚚 GET /api/delivery/orders/available");
+
+    // ✅ FIX: Get orders that are CONFIRMED or READY and not yet assigned
+    const orders = await Order.find({
+      status: { $in: ["confirmed", "ready", "preparing"] }, // Include all vendor-confirmed statuses
+      deliveryPartner: null, // Not yet assigned to any delivery partner
+    })
+      .populate("store", "name phone address image logo")
+      .populate("customer", "name phone")
+      .sort({ createdAt: 1 }) // Oldest first
+      .limit(50)
+      .lean();
+
+    console.log(`✅ Found ${orders.length} available orders for delivery`);
+
+    res.json({ success: true, orders, count: orders.length });
+  } catch (error) {
+    console.error("❌ Error fetching available orders:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/delivery/available-orders - Alternative endpoint
+router.get("/available-orders", async (req, res) => {
+  try {
     console.log("🚚 GET /api/delivery/available-orders");
 
-    // Get orders that are ready and not assigned
     const orders = await Order.find({
-      status: "ready",
+      status: { $in: ["confirmed", "ready", "preparing"] },
       deliveryPartner: null,
     })
       .populate("store", "name phone address image")
       .populate("customer", "name phone")
       .sort({ createdAt: 1 })
-      .limit(20)
+      .limit(50)
       .lean();
 
     console.log(`✅ Found ${orders.length} available orders`);
@@ -76,7 +120,63 @@ router.get("/available-orders", async (req, res) => {
   }
 });
 
-// GET /api/delivery/my-orders - Get delivery partner's assigned orders
+// ============================================
+// MY ORDERS - ORDERS ASSIGNED TO THIS DELIVERY PARTNER
+// ============================================
+
+// GET /api/delivery/orders/my-orders - Get delivery partner's assigned orders
+router.get("/orders/my-orders", async (req, res) => {
+  try {
+    const deliveryPartnerId = req.userId;
+    const { status, page = 1, limit = 20 } = req.query;
+    console.log("🚚 GET /api/delivery/orders/my-orders -", status);
+
+    const query = { deliveryPartner: deliveryPartnerId };
+
+    if (status === "active") {
+      query.status = { $in: ["assigned", "picked_up", "on_the_way"] };
+    } else if (status === "delivered") {
+      query.status = "delivered";
+    } else if (status && status !== "all") {
+      query.status = status;
+    }
+
+    const orders = await Order.find(query)
+      .populate("store", "name phone address image")
+      .populate("customer", "name phone")
+      .sort({ createdAt: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    // Get active orders count
+    const activeCount = await Order.countDocuments({
+      deliveryPartner: deliveryPartnerId,
+      status: { $in: ["assigned", "picked_up", "on_the_way"] },
+    });
+
+    console.log(`✅ Found ${orders.length} orders for delivery partner`);
+
+    res.json({
+      success: true,
+      orders,
+      activeCount,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching delivery orders:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/delivery/my-orders - Alternative endpoint
 router.get("/my-orders", async (req, res) => {
   try {
     const deliveryPartnerId = req.userId;
@@ -101,16 +201,9 @@ router.get("/my-orders", async (req, res) => {
 
     const total = await Order.countDocuments(query);
 
-    // Get active orders count
-    const activeCount = await Order.countDocuments({
-      deliveryPartner: deliveryPartnerId,
-      status: { $in: ["assigned", "picked_up", "on_the_way"] },
-    });
-
     res.json({
       success: true,
       orders,
-      activeCount,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -124,7 +217,7 @@ router.get("/my-orders", async (req, res) => {
   }
 });
 
-// GET /api/delivery/orders - Get orders (for backward compatibility)
+// GET /api/delivery/orders - Backward compatibility endpoint
 router.get("/orders", async (req, res) => {
   try {
     const deliveryPartnerId = req.userId;
@@ -134,13 +227,13 @@ router.get("/orders", async (req, res) => {
     if (status === "new") {
       // Return available orders
       const orders = await Order.find({
-        status: "ready",
+        status: { $in: ["confirmed", "ready", "preparing"] },
         deliveryPartner: null,
       })
         .populate("store", "name phone address image")
         .populate("customer", "name phone")
         .sort({ createdAt: 1 })
-        .limit(20)
+        .limit(50)
         .lean();
 
       return res.json({ success: true, orders });
@@ -168,7 +261,77 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-// POST /api/delivery/accept/:orderId - Accept/Pick an order
+// ============================================
+// ACCEPT ORDER
+// ============================================
+
+// POST /api/delivery/orders/:orderId/accept - Accept an order
+router.post("/orders/:orderId/accept", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const deliveryPartnerId = req.userId;
+    console.log("🚚 POST /api/delivery/orders/:orderId/accept -", orderId);
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    // ✅ FIX: Accept orders in confirmed, ready, or preparing status
+    if (!["confirmed", "ready", "preparing"].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Order is not available for pickup (current status: ${order.status})`,
+      });
+    }
+
+    if (order.deliveryPartner) {
+      return res.status(400).json({
+        success: false,
+        error: "Order already assigned to another delivery partner",
+      });
+    }
+
+    // Check if delivery partner has too many active orders
+    const activeOrders = await Order.countDocuments({
+      deliveryPartner: deliveryPartnerId,
+      status: { $in: ["assigned", "picked_up", "on_the_way"] },
+    });
+
+    if (activeOrders >= 5) {
+      return res.status(400).json({
+        success: false,
+        error: "You have too many active orders. Complete some before accepting more.",
+      });
+    }
+
+    // Assign delivery partner and update status
+    order.deliveryPartner = deliveryPartnerId;
+    order.status = "assigned";
+    order.statusHistory.push({
+      status: "assigned",
+      timestamp: new Date(),
+      note: "Delivery partner assigned",
+      updatedBy: deliveryPartnerId,
+    });
+
+    await order.save();
+
+    const updatedOrder = await Order.findById(orderId)
+      .populate("store", "name phone address image")
+      .populate("customer", "name phone")
+      .lean();
+
+    console.log(`✅ Order ${order.orderNumber} assigned to delivery partner`);
+    res.json({ success: true, message: "Order accepted successfully!", order: updatedOrder });
+  } catch (error) {
+    console.error("❌ Error accepting order:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/delivery/accept/:orderId - Alternative accept endpoint
 router.post("/accept/:orderId", async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -181,29 +344,26 @@ router.post("/accept/:orderId", async (req, res) => {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
 
-    if (order.status !== "ready") {
-      return res
-        .status(400)
-        .json({ success: false, error: "Order is not ready for pickup" });
+    if (!["confirmed", "ready", "preparing"].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Order is not available for pickup",
+      });
     }
 
     if (order.deliveryPartner) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Order already assigned" });
+      return res.status(400).json({ success: false, error: "Order already assigned" });
     }
 
-    // Check if delivery partner has too many active orders
     const activeOrders = await Order.countDocuments({
       deliveryPartner: deliveryPartnerId,
       status: { $in: ["assigned", "picked_up", "on_the_way"] },
     });
 
-    if (activeOrders >= 3) {
+    if (activeOrders >= 5) {
       return res.status(400).json({
         success: false,
-        error:
-          "You have too many active orders. Complete some before accepting more.",
+        error: "You have too many active orders. Complete some before accepting more.",
       });
     }
 
@@ -231,54 +391,6 @@ router.post("/accept/:orderId", async (req, res) => {
   }
 });
 
-// POST /api/delivery/orders/:orderId/accept - Alternative accept endpoint
-router.post("/orders/:orderId/accept", async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const deliveryPartnerId = req.userId;
-    console.log("🚚 POST /api/delivery/orders/:orderId/accept -", orderId);
-
-    const order = await Order.findById(orderId);
-
-    if (!order) {
-      return res.status(404).json({ success: false, error: "Order not found" });
-    }
-
-    if (order.status !== "ready") {
-      return res
-        .status(400)
-        .json({ success: false, error: "Order is not ready for pickup" });
-    }
-
-    if (order.deliveryPartner) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Order already assigned" });
-    }
-
-    order.deliveryPartner = deliveryPartnerId;
-    order.status = "assigned";
-    order.statusHistory.push({
-      status: "assigned",
-      timestamp: new Date(),
-      note: "Delivery partner assigned",
-      updatedBy: deliveryPartnerId,
-    });
-
-    await order.save();
-
-    const updatedOrder = await Order.findById(orderId)
-      .populate("store", "name phone address image")
-      .populate("customer", "name phone")
-      .lean();
-
-    res.json({ success: true, message: "Order accepted", order: updatedOrder });
-  } catch (error) {
-    console.error("❌ Error accepting order:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // POST /api/delivery/orders/:orderId/reject - Reject an order
 router.post("/orders/:orderId/reject", async (req, res) => {
   try {
@@ -286,13 +398,16 @@ router.post("/orders/:orderId/reject", async (req, res) => {
     console.log("🚚 POST /api/delivery/orders/:orderId/reject -", orderId);
 
     // For now, just acknowledge the rejection
-    // In a real app, you might track rejected orders or reassign
     res.json({ success: true, message: "Order rejected" });
   } catch (error) {
     console.error("❌ Error rejecting order:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ============================================
+// UPDATE ORDER STATUS (DURING DELIVERY)
+// ============================================
 
 // PATCH /api/delivery/orders/:orderId/status - Update delivery status
 router.patch("/orders/:orderId/status", async (req, res) => {
@@ -307,7 +422,7 @@ router.patch("/orders/:orderId/status", async (req, res) => {
     });
 
     if (!order) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      return res.status(404).json({ success: false, error: "Order not found or not assigned to you" });
     }
 
     // Validate status transition
@@ -336,8 +451,7 @@ router.patch("/orders/:orderId/status", async (req, res) => {
     if (status === "picked_up") order.pickedUpAt = new Date();
     if (status === "delivered") {
       order.deliveredAt = new Date();
-      order.paymentStatus =
-        order.paymentMethod === "cod" ? "paid" : order.paymentStatus;
+      order.paymentStatus = order.paymentMethod === "cod" ? "paid" : order.paymentStatus;
 
       // Calculate actual delivery time
       const pickupTime = order.pickedUpAt || order.createdAt;
@@ -364,6 +478,10 @@ router.patch("/orders/:orderId/status", async (req, res) => {
   }
 });
 
+// ============================================
+// STATISTICS
+// ============================================
+
 // GET /api/delivery/stats - Get delivery partner statistics
 router.get("/stats", async (req, res) => {
   try {
@@ -371,31 +489,30 @@ router.get("/stats", async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [totalDeliveries, todayDeliveries, activeOrders, earnings] =
-      await Promise.all([
-        Order.countDocuments({
-          deliveryPartner: deliveryPartnerId,
-          status: "delivered",
-        }),
-        Order.countDocuments({
-          deliveryPartner: deliveryPartnerId,
-          status: "delivered",
-          deliveredAt: { $gte: today },
-        }),
-        Order.countDocuments({
-          deliveryPartner: deliveryPartnerId,
-          status: { $in: ["assigned", "picked_up", "on_the_way"] },
-        }),
-        Order.aggregate([
-          {
-            $match: {
-              deliveryPartner: new mongoose.Types.ObjectId(deliveryPartnerId),
-              status: "delivered",
-            },
+    const [totalDeliveries, todayDeliveries, activeOrders, earnings] = await Promise.all([
+      Order.countDocuments({
+        deliveryPartner: deliveryPartnerId,
+        status: "delivered",
+      }),
+      Order.countDocuments({
+        deliveryPartner: deliveryPartnerId,
+        status: "delivered",
+        deliveredAt: { $gte: today },
+      }),
+      Order.countDocuments({
+        deliveryPartner: deliveryPartnerId,
+        status: { $in: ["assigned", "picked_up", "on_the_way"] },
+      }),
+      Order.aggregate([
+        {
+          $match: {
+            deliveryPartner: new mongoose.Types.ObjectId(deliveryPartnerId),
+            status: "delivered",
           },
-          { $group: { _id: null, total: { $sum: "$deliveryFee" } } },
-        ]),
-      ]);
+        },
+        { $group: { _id: null, total: { $sum: "$deliveryFee" } } },
+      ]),
+    ]);
 
     // Calculate today's earnings
     const todayEarningsResult = await Order.aggregate([
@@ -417,7 +534,7 @@ router.get("/stats", async (req, res) => {
         activeOrders,
         totalEarnings: earnings[0]?.total || 0,
         todayEarnings: todayEarningsResult[0]?.total || 0,
-        rating: 4.5, // Placeholder - calculate from order ratings
+        rating: 4.5, // TODO: Calculate from order ratings
       },
     });
   } catch (error) {
@@ -436,7 +553,7 @@ router.get("/order/:orderId", async (req, res) => {
       _id: orderId,
       $or: [
         { deliveryPartner: deliveryPartnerId },
-        { status: "ready", deliveryPartner: null },
+        { status: { $in: ["confirmed", "ready", "preparing"] }, deliveryPartner: null },
       ],
     })
       .populate("store", "name phone address image")
