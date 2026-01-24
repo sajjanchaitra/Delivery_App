@@ -1,4 +1,4 @@
-// Create: app/(delivery)/delivery-success.tsx
+// app/(delivery)/delivery-success.tsx
 import {
   View,
   Text,
@@ -6,37 +6,10 @@ import {
   TouchableOpacity,
   StatusBar,
   Animated,
-  ViewStyle,
-  TextStyle,
 } from "react-native";
 import { useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
-type Styles = {
-  container: ViewStyle;
-  successHeader: ViewStyle;
-  successIconContainer: ViewStyle;
-  successTitle: TextStyle;
-  successSubtitle: TextStyle;
-  content: ViewStyle;
-  earningsCard: ViewStyle;
-  earningsLabel: TextStyle;
-  earningsValue: TextStyle;
-  earningsBadge: ViewStyle;
-  earningsBadgeText: TextStyle;
-  detailsCard: ViewStyle;
-  detailRow: ViewStyle;
-  detailLabel: TextStyle;
-  detailValue: TextStyle;
-  actions: ViewStyle;
-  secondaryButton: ViewStyle;
-  secondaryButtonText: TextStyle;
-  primaryButton: ViewStyle;
-  primaryButtonText: TextStyle;
-  tipCard: ViewStyle;
-  tipText: TextStyle;
-};
 
 export default function DeliverySuccessScreen() {
   const router = useRouter();
@@ -89,7 +62,7 @@ export default function DeliverySuccessScreen() {
         {/* Earnings Card */}
         <View style={styles.earningsCard}>
           <Text style={styles.earningsLabel}>You Earned</Text>
-          <Text style={styles.earningsValue}>₹{params.earnings || 130}</Text>
+          <Text style={styles.earningsValue}>₹{params.earnings || 0}</Text>
           <View style={styles.earningsBadge}>
             <Ionicons name="trending-up" size={16} color="#22C55E" />
             <Text style={styles.earningsBadgeText}>Added to wallet</Text>
@@ -100,7 +73,7 @@ export default function DeliverySuccessScreen() {
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Order ID</Text>
-            <Text style={styles.detailValue}>{params.orderId || "ORD12345"}</Text>
+            <Text style={styles.detailValue}>{params.orderId || "N/A"}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Delivery Time</Text>
@@ -112,32 +85,21 @@ export default function DeliverySuccessScreen() {
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.secondaryButton}
-            activeOpacity={0.8}
-            onPress={() => router.push("/(delivery)/earnings" as any)}
-          >
-            <Ionicons name="wallet" size={20} color="#22C55E" />
-            <Text style={styles.secondaryButtonText}>View Earnings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.primaryButton}
-            activeOpacity={0.8}
-            onPress={() => router.replace("/(delivery)/home" as any)}
-          >
-            <Ionicons name="home" size={20} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>Back to Home</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Action Button */}
+        <TouchableOpacity 
+          style={styles.primaryButton}
+          activeOpacity={0.8}
+          onPress={() => router.replace("/(delivery)/home" as any)}
+        >
+          <Ionicons name="home" size={20} color="#FFFFFF" />
+          <Text style={styles.primaryButtonText}>Back to Home</Text>
+        </TouchableOpacity>
 
         {/* Tip */}
         <View style={styles.tipCard}>
           <Ionicons name="bulb" size={20} color="#F59E0B" />
           <Text style={styles.tipText}>
-            Keep up the good work! Complete more deliveries to earn bonuses
+            Keep up the good work! Complete more deliveries to earn more
           </Text>
         </View>
       </View>
@@ -145,7 +107,7 @@ export default function DeliverySuccessScreen() {
   );
 }
 
-const styles = StyleSheet.create<Styles>({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
@@ -234,37 +196,18 @@ const styles = StyleSheet.create<Styles>({
     fontWeight: "600",
     color: "#1E293B",
   },
-  actions: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  secondaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0FDF4",
-    borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#22C55E",
-  },
   primaryButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#22C55E",
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 16,
     gap: 8,
+    marginBottom: 20,
   },
   primaryButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
   },

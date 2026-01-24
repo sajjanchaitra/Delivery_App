@@ -1,4 +1,4 @@
-// Create: app/(delivery)/profile.tsx
+// app/(delivery)/profile.tsx
 import {
   View,
   Text,
@@ -6,227 +6,144 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Image,
-  Switch,
   Alert,
+  ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type MenuItem = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  route?: string;
-  action?: () => void;
-  showArrow?: boolean;
-  rightComponent?: React.ReactNode;
-};
+const API_URL = "http://13.203.206.134:5000";
+
+interface DriverProfile {
+  _id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  role: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  };
+  vehicle?: {
+    type?: string;
+    number?: string;
+    model?: string;
+  };
+  documents?: {
+    aadhar?: string;
+    pan?: string;
+    drivingLicense?: string;
+  };
+  isOnline?: boolean;
+  createdAt?: string;
+}
 
 export default function DeliveryProfile() {
   const router = useRouter();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [locationEnabled, setLocationEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<DriverProfile | null>(null);
+  const [stats, setStats] = useState({
+    totalDeliveries: 0,
+    rating: 0,
+    todayEarnings: 0,
+  });
 
-  // Driver stats
-  const stats = {
-    totalDeliveries: 1248,
-    rating: 4.8,
-    onTimeRate: 96,
-    memberSince: "Jan 2023",
+  useEffect(() => {
+    fetchProfile();
+    fetchStats();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/api/delivery/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      console.log("📦 Profile:", data);
+
+      if (data.success && (data.profile || data.driver)) {
+        setProfile(data.profile || data.driver);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/api/delivery/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success && data.stats) {
+        setStats({
+          totalDeliveries: data.stats.totalDeliveries || 0,
+          rating: data.stats.rating || 0,
+          todayEarnings: data.stats.todayEarnings || 0,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error fetching stats:", error);
+    }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: () => {
-            // Handle logout logic
-            router.replace("/(auth)/login");
-          }
-        }
-      ]
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("authToken");
+          await AsyncStorage.removeItem("userRole");
+          router.replace("/onboarding" as any);
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
     );
-  };
-
-  const menuSections: { title: string; items: MenuItem[] }[] = [
-    {
-      title: "Account",
-      items: [
-        {
-          id: "personal-info",
-          icon: "person-outline",
-          label: "Personal Information",
-          route: "/(delivery)/personal-info",
-          showArrow: true,
-        },
-        {
-          id: "vehicle-info",
-          icon: "bicycle-outline",
-          label: "Vehicle Information",
-          route: "/(delivery)/vehicle-info",
-          showArrow: true,
-        },
-        {
-          id: "documents",
-          icon: "document-text-outline",
-          label: "Documents",
-          route: "/(delivery)/documents",
-          showArrow: true,
-        },
-        {
-          id: "bank-details",
-          icon: "card-outline",
-          label: "Bank Details",
-          route: "/(delivery)/bank-details",
-          showArrow: true,
-        },
-      ],
-    },
-    {
-      title: "Preferences",
-      items: [
-        {
-          id: "notifications",
-          icon: "notifications-outline",
-          label: "Notifications",
-          showArrow: false,
-          rightComponent: (
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: "#CBD5E1", true: "#86EFAC" }}
-              thumbColor={notificationsEnabled ? "#22C55E" : "#F1F5F9"}
-            />
-          ),
-        },
-        {
-          id: "location",
-          icon: "location-outline",
-          label: "Location Services",
-          showArrow: false,
-          rightComponent: (
-            <Switch
-              value={locationEnabled}
-              onValueChange={setLocationEnabled}
-              trackColor={{ false: "#CBD5E1", true: "#86EFAC" }}
-              thumbColor={locationEnabled ? "#22C55E" : "#F1F5F9"}
-            />
-          ),
-        },
-        {
-          id: "language",
-          icon: "language-outline",
-          label: "Language",
-          route: "/(delivery)/language",
-          showArrow: true,
-        },
-      ],
-    },
-    {
-      title: "Support",
-      items: [
-        {
-          id: "help",
-          icon: "help-circle-outline",
-          label: "Help Center",
-          route: "/(delivery)/help",
-          showArrow: true,
-        },
-        {
-          id: "safety",
-          icon: "shield-checkmark-outline",
-          label: "Safety",
-          route: "/(delivery)/safety",
-          showArrow: true,
-        },
-        {
-          id: "feedback",
-          icon: "chatbox-outline",
-          label: "Send Feedback",
-          route: "/(delivery)/feedback",
-          showArrow: true,
-        },
-      ],
-    },
-    {
-      title: "Legal",
-      items: [
-        {
-          id: "terms",
-          icon: "document-outline",
-          label: "Terms & Conditions",
-          route: "/(delivery)/terms",
-          showArrow: true,
-        },
-        {
-          id: "privacy",
-          icon: "lock-closed-outline",
-          label: "Privacy Policy",
-          route: "/(delivery)/privacy",
-          showArrow: true,
-        },
-      ],
-    },
-  ];
-
-  const handleMenuPress = (item: MenuItem) => {
-    if (item.route) {
-      router.push(item.route as any);
-    } else if (item.action) {
-      item.action();
-    }
-  };
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          activeOpacity={0.7}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity 
-          style={styles.editButton}
-          activeOpacity={0.7}
-          onPress={() => router.push("/(delivery)/edit-profile" as any)}
-        >
-          <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
         <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={48} color="#22C55E" />
-            </View>
-            <TouchableOpacity 
-              style={styles.avatarEditButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="camera" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={48} color="#22C55E" />
           </View>
 
-          <Text style={styles.driverName}>Rajesh Kumar</Text>
-          <Text style={styles.driverId}>ID: DRV-12345</Text>
+          <Text style={styles.driverName}>{profile?.name || "Driver"}</Text>
+          <Text style={styles.driverPhone}>{profile?.phone || ""}</Text>
 
           {/* Stats Grid */}
           <View style={styles.statsGrid}>
@@ -237,64 +154,76 @@ export default function DeliveryProfile() {
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
               <View style={styles.ratingRow}>
-                <Text style={styles.statValue}>{stats.rating}</Text>
-                <Ionicons name="star" size={20} color="#F59E0B" />
+                <Text style={styles.statValue}>{stats.rating.toFixed(1)}</Text>
+                <Ionicons name="star" size={18} color="#F59E0B" />
               </View>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{stats.onTimeRate}%</Text>
-              <Text style={styles.statLabel}>On-Time</Text>
+              <Text style={styles.statValue}>₹{stats.todayEarnings}</Text>
+              <Text style={styles.statLabel}>Today</Text>
             </View>
-          </View>
-
-          <View style={styles.memberSince}>
-            <Ionicons name="calendar-outline" size={16} color="#64748B" />
-            <Text style={styles.memberText}>Member since {stats.memberSince}</Text>
           </View>
         </View>
 
-        {/* Menu Sections */}
-        {menuSections.map((section) => (
-          <View key={section.title} style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.menuCard}>
-              {section.items.map((item, index) => (
-                <View key={item.id}>
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    activeOpacity={0.7}
-                    onPress={() => handleMenuPress(item)}
-                    disabled={!item.route && !item.action}
-                  >
-                    <View style={styles.menuLeft}>
-                      <View style={styles.menuIcon}>
-                        <Ionicons name={item.icon} size={22} color="#1E293B" />
-                      </View>
-                      <Text style={styles.menuLabel}>{item.label}</Text>
-                    </View>
-                    {item.rightComponent || (
-                      item.showArrow && (
-                        <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-                      )
-                    )}
-                  </TouchableOpacity>
-                  {index < section.items.length - 1 && (
-                    <View style={styles.menuDivider} />
-                  )}
+        {/* Menu Section */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+          <View style={styles.menuCard}>
+            {/* Personal Information */}
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => router.push("/(delivery)/personal-info" as any)}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name="person-outline" size={22} color="#1E293B" />
                 </View>
-              ))}
-            </View>
+                <Text style={styles.menuLabel}>Personal Information</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            {/* Terms & Conditions */}
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => router.push("/(delivery)/terms" as any)}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name="document-outline" size={22} color="#1E293B" />
+                </View>
+                <Text style={styles.menuLabel}>Terms & Conditions</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            {/* Privacy Policy */}
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => router.push("/(delivery)/privacy" as any)}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name="lock-closed-outline" size={22} color="#1E293B" />
+                </View>
+                <Text style={styles.menuLabel}>Privacy Policy</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+            </TouchableOpacity>
           </View>
-        ))}
+        </View>
 
         {/* Logout Button */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          activeOpacity={0.8}
-          onPress={handleLogout}
-        >
+        <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={24} color="#EF4444" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -302,7 +231,7 @@ export default function DeliveryProfile() {
         {/* App Version */}
         <Text style={styles.versionText}>Version 1.0.0</Text>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -310,7 +239,7 @@ export default function DeliveryProfile() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("/(delivery)/home")}
+          onPress={() => router.push("/(delivery)/home" as any)}
         >
           <Ionicons name="home-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Home</Text>
@@ -319,19 +248,10 @@ export default function DeliveryProfile() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => router.push("/(delivery)/orders")}
+          onPress={() => router.push("/(delivery)/orders" as any)}
         >
           <Ionicons name="list-outline" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => router.push("/(delivery)/earnings")}
-        >
-          <Ionicons name="wallet-outline" size={24} color="#94A3B8" />
-          <Text style={styles.navLabel}>Earnings</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
@@ -348,35 +268,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#64748B",
+  },
   header: {
     backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-  editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   scrollView: {
     flex: 1,
@@ -393,10 +306,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  avatarContainer: {
-    position: "relative",
-    marginBottom: 16,
-  },
   avatar: {
     width: 100,
     height: 100,
@@ -406,19 +315,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 4,
     borderColor: "#22C55E",
-  },
-  avatarEditButton: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#22C55E",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+    marginBottom: 16,
   },
   driverName: {
     fontSize: 24,
@@ -426,7 +323,7 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginBottom: 4,
   },
-  driverId: {
+  driverPhone: {
     fontSize: 14,
     color: "#94A3B8",
     marginBottom: 20,
@@ -436,9 +333,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
     borderColor: "#F1F5F9",
-    marginBottom: 16,
   },
   statBox: {
     flex: 1,
@@ -464,15 +359,6 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 4,
   },
-  memberSince: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  memberText: {
-    fontSize: 13,
-    color: "#64748B",
-  },
   menuSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -482,7 +368,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#64748B",
     marginBottom: 12,
-    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   menuCard: {
@@ -519,7 +404,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     color: "#1E293B",
-    flex: 1,
   },
   menuDivider: {
     height: 1,

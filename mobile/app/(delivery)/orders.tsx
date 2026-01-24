@@ -1,4 +1,4 @@
-            // Create: app/(delivery)/orders.tsx
+// app/(delivery)/orders.tsx
 import {
   View,
   Text,
@@ -6,95 +6,175 @@ import {
   TouchableOpacity,
   FlatList,
   StatusBar,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from "react-native";
-import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type Order = {
-  id: string;
-  orderId: string;
+const API_URL = "http://13.203.206.134:5000";
+
+type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "assigned" | "picked_up" | "on_the_way" | "delivered";
+
+interface Order {
+  _id: string;
+  orderNumber: string;
+  customer: {
+    _id: string;
+    name?: string;
+    phone?: string;
+  };
   customerName: string;
-  storeName: string;
-  distance: string;
-  amount: number;
-  earnings: number;
-  status: "new" | "accepted" | "picked" | "delivering";
-  pickupAddress: string;
-  deliveryAddress: string;
-  items: number;
-};
+  customerPhone: string;
+  store: {
+    _id: string;
+    name: string;
+    address?: string;
+  };
+  deliveryAddress: {
+    street?: string;
+    houseNo?: string;
+    area?: string;
+    city: string;
+    pincode: string;
+    landmark?: string;
+  };
+  items: any[];
+  total: number;
+  deliveryFee: number;
+  status: OrderStatus;
+  createdAt: string;
+}
 
-const ordersData: Order[] = [
-  {
-    id: "1",
-    orderId: "ORD12345",
-    customerName: "John Doe",
-    storeName: "Westside Market",
-    distance: "2.5 km",
-    amount: 1299,
-    earnings: 130,
-    status: "new",
-    pickupAddress: "Westside Market, MG Road, Bangalore",
-    deliveryAddress: "New mico layout, Kudlu, Bangalore - 560068",
-    items: 3,
-  },
-  {
-    id: "2",
-    orderId: "ORD12346",
-    customerName: "Jane Smith",
-    storeName: "Green Mart",
-    distance: "1.8 km",
-    amount: 899,
-    earnings: 90,
-    status: "new",
-    pickupAddress: "Green Mart, HSR Layout",
-    deliveryAddress: "Koramangala 5th Block, Bangalore",
-    items: 5,
-  },
-  {
-    id: "3",
-    orderId: "ORD12347",
-    customerName: "Mike Johnson",
-    storeName: "Fresh Basket",
-    distance: "3.2 km",
-    amount: 549,
-    earnings: 55,
-    status: "new",
-    pickupAddress: "Fresh Basket, Indiranagar",
-    deliveryAddress: "Whitefield Main Road, Bangalore",
-    items: 2,
-  },
-  {
-    id: "4",
-    orderId: "ORD12348",
-    customerName: "Sarah Williams",
-    storeName: "Daily Needs",
-    distance: "1.5 km",
-    amount: 799,
-    earnings: 80,
-    status: "new",
-    pickupAddress: "Daily Needs, BTM Layout",
-    deliveryAddress: "Jayanagar 4th Block, Bangalore",
-    items: 4,
-  },
-];
-
-const tabs = ["Available", "Accepted", "Completed"];
+const tabs = ["Available", "My Orders", "Completed"];
 
 export default function DeliveryOrdersScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Available");
-  const [orders] = useState<Order[]>(ordersData);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [activeTab])
+  );
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        console.log("❌ No auth token");
+        return;
+      }
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+
+      if (activeTab === "Available") {
+        // Fetch available orders (ready for pickup, not assigned)
+        const response = await fetch(`${API_URL}/api/delivery/orders/available`, { headers });
+        const data = await response.json();
+        console.log("📦 Available orders:", data);
+        
+        if (data.success && data.orders) {
+          setAvailableOrders(data.orders);
+        } else {
+          setAvailableOrders([]);
+        }
+      } else if (activeTab === "My Orders") {
+        // Fetch my active orders
+        const response = await fetch(`${API_URL}/api/delivery/orders/my-orders`, { headers });
+        const data = await response.json();
+        console.log("📦 My orders:", data);
+        
+        if (data.success && data.orders) {
+          setMyOrders(data.orders.filter((o: Order) => o.status !== "delivered"));
+        } else {
+          setMyOrders([]);
+        }
+      } else if (activeTab === "Completed") {
+        // Fetch completed orders
+        const response = await fetch(`${API_URL}/api/delivery/orders/my-orders?status=delivered`, { headers });
+        const data = await response.json();
+        console.log("📦 Completed orders:", data);
+        
+        if (data.success && data.orders) {
+          setCompletedOrders(data.orders);
+        } else {
+          setCompletedOrders([]);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error fetching orders:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const acceptOrder = async (orderId: string) => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) return;
+
+      console.log("📦 Accepting order:", orderId);
+
+      const response = await fetch(`${API_URL}/api/delivery/orders/${orderId}/accept`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+      console.log("✅ Accept response:", data);
+
+      if (data.success) {
+        Alert.alert("Success", "Order accepted successfully!");
+        fetchOrders(); // Refresh orders
+      } else {
+        Alert.alert("Error", data.message || "Failed to accept order");
+      }
+    } catch (error) {
+      console.error("❌ Error accepting order:", error);
+      Alert.alert("Error", "Failed to accept order");
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchOrders();
+  };
+
+  const formatAddress = (address: any) => {
+    if (!address) return "Address not available";
+    if (typeof address === "string") return address;
+    
+    const parts = [
+      address.street || address.houseNo,
+      address.area,
+      address.landmark,
+      address.city,
+    ].filter(Boolean);
+    
+    return parts.join(", ") || "Address not available";
+  };
 
   const getFilteredOrders = () => {
-    if (activeTab === "Available") {
-      return orders.filter(o => o.status === "new");
-    }
-    if (activeTab === "Accepted") {
-      return orders.filter(o => ["accepted", "picked", "delivering"].includes(o.status));
-    }
-    return [];
+    if (activeTab === "Available") return availableOrders;
+    if (activeTab === "My Orders") return myOrders;
+    return completedOrders;
   };
 
   const renderOrder = ({ item }: { item: Order }) => (
@@ -103,17 +183,17 @@ export default function DeliveryOrdersScreen() {
       activeOpacity={0.8}
       onPress={() => router.push({
         pathname: "/(delivery)/order-details",
-        params: { orderId: item.orderId }
+        params: { orderId: item._id }
       })}
     >
       <View style={styles.orderHeader}>
         <View>
-          <Text style={styles.orderId}>{item.orderId}</Text>
-          <Text style={styles.storeName}>{item.storeName}</Text>
+          <Text style={styles.orderId}>{item.orderNumber}</Text>
+          <Text style={styles.storeName}>{item.store?.name || "Store"}</Text>
         </View>
         <View style={styles.earningsBox}>
           <Text style={styles.earningsLabel}>Earn</Text>
-          <Text style={styles.earningsValue}>₹{item.earnings}</Text>
+          <Text style={styles.earningsValue}>₹{item.deliveryFee}</Text>
         </View>
       </View>
 
@@ -123,7 +203,7 @@ export default function DeliveryOrdersScreen() {
           <View style={styles.routeDetails}>
             <Text style={styles.routeLabel}>Pickup from</Text>
             <Text style={styles.routeAddress} numberOfLines={1}>
-              {item.pickupAddress}
+              {item.store?.name || "Store"}
             </Text>
           </View>
         </View>
@@ -135,7 +215,7 @@ export default function DeliveryOrdersScreen() {
           <View style={styles.routeDetails}>
             <Text style={styles.routeLabel}>Deliver to</Text>
             <Text style={styles.routeAddress} numberOfLines={1}>
-              {item.deliveryAddress}
+              {formatAddress(item.deliveryAddress)}
             </Text>
           </View>
         </View>
@@ -143,31 +223,65 @@ export default function DeliveryOrdersScreen() {
 
       <View style={styles.orderMeta}>
         <View style={styles.metaItem}>
-          <Ionicons name="location" size={16} color="#64748B" />
-          <Text style={styles.metaText}>{item.distance}</Text>
+          <Ionicons name="person" size={16} color="#64748B" />
+          <Text style={styles.metaText}>{item.customerName || item.customer?.name || "Customer"}</Text>
         </View>
         <View style={styles.metaItem}>
           <Ionicons name="bag-handle" size={16} color="#64748B" />
-          <Text style={styles.metaText}>{item.items} items</Text>
+          <Text style={styles.metaText}>{item.items?.length || 0} items</Text>
         </View>
         <View style={styles.metaItem}>
           <Ionicons name="cash" size={16} color="#64748B" />
-          <Text style={styles.metaText}>₹{item.amount}</Text>
+          <Text style={styles.metaText}>₹{item.total}</Text>
         </View>
       </View>
 
       {activeTab === "Available" && (
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.rejectButton} activeOpacity={0.7}>
-            <Text style={styles.rejectText}>Reject</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.acceptButton} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.acceptButton} 
+            activeOpacity={0.7}
+            onPress={(e) => {
+              e.stopPropagation();
+              acceptOrder(item._id);
+            }}
+          >
             <Text style={styles.acceptText}>Accept Order</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      {activeTab === "My Orders" && (
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusBadge2, { backgroundColor: getStatusColor(item.status) }]}>
+            <Text style={styles.statusBadgeText}>{getStatusText(item.status)}</Text>
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
+
+  const getStatusColor = (status: OrderStatus) => {
+    switch (status) {
+      case "ready": return "#3B82F6";
+      case "assigned": return "#F59E0B";
+      case "picked_up": return "#8B5CF6";
+      case "on_the_way": return "#22C55E";
+      case "delivered": return "#10B981";
+      default: return "#94A3B8";
+    }
+  };
+
+  const getStatusText = (status: OrderStatus) => {
+    switch (status) {
+      case "ready": return "Ready for Pickup";
+      case "assigned": return "Assigned";
+      case "picked_up": return "Picked Up";
+      case "on_the_way": return "On the Way";
+      case "delivered": return "Delivered";
+      default: return status;
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -183,9 +297,7 @@ export default function DeliveryOrdersScreen() {
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Orders</Text>
-        <TouchableOpacity style={styles.filterButton} activeOpacity={0.7}>
-          <Ionicons name="options-outline" size={24} color="#1E293B" />
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
       </View>
 
       {/* Tabs */}
@@ -206,24 +318,36 @@ export default function DeliveryOrdersScreen() {
       </View>
 
       {/* Orders List */}
-      <FlatList
-        data={getFilteredOrders()}
-        renderItem={renderOrder}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="file-tray-outline" size={80} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No orders available</Text>
-            <Text style={styles.emptyText}>
-              {activeTab === "Available" 
-                ? "New orders will appear here"
-                : "You haven't accepted any orders yet"}
-            </Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#22C55E" />
+          <Text style={styles.loadingText}>Loading orders...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={getFilteredOrders()}
+          renderItem={renderOrder}
+          keyExtractor={item => item._id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="file-tray-outline" size={80} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No orders available</Text>
+              <Text style={styles.emptyText}>
+                {activeTab === "Available" 
+                  ? "New orders will appear here"
+                  : activeTab === "My Orders"
+                  ? "You haven't accepted any orders yet"
+                  : "No completed deliveries yet"}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -255,11 +379,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1E293B",
   },
-  filterButton: {
+  placeholder: {
     width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
   },
   tabsContainer: {
     flexDirection: "row",
@@ -292,6 +413,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#22C55E",
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#64748B",
   },
   listContent: {
     padding: 20,
@@ -398,21 +529,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  rejectButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-  },
-  rejectText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-  },
   acceptButton: {
-    flex: 2,
+    flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
     backgroundColor: "#22C55E",
@@ -420,6 +538,19 @@ const styles = StyleSheet.create({
   },
   acceptText: {
     fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  statusContainer: {
+    alignItems: "flex-start",
+  },
+  statusBadge2: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusBadgeText: {
+    fontSize: 12,
     fontWeight: "600",
     color: "#FFFFFF",
   },

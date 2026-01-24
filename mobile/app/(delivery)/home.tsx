@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Switch,
   RefreshControl,
   Alert,
   ActivityIndicator,
@@ -15,64 +14,48 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Location from "expo-location";
 
 const API_URL = "http://13.203.206.134:5000";
 
-type OrderStatus = "new" | "accepted" | "picked" | "delivering" | "completed";
+type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "assigned" | "picked_up" | "on_the_way" | "delivered";
 
 interface OrderPreview {
   _id: string;
-  orderId: string;
-  orderNumber?: string;
-  customer?: {
+  orderNumber: string;
+  customer: {
     _id: string;
-    name: string;
+    name?: string;
     phone?: string;
   };
-  customerName?: string;
-  store?: {
+  customerName: string;
+  customerPhone: string;
+  store: {
     _id: string;
     name: string;
     address?: string;
   };
-  storeName?: string;
-  distance?: string;
-  amount: number;
-  totalAmount?: number;
-  deliveryFee?: number;
+  deliveryAddress: {
+    street?: string;
+    houseNo?: string;
+    area?: string;
+    city: string;
+    pincode: string;
+    landmark?: string;
+  };
+  items: any[];
+  total: number;
+  deliveryFee: number;
   status: OrderStatus;
-  pickupAddress: string;
-  deliveryAddress: string;
-  createdAt?: string;
-  estimatedDeliveryTime?: string;
-}
-
-interface Stats {
-  todayEarnings: number;
-  todayDeliveries: number;
-  rating: number;
-  totalEarnings?: number;
-  completedDeliveries?: number;
-  onTimeRate?: number;
+  createdAt: string;
 }
 
 export default function DeliveryHome() {
   const router = useRouter();
-  const [isOnline, setIsOnline] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [locationText, setLocationText] = useState("Fetching location...");
   const [driverName, setDriverName] = useState("Driver");
-  
-  const [stats, setStats] = useState<Stats>({
-    todayEarnings: 0,
-    todayDeliveries: 0,
-    rating: 0,
-  });
-  
   const [activeOrders, setActiveOrders] = useState<OrderPreview[]>([]);
-  const [newOrders, setNewOrders] = useState<OrderPreview[]>([]);
+  const [availableOrders, setAvailableOrders] = useState<OrderPreview[]>([]);
 
   useEffect(() => {
     initializeScreen();
@@ -81,7 +64,6 @@ export default function DeliveryHome() {
   useFocusEffect(
     useCallback(() => {
       fetchOrders();
-      fetchStats();
     }, [])
   );
 
@@ -90,9 +72,7 @@ export default function DeliveryHome() {
     try {
       await Promise.all([
         fetchDriverProfile(),
-        fetchLocation(),
         fetchOrders(),
-        fetchStats(),
       ]);
     } catch (error) {
       console.error("Error initializing screen:", error);
@@ -114,9 +94,10 @@ export default function DeliveryHome() {
       });
       
       const data = await response.json();
-      if (data.success && data.driver) {
-        setDriverName(data.driver.name || "Driver");
-        setIsOnline(data.driver.isOnline !== false);
+      console.log("📦 Driver profile:", data);
+      
+      if (data.success && data.profile) {
+        setDriverName(data.profile.name || "Driver");
       }
     } catch (error) {
       console.error("Error fetching driver profile:", error);
@@ -124,56 +105,13 @@ export default function DeliveryHome() {
     }
   };
 
-  const fetchLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setLocationText("Location access denied");
-        return;
-      }
-
-      setLocationText("Getting location...");
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const address = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      if (address && address[0]) {
-        const { city, district, subregion, street, name } = address[0];
-        const primaryLocation = street || name || district || subregion || city || "Unknown";
-        const secondaryLocation = city || district || "";
-        
-        setLocationText(
-          primaryLocation === secondaryLocation || !secondaryLocation
-            ? primaryLocation
-            : `${primaryLocation}, ${secondaryLocation}`
-        );
-
-        await AsyncStorage.setItem(
-          "driverLocation",
-          JSON.stringify({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            address: address[0],
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Error fetching location:", error);
-      setLocationText("Unable to get location");
-    }
-  };
-
   const fetchOrders = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
       if (!token) {
+        console.log("❌ No auth token found");
         setActiveOrders([]);
-        setNewOrders([]);
+        setAvailableOrders([]);
         return;
       }
 
@@ -182,88 +120,37 @@ export default function DeliveryHome() {
         "Content-Type": "application/json",
       };
 
-      // Fetch active orders (accepted, picked, delivering)
-      const activeResponse = await fetch(
-        `${API_URL}/api/delivery/orders?status=active`,
+      // Fetch my active orders
+      const myOrdersResponse = await fetch(
+        `${API_URL}/api/delivery/orders/my-orders`,
         { headers }
       );
-      const activeData = await activeResponse.json();
+      const myOrdersData = await myOrdersResponse.json();
+      console.log("📦 My active orders:", myOrdersData);
 
-      // Fetch new orders (available for pickup)
-      const newResponse = await fetch(
-        `${API_URL}/api/delivery/orders?status=new&limit=10`,
+      // Fetch available orders
+      const availableResponse = await fetch(
+        `${API_URL}/api/delivery/orders/available`,
         { headers }
       );
-      const newData = await newResponse.json();
+      const availableData = await availableResponse.json();
+      console.log("📦 Available orders:", availableData);
 
-      console.log("Active orders:", activeData);
-      console.log("New orders:", newData);
-
-      if (activeData.success && activeData.orders) {
-        setActiveOrders(activeData.orders);
-      }
-
-      if (newData.success && newData.orders) {
-        setNewOrders(newData.orders);
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      // Set mock data for testing
-      setActiveOrders([]);
-      setNewOrders([]);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const token = await AsyncStorage.getItem("authToken");
-      if (!token) return;
-
-      const response = await fetch(`${API_URL}/api/delivery/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-      console.log("Stats:", data);
-
-      if (data.success) {
-        setStats({
-          todayEarnings: data.stats?.todayEarnings || 0,
-          todayDeliveries: data.stats?.todayDeliveries || 0,
-          rating: data.stats?.rating || 0,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    }
-  };
-
-  const toggleOnlineStatus = async (value: boolean) => {
-    try {
-      const token = await AsyncStorage.getItem("authToken");
-      if (!token) {
-        Alert.alert("Error", "Please login again");
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/api/delivery/status`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isOnline: value }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setIsOnline(value);
+      if (myOrdersData.success && myOrdersData.orders) {
+        setActiveOrders(myOrdersData.orders.filter((o: OrderPreview) => o.status !== "delivered"));
       } else {
-        Alert.alert("Error", data.message || "Failed to update status");
+        setActiveOrders([]);
+      }
+
+      if (availableData.success && availableData.orders) {
+        setAvailableOrders(availableData.orders);
+      } else {
+        setAvailableOrders([]);
       }
     } catch (error) {
-      console.error("Error toggling status:", error);
-      Alert.alert("Error", "Failed to update status");
+      console.error("❌ Error fetching orders:", error);
+      setActiveOrders([]);
+      setAvailableOrders([]);
     }
   };
 
@@ -271,6 +158,8 @@ export default function DeliveryHome() {
     try {
       const token = await AsyncStorage.getItem("authToken");
       if (!token) return;
+
+      console.log("📦 Accepting order:", orderId);
 
       const response = await fetch(`${API_URL}/api/delivery/orders/${orderId}/accept`, {
         method: "POST",
@@ -281,84 +170,59 @@ export default function DeliveryHome() {
       });
 
       const data = await response.json();
+      console.log("✅ Accept response:", data);
+
       if (data.success) {
-        Alert.alert("Success", "Order accepted!");
-        fetchOrders();
+        Alert.alert("Success", "Order accepted successfully!");
+        await fetchOrders();
       } else {
         Alert.alert("Error", data.message || "Failed to accept order");
       }
     } catch (error) {
-      console.error("Error accepting order:", error);
+      console.error("❌ Error accepting order:", error);
       Alert.alert("Error", "Failed to accept order");
     }
   };
 
-  const rejectOrder = async (orderId: string) => {
-    Alert.alert(
-      "Reject Order",
-      "Are you sure you want to reject this order?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reject",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const token = await AsyncStorage.getItem("authToken");
-              if (!token) return;
-
-              const response = await fetch(
-                `${API_URL}/api/delivery/orders/${orderId}/reject`,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
-
-              const data = await response.json();
-              if (data.success) {
-                fetchOrders();
-              } else {
-                Alert.alert("Error", data.message || "Failed to reject order");
-              }
-            } catch (error) {
-              console.error("Error rejecting order:", error);
-              Alert.alert("Error", "Failed to reject order");
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchOrders(), fetchStats()]);
+    await fetchOrders();
     setRefreshing(false);
   };
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
-      case "new": return "#3B82F6";
-      case "accepted": return "#F59E0B";
-      case "picked": return "#8B5CF6";
-      case "delivering": return "#22C55E";
+      case "ready": return "#3B82F6";
+      case "assigned": return "#F59E0B";
+      case "picked_up": return "#8B5CF6";
+      case "on_the_way": return "#22C55E";
       default: return "#94A3B8";
     }
   };
 
   const getStatusText = (status: OrderStatus) => {
     switch (status) {
-      case "new": return "New Order";
-      case "accepted": return "Accepted";
-      case "picked": return "Picked Up";
-      case "delivering": return "On the Way";
-      case "completed": return "Completed";
+      case "ready": return "Ready for Pickup";
+      case "assigned": return "Assigned";
+      case "picked_up": return "Picked Up";
+      case "on_the_way": return "On the Way";
+      case "delivered": return "Delivered";
       default: return status;
     }
+  };
+
+  const formatAddress = (address: any) => {
+    if (!address) return "Address not available";
+    if (typeof address === "string") return address;
+    
+    const parts = [
+      address.street || address.houseNo,
+      address.area,
+      address.landmark,
+      address.city,
+    ].filter(Boolean);
+    
+    return parts.join(", ") || "Address not available";
   };
 
   if (loading) {
@@ -382,61 +246,12 @@ export default function DeliveryHome() {
             <Text style={styles.subGreeting}>Ready to deliver?</Text>
           </View>
           <TouchableOpacity 
-            style={styles.notificationButton}
+            style={styles.profileButton}
             activeOpacity={0.7}
-            onPress={() => router.push("/(delivery)/notifications" as any)}
+            onPress={() => router.push("/(delivery)/profile" as any)}
           >
-            <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationCount}>3</Text>
-            </View>
+            <Ionicons name="person-circle-outline" size={36} color="#FFFFFF" />
           </TouchableOpacity>
-        </View>
-
-        {/* Online/Offline Toggle */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusLeft}>
-            <View style={[
-              styles.statusDot,
-              { backgroundColor: isOnline ? "#22C55E" : "#EF4444" }
-            ]} />
-            <Text style={styles.statusText}>
-              You are {isOnline ? "Online" : "Offline"}
-            </Text>
-          </View>
-          <Switch
-            value={isOnline}
-            onValueChange={toggleOnlineStatus}
-            trackColor={{ false: "#CBD5E1", true: "#86EFAC" }}
-            thumbColor={isOnline ? "#22C55E" : "#F1F5F9"}
-          />
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Ionicons name="cash" size={24} color="#22C55E" />
-            </View>
-            <Text style={styles.statValue}>₹{stats.todayEarnings}</Text>
-            <Text style={styles.statLabel}>Today's Earnings</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Ionicons name="bicycle" size={24} color="#3B82F6" />
-            </View>
-            <Text style={styles.statValue}>{stats.todayDeliveries}</Text>
-            <Text style={styles.statLabel}>Deliveries</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Ionicons name="star" size={24} color="#F59E0B" />
-            </View>
-            <Text style={styles.statValue}>{stats.rating || 0}</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
         </View>
       </View>
 
@@ -451,7 +266,7 @@ export default function DeliveryHome() {
         {activeOrders.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Active Deliveries</Text>
+              <Text style={styles.sectionTitle}>My Active Deliveries</Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{activeOrders.length}</Text>
               </View>
@@ -468,9 +283,7 @@ export default function DeliveryHome() {
                 })}
               >
                 <View style={styles.orderHeader}>
-                  <Text style={styles.orderId}>
-                    {order.orderNumber || order.orderId || `#${order._id.slice(-6)}`}
-                  </Text>
+                  <Text style={styles.orderId}>{order.orderNumber}</Text>
                   <View style={[
                     styles.statusBadge,
                     { backgroundColor: `${getStatusColor(order.status)}20` }
@@ -491,7 +304,7 @@ export default function DeliveryHome() {
                       <View style={styles.routeInfo}>
                         <Text style={styles.routeLabel}>Pickup</Text>
                         <Text style={styles.routeText} numberOfLines={1}>
-                          {order.pickupAddress}
+                          {order.store?.name || "Store"}
                         </Text>
                       </View>
                     </View>
@@ -503,44 +316,42 @@ export default function DeliveryHome() {
                       <View style={styles.routeInfo}>
                         <Text style={styles.routeLabel}>Delivery</Text>
                         <Text style={styles.routeText} numberOfLines={1}>
-                          {order.deliveryAddress}
+                          {formatAddress(order.deliveryAddress)}
                         </Text>
                       </View>
                     </View>
                   </View>
 
                   <View style={styles.orderFooter}>
-                    <View style={styles.orderMeta}>
-                      <Ionicons name="location" size={16} color="#64748B" />
-                      <Text style={styles.metaText}>{order.distance || "2.5 km"}</Text>
+                    <View style={styles.customerInfo}>
+                      <Ionicons name="person" size={16} color="#64748B" />
+                      <Text style={styles.customerText}>{order.customerName}</Text>
                     </View>
-                    <Text style={styles.orderAmount}>
-                      ₹{order.totalAmount || order.amount}
-                    </Text>
+                    <Text style={styles.orderAmount}>₹{order.total}</Text>
                   </View>
                 </View>
 
                 <TouchableOpacity 
-                  style={styles.navigateButton}
+                  style={styles.detailsButton}
                   activeOpacity={0.8}
                   onPress={() => router.push({
-                    pathname: "/(delivery)/navigation" as any,
+                    pathname: "/(delivery)/order-details" as any,
                     params: { orderId: order._id }
                   })}
                 >
-                  <Ionicons name="navigate" size={20} color="#FFFFFF" />
-                  <Text style={styles.navigateText}>Navigate</Text>
+                  <Ionicons name="information-circle" size={20} color="#FFFFFF" />
+                  <Text style={styles.detailsText}>View Details</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* New Orders */}
-        {isOnline && newOrders.length > 0 && (
+        {/* Available Orders */}
+        {availableOrders.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>New Orders</Text>
+              <Text style={styles.sectionTitle}>Available Orders</Text>
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => router.push("/(delivery)/orders" as any)}
@@ -549,20 +360,10 @@ export default function DeliveryHome() {
               </TouchableOpacity>
             </View>
 
-            {newOrders.map((order) => (
-              <TouchableOpacity
-                key={order._id}
-                style={styles.orderCard}
-                activeOpacity={0.8}
-                onPress={() => router.push({
-                  pathname: "/(delivery)/order-details" as any,
-                  params: { orderId: order._id }
-                })}
-              >
+            {availableOrders.slice(0, 5).map((order) => (
+              <View key={order._id} style={styles.orderCard}>
                 <View style={styles.orderHeader}>
-                  <Text style={styles.orderId}>
-                    {order.orderNumber || order.orderId || `#${order._id.slice(-6)}`}
-                  </Text>
+                  <Text style={styles.orderId}>{order.orderNumber}</Text>
                   <View style={styles.newBadge}>
                     <Text style={styles.newBadgeText}>NEW</Text>
                   </View>
@@ -571,67 +372,39 @@ export default function DeliveryHome() {
                 <View style={styles.orderInfo}>
                   <View style={styles.infoRow}>
                     <Ionicons name="storefront" size={16} color="#64748B" />
-                    <Text style={styles.infoText}>
-                      {order.store?.name || order.storeName || "Store"}
-                    </Text>
+                    <Text style={styles.infoText}>{order.store?.name || "Store"}</Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="person" size={16} color="#64748B" />
-                    <Text style={styles.infoText}>
-                      {order.customer?.name || order.customerName || "Customer"}
-                    </Text>
+                    <Text style={styles.infoText}>{order.customerName || "Customer"}</Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="location" size={16} color="#64748B" />
-                    <Text style={styles.infoText}>{order.distance || "2.5 km"}</Text>
+                    <Text style={styles.infoText} numberOfLines={1}>
+                      {formatAddress(order.deliveryAddress)}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={styles.orderActions}>
                   <Text style={styles.earningsText}>
-                    Earn ₹{Math.round((order.deliveryFee || order.amount * 0.1))}
+                    Earn ₹{order.deliveryFee}
                   </Text>
-                  <View style={styles.actionButtons}>
-                    <TouchableOpacity 
-                      style={styles.rejectButton}
-                      activeOpacity={0.7}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        rejectOrder(order._id);
-                      }}
-                    >
-                      <Text style={styles.rejectText}>Reject</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.acceptButton}
-                      activeOpacity={0.7}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        acceptOrder(order._id);
-                      }}
-                    >
-                      <Text style={styles.acceptText}>Accept</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity 
+                    style={styles.acceptButton}
+                    activeOpacity={0.7}
+                    onPress={() => acceptOrder(order._id)}
+                  >
+                    <Text style={styles.acceptText}>Accept Order</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))}
           </View>
         )}
 
-        {/* Offline Message */}
-        {!isOnline && (
-          <View style={styles.offlineCard}>
-            <Ionicons name="moon" size={48} color="#94A3B8" />
-            <Text style={styles.offlineTitle}>You're Offline</Text>
-            <Text style={styles.offlineText}>
-              Turn online to start receiving delivery requests
-            </Text>
-          </View>
-        )}
-
         {/* Empty State */}
-        {isOnline && newOrders.length === 0 && activeOrders.length === 0 && (
+        {availableOrders.length === 0 && activeOrders.length === 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="bicycle-outline" size={64} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>No orders available</Text>
@@ -658,15 +431,6 @@ export default function DeliveryHome() {
         >
           <Ionicons name="list" size={24} color="#94A3B8" />
           <Text style={styles.navLabel}>Orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => router.push("/(delivery)/earnings" as any)}
-        >
-          <Ionicons name="wallet" size={24} color="#94A3B8" />
-          <Text style={styles.navLabel}>Earnings</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -707,8 +471,7 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
+    alignItems: "center",
   },
   greeting: {
     fontSize: 24,
@@ -720,85 +483,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.7)",
   },
-  notificationButton: {
+  profileButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#EF4444",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  notificationCount: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  statusCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  statusLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  statsContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.7)",
-    textAlign: "center",
   },
   scrollView: {
     flex: 1,
@@ -925,12 +614,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  orderMeta: {
+  customerInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  metaText: {
+  customerText: {
     fontSize: 13,
     color: "#64748B",
   },
@@ -939,7 +628,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#22C55E",
   },
-  navigateButton: {
+  detailsButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -948,7 +637,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
   },
-  navigateText: {
+  detailsText: {
     fontSize: 15,
     fontWeight: "600",
     color: "#FFFFFF",
@@ -965,6 +654,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     color: "#64748B",
+    flex: 1,
   },
   orderActions: {
     flexDirection: "row",
@@ -979,25 +669,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#22C55E",
   },
-  actionButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  rejectButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  rejectText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-  },
   acceptButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: "#22C55E",
   },
@@ -1005,25 +679,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
-  },
-  offlineCard: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    marginHorizontal: 20,
-    marginTop: 40,
-  },
-  offlineTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  offlineText: {
-    fontSize: 14,
-    color: "#94A3B8",
-    textAlign: "center",
   },
   emptyState: {
     alignItems: "center",
