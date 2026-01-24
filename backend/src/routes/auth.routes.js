@@ -1,7 +1,6 @@
 // backend/src/routes/auth.routes.js
 const express = require("express");
-const mongoose = require("mongoose"); // ADD THIS LINE - was missing!
-const bcrypt = require('bcryptjs'); // or 'bcrypt'
+const mongoose = require("mongoose");
 const jwt = require('jsonwebtoken');
 const User = require("../models/User");
 const { auth } = require("../middleware/auth");
@@ -14,7 +13,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "quickmart-secret-key-2024";
  * POST /api/auth/test-login
  * For development/testing - Creates real JWT token without OTP verification
  */
-// POST /api/auth/test-login
 router.post("/test-login", async (req, res) => {
   try {
     const { phone, role } = req.body;
@@ -35,10 +33,14 @@ router.post("/test-login", async (req, res) => {
     if (user) {
       console.log("👤 Found existing user:", user._id);
       
-      // DON'T call user.save() - just generate token
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
+      
+      // Generate token
       const token = jwt.sign(
         { userId: user._id, role: user.role },
-        process.env.JWT_SECRET || "your-secret-key",
+        JWT_SECRET,
         { expiresIn: "30d" }
       );
 
@@ -61,15 +63,16 @@ router.post("/test-login", async (req, res) => {
       phone,
       role,
       name: `Test ${role}`,
-      password: await bcrypt.hash("test123", 10), // Hash a default password
-      isVerified: true,
+      isPhoneVerified: true,
+      isTestUser: true,
+      lastLogin: new Date(),
     });
 
     await newUser.save();
 
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET || "your-secret-key",
+      JWT_SECRET,
       { expiresIn: "30d" }
     );
 
