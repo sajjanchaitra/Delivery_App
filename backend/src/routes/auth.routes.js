@@ -1,7 +1,8 @@
 // backend/src/routes/auth.routes.js
 const express = require("express");
 const mongoose = require("mongoose"); // ADD THIS LINE - was missing!
-const jwt = require("jsonwebtoken");
+const bcrypt = require('bcryptjs'); // or 'bcrypt'
+const jwt = require('jsonwebtoken');
 const User = require("../models/User");
 const { auth } = require("../middleware/auth");
 
