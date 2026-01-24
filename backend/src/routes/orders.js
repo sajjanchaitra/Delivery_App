@@ -11,15 +11,13 @@ const User = require("../models/User");
 // Import auth middleware
 const { auth } = require("../middleware/auth");
 
-// All routes require authentication
-router.use(auth);
+// ❌ REMOVE THIS LINE - This is causing the error
+// router.use(auth);
 
-// ============================================
-// CUSTOMER ROUTES
-// ============================================
+// ✅ ADD auth to each route individually instead
 
 // POST /api/orders - Create new order (Customer)
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {  // ← Add auth here
   try {
     const customerId = req.userId;
     console.log("📦 POST /api/orders - Customer:", customerId);
@@ -129,10 +127,7 @@ router.post("/", async (req, res) => {
       subtotal,
       deliveryFee,
       total,
-
-      // ✅ FIX: Save normalized address
       deliveryAddress: normalizedAddress,
-
       customerPhone,
       customerName: customerName || "Customer",
       customerNote: customerNote || "",
@@ -181,7 +176,7 @@ router.post("/", async (req, res) => {
 });
 
 // GET /api/orders - Get customer's orders
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {  // ← Add auth here
   try {
     const customerId = req.userId;
     const { status, page = 1, limit = 20 } = req.query;
@@ -220,7 +215,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET /api/orders/:orderId - Get single order
-router.get("/:orderId", async (req, res) => {
+router.get("/:orderId", auth, async (req, res) => {  // ← Add auth here
   try {
     const { orderId } = req.params;
     console.log("📦 GET /api/orders/:orderId -", orderId);
@@ -244,7 +239,7 @@ router.get("/:orderId", async (req, res) => {
 });
 
 // PATCH /api/orders/:orderId/cancel - Cancel order (Customer)
-router.patch("/:orderId/cancel", async (req, res) => {
+router.patch("/:orderId/cancel", auth, async (req, res) => {  // ← Add auth here
   try {
     const { orderId } = req.params;
     const { reason } = req.body;
@@ -285,7 +280,7 @@ router.patch("/:orderId/cancel", async (req, res) => {
 });
 
 // POST /api/orders/:orderId/rate - Rate order (Customer)
-router.post("/:orderId/rate", async (req, res) => {
+router.post("/:orderId/rate", auth, async (req, res) => {  // ← Add auth here
   try {
     const { orderId } = req.params;
     const { rating, review, type } = req.body;
