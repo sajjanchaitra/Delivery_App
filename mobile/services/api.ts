@@ -421,6 +421,20 @@ getAddresses(): Promise<ApiResponse> {
   getMyDeliveryOrders(status?: string): Promise<ApiResponse> {
     return this.get("/api/orders/delivery/my-orders", status ? { status } : {});
   }
+
+  // ==================== AUTH APIs ====================
+
+// ... existing methods ...
+
+// Check if phone belongs to admin
+checkAdmin(phone: string): Promise<ApiResponse<{ isAdmin: boolean; name?: string }>> {
+  return this.post("/api/auth/check-admin", { phone });
+}
+
+// Admin login with password
+adminLogin(phone: string, password: string): Promise<ApiResponse<LoginResponse>> {
+  return this.post("/api/auth/admin-login", { phone, password });
+}
 }
 
 // Export singleton instance

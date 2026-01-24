@@ -14,12 +14,12 @@ import {
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import api from "../../services/api";
 
 // Test mode flag - set to false for production Firebase OTP
 const ENABLE_TEST_MODE = true;
 
 export default function Login() {
-
   const router = useRouter();
   const [phone, setPhone] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -36,12 +36,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Simulate delay
-      await new Promise<void>(resolve => setTimeout(resolve, 500));
-
-      console.log("📱 Continuing with phone:", cleanPhone);
+      console.log("📱 Checking phone:", cleanPhone);
       
-      // Navigate to OTP screen
+      // Check if phone belongs to admin
+      const checkResponse = await api.checkAdmin(cleanPhone);
+      
+      if (checkResponse.success && checkResponse.isAdmin) {
+        // Redirect to admin password screen
+        console.log("🔐 Admin detected, redirecting to password screen");
+        setLoading(false);
+        router.push({
+          pathname: "/(auth)/admin-login" as any,
+          params: { phone: cleanPhone, name: checkResponse.name || "Admin" },
+        });
+        return;
+      }
+
+      // Regular user - Navigate to OTP screen
+      console.log("📱 Regular user, continuing to OTP");
       router.push({
         pathname: "/(auth)/otp",
         params: {
@@ -49,9 +61,9 @@ export default function Login() {
           testMode: ENABLE_TEST_MODE ? "true" : "false",
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error:", error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
+      Alert.alert("Error", error.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
