@@ -46,12 +46,19 @@ router.post("/test-login", async (req, res) => {
 
       return res.json({
         success: true,
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          phone: user.phone,
-          role: user.role,
+        data: {
+          token,
+          user: {
+            id: user._id.toString(),
+            _id: user._id.toString(),
+            name: user.name,
+            phone: user.phone,
+            role: user.role,
+            email: user.email || "",
+            profileImage: user.profileImage || "",
+            isPhoneVerified: user.isPhoneVerified,
+            createdAt: user.createdAt,
+          },
         },
         message: "Test login successful",
       });
@@ -78,12 +85,19 @@ router.post("/test-login", async (req, res) => {
 
     res.json({
       success: true,
-      token,
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        phone: newUser.phone,
-        role: newUser.role,
+      data: {
+        token,
+        user: {
+          id: newUser._id.toString(),
+          _id: newUser._id.toString(),
+          name: newUser.name,
+          phone: newUser.phone,
+          role: newUser.role,
+          email: newUser.email || "",
+          profileImage: newUser.profileImage || "",
+          isPhoneVerified: newUser.isPhoneVerified,
+          createdAt: newUser.createdAt,
+        },
       },
       message: "Test user created and logged in",
     });
