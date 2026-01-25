@@ -43,8 +43,65 @@ const bulkUpload = multer({
   },
 });
 
-// ==================== BULK UPLOAD ROUTE (NO MIDDLEWARE YET) ====================
-// This route needs to be BEFORE router.use(auth, isVendor)
+// ==================== IMAGE UPLOAD CONFIGURATION ====================
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, "../../uploads/stores");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `store-${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
+const imageUpload = multer({
+  storage: imageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only JPEG, PNG and WebP allowed."));
+    }
+  },
+});
+
+// ==================== STORE IMAGE UPLOAD ROUTE ====================
+// This route needs to be BEFORE router.use(auth, isVendor) or have auth middleware
+router.post("/store/upload-image", auth, isVendor, imageUpload.single("image"), async (req, res) => {
+  console.log("📸 Store image upload route hit");
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No image uploaded" });
+    }
+
+    // Return the image URL path
+    const imageUrl = `/uploads/stores/${req.file.filename}`;
+    
+    console.log("✅ Store image uploaded successfully:", imageUrl);
+    
+    res.json({
+      success: true,
+      imageUrl,
+      message: "Image uploaded successfully",
+    });
+  } catch (error) {
+    console.error("❌ Store image upload error:", error);
+    // Clean up file if upload failed
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== BULK UPLOAD ROUTE ====================
 router.post("/products/bulk-upload", auth, isVendor, bulkUpload.single("file"), async (req, res) => {
   console.log("📤 Bulk upload route hit");
 
@@ -252,14 +309,25 @@ router.post("/store", async (req, res) => {
 
 router.put("/store", async (req, res) => {
   try {
-    const store = await Store.findOneAndUpdate({ vendor: req.userId }, { $set: req.body }, { new: true });
+    const store = await Store.findOneAndUpdate(
+      { vendor: req.userId },
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
 
     if (!store) {
       return res.status(404).json({ success: false, error: "Store not found" });
     }
 
+    console.log("✅ Store updated successfully:", {
+      name: store.name,
+      image: store.image,
+      logo: store.logo
+    });
+
     res.json({ success: true, store });
   } catch (error) {
+    console.error("❌ Error updating store:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -334,7 +402,6 @@ router.get("/products/:id", async (req, res) => {
   }
 });
 
-// POST /api/vendor/products - Create product
 router.post("/products", async (req, res) => {
   console.log("📝 POST /products called");
   console.log("User ID:", req.userId);
@@ -418,7 +485,6 @@ router.patch("/products/:id/stock", async (req, res) => {
 
 // ==================== VENDOR ORDER MANAGEMENT ====================
 
-// GET /api/vendor/orders - Get all orders for vendor's store
 router.get("/orders", async (req, res) => {
   try {
     const store = await Store.findOne({ vendor: req.userId });
@@ -442,7 +508,6 @@ router.get("/orders", async (req, res) => {
 
     const total = await Order.countDocuments(query);
 
-    // Get status counts for badges
     const statusCounts = {
       all: await Order.countDocuments({ store: store._id }),
       pending: await Order.countDocuments({ store: store._id, status: "pending" }),
@@ -472,7 +537,6 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-// GET /api/vendor/orders/:id - Get single order details
 router.get("/orders/:id", async (req, res) => {
   try {
     const store = await Store.findOne({ vendor: req.userId });
@@ -496,7 +560,6 @@ router.get("/orders/:id", async (req, res) => {
   }
 });
 
-// PATCH /api/vendor/orders/:id/status - Update order status
 router.patch("/orders/:id/status", async (req, res) => {
   try {
     const { status, note } = req.body;
@@ -511,7 +574,6 @@ router.patch("/orders/:id/status", async (req, res) => {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
 
-    // Validate status transition
     const validTransitions = {
       pending: ["confirmed", "cancelled"],
       confirmed: ["preparing", "cancelled"],
@@ -527,7 +589,6 @@ router.patch("/orders/:id/status", async (req, res) => {
       });
     }
 
-    // Update order status
     order.status = status;
     order.statusHistory.push({
       status,
@@ -536,17 +597,14 @@ router.patch("/orders/:id/status", async (req, res) => {
       updatedBy: req.userId,
     });
 
-    // Handle cancelled orders
     if (status === "cancelled") {
       order.cancelledAt = new Date();
       order.cancellationReason = note || "Cancelled by vendor";
       order.cancelledBy = "vendor";
     }
 
-    // Handle delivered orders
     if (status === "delivered") {
       order.deliveredAt = new Date();
-      // Update store stats
       await Store.findByIdAndUpdate(store._id, {
         $inc: { "stats.totalRevenue": order.total },
       });
@@ -567,7 +625,6 @@ router.patch("/orders/:id/status", async (req, res) => {
   }
 });
 
-// PATCH /api/vendor/orders/:id/assign-delivery - Assign delivery partner (optional)
 router.patch("/orders/:id/assign-delivery", async (req, res) => {
   try {
     const { deliveryPartnerId } = req.body;
@@ -662,6 +719,8 @@ router.get("/dashboard", async (req, res) => {
         isOpen: store.isOpen,
         isApproved: store.isApproved,
         rating: store.rating,
+        image: store.image,
+        logo: store.logo,
       },
       stats: {
         todayOrders: todayOrders.length,
