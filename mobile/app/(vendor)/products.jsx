@@ -232,62 +232,67 @@ export default function VendorProducts() {
   };
 
   const renderExtraBadges = (product) => {
-    const meta = product.meta || {};
+  const meta = product.meta || {};
 
-    // RESTO badges
-    if (storeType === "restaurant") {
-      return (
-        <View style={styles.badgeRow}>
-          <View
+  // RESTO badges
+  if (storeType === "restaurant") {
+    // FIX: Check both meta.isVeg AND foodType field as fallback
+    const isVeg = meta.isVeg !== undefined 
+      ? meta.isVeg 
+      : (product.foodType === "veg");
+    
+    return (
+      <View style={styles.badgeRow}>
+        <View
+          style={[
+            styles.badge,
+            isVeg ? styles.badgeVeg : styles.badgeNonVeg,
+          ]}
+        >
+          <Text
             style={[
-              styles.badge,
-              meta.isVeg ? styles.badgeVeg : styles.badgeNonVeg,
+              styles.badgeText,
+              isVeg ? styles.badgeTextVeg : styles.badgeTextNonVeg,
             ]}
           >
-            <Text
-              style={[
-                styles.badgeText,
-                meta.isVeg ? styles.badgeTextVeg : styles.badgeTextNonVeg,
-              ]}
-            >
-              {meta.isVeg ? "VEG" : "NON-VEG"}
-            </Text>
+            {isVeg ? "VEG" : "NON-VEG"}
+          </Text>
+        </View>
+
+        {meta.prepTime ? (
+          <View style={styles.badgeGray}>
+            <Text style={styles.badgeGrayText}>{meta.prepTime} min</Text>
           </View>
+        ) : null}
+      </View>
+    );
+  }
 
-          {meta.prepTime ? (
-            <View style={styles.badgeGray}>
-              <Text style={styles.badgeGrayText}>{meta.prepTime} min</Text>
-            </View>
-          ) : null}
-        </View>
-      );
-    }
+  // MEDICAL badges
+  if (storeType === "medical") {
+    return (
+      <View style={styles.badgeRow}>
+        {meta.prescriptionRequired ? (
+          <View style={styles.badgeRed}>
+            <Text style={styles.badgeRedText}>Rx</Text>
+          </View>
+        ) : (
+          <View style={styles.badgeGreen}>
+            <Text style={styles.badgeGreenText}>OTC</Text>
+          </View>
+        )}
 
-    // MEDICAL badges
-    if (storeType === "medical") {
-      return (
-        <View style={styles.badgeRow}>
-          {meta.prescriptionRequired ? (
-            <View style={styles.badgeRed}>
-              <Text style={styles.badgeRedText}>Rx</Text>
-            </View>
-          ) : (
-            <View style={styles.badgeGreen}>
-              <Text style={styles.badgeGreenText}>OTC</Text>
-            </View>
-          )}
+        {meta.expiryDate ? (
+          <View style={styles.badgeGray}>
+            <Text style={styles.badgeGrayText}>Exp {meta.expiryDate}</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
 
-          {meta.expiryDate ? (
-            <View style={styles.badgeGray}>
-              <Text style={styles.badgeGrayText}>Exp {meta.expiryDate}</Text>
-            </View>
-          ) : null}
-        </View>
-      );
-    }
-
-    return null;
-  };
+  return null;
+};
 
   if (loading) {
     return (

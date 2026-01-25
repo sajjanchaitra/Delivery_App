@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
@@ -28,6 +29,7 @@ export default function VendorProfile() {
 
   const [user, setUser] = useState(null);
   const [storeData, setStoreData] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalProducts: 0,
@@ -52,6 +54,12 @@ export default function VendorProfile() {
       if (userData) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
+
+        // Load profile image from user data (check multiple fields for compatibility)
+        const userImage = parsedUser.image || parsedUser.profileImage;
+        if (userImage) {
+          setProfileImage(userImage);
+        }
 
         if (parsedUser.createdAt) {
           const date = new Date(parsedUser.createdAt);
@@ -78,6 +86,12 @@ export default function VendorProfile() {
 
       if (storeResult.hasStore && storeResult.store) {
         setStoreData(storeResult.store);
+        
+        // Load profile image from store (check multiple fields, overrides user data)
+        const storeImage = storeResult.store.image || storeResult.store.logo || storeResult.store.profileImage;
+        if (storeImage) {
+          setProfileImage(storeImage);
+        }
       }
 
       // Fetch dashboard for stats
@@ -220,9 +234,17 @@ export default function VendorProfile() {
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {displayName.substring(0, 2).toUpperCase()}
-              </Text>
+              {profileImage ? (
+                <Image 
+                  source={{ uri: profileImage }} 
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {displayName.substring(0, 2).toUpperCase()}
+                </Text>
+              )}
             </View>
 
             {parseFloat(displayRating) > 0 && (
@@ -363,35 +385,6 @@ export default function VendorProfile() {
           </View>
         </View>
 
-        {/* Support Section */}
-        <View style={styles.supportSection}>
-          <Text style={styles.sectionTitle}>Support</Text>
-
-          <TouchableOpacity style={styles.supportItem}>
-            <View style={styles.supportIcon}>
-              <Ionicons name="help-circle" size={22} color="#3B82F6" />
-            </View>
-            <Text style={styles.supportLabel}>Help Center</Text>
-            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.supportItem}>
-            <View style={styles.supportIcon}>
-              <Ionicons name="chatbubbles" size={22} color="#3B82F6" />
-            </View>
-            <Text style={styles.supportLabel}>Contact Support</Text>
-            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.supportItem}>
-            <View style={styles.supportIcon}>
-              <Ionicons name="document-text" size={22} color="#3B82F6" />
-            </View>
-            <Text style={styles.supportLabel}>Terms & Conditions</Text>
-            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-          </TouchableOpacity>
-        </View>
-
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out" size={22} color="#EF4444" />
@@ -460,6 +453,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 28,
@@ -622,32 +621,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#94A3B8",
     marginTop: 2,
-  },
-  supportSection: {
-    marginBottom: 20,
-  },
-  supportItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
-  },
-  supportIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  supportLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginLeft: 14,
   },
   logoutButton: {
     flexDirection: "row",
