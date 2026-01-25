@@ -21,7 +21,7 @@ const bulkStorage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   },
 });
@@ -47,7 +47,7 @@ const bulkUpload = multer({
 // This route needs to be BEFORE router.use(auth, isVendor)
 router.post("/products/bulk-upload", auth, isVendor, bulkUpload.single("file"), async (req, res) => {
   console.log("📤 Bulk upload route hit");
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: "No file uploaded" });
@@ -155,7 +155,6 @@ router.post("/products/bulk-upload", auth, isVendor, bulkUpload.single("file"), 
       skippedCount,
       message: `Successfully uploaded ${products.length} products`,
     });
-
   } catch (error) {
     console.error("❌ Bulk upload error:", error);
     if (req.file && fs.existsSync(req.file.path)) {
@@ -168,14 +167,29 @@ router.post("/products/bulk-upload", auth, isVendor, bulkUpload.single("file"), 
 // ==================== TEMPLATE DOWNLOAD ====================
 router.get("/templates/:type", (req, res) => {
   const { type } = req.params;
-  
+
   let headers = [];
   let sampleData = [];
 
   switch (type) {
     case "medical":
-      headers = ["Medicine Name", "Category", "MRP", "Selling Price", "Stock", "Unit", "Brand", "Generic Name", "Batch No", "Expiry Date", "Prescription Required", "Description"];
-      sampleData = [["Paracetamol 500mg", "Medicines", 25, 22, 100, "strip", "Cipla", "Paracetamol", "B001", "2025-12", "No", "For fever"]];
+      headers = [
+        "Medicine Name",
+        "Category",
+        "MRP",
+        "Selling Price",
+        "Stock",
+        "Unit",
+        "Brand",
+        "Generic Name",
+        "Batch No",
+        "Expiry Date",
+        "Prescription Required",
+        "Description",
+      ];
+      sampleData = [
+        ["Paracetamol 500mg", "Medicines", 25, 22, 100, "strip", "Cipla", "Paracetamol", "B001", "2025-12", "No", "For fever"],
+      ];
       break;
     case "restaurant":
       headers = ["Item Name", "Category", "Price", "Selling Price", "Veg/Non-Veg", "Prep Time", "Serves", "Description"];
@@ -206,7 +220,7 @@ router.use(auth, isVendor);
 router.get("/store", async (req, res) => {
   try {
     const store = await Store.findOne({ vendor: req.userId });
-    
+
     if (!store) {
       return res.json({ success: true, hasStore: false, store: null });
     }
@@ -238,11 +252,7 @@ router.post("/store", async (req, res) => {
 
 router.put("/store", async (req, res) => {
   try {
-    const store = await Store.findOneAndUpdate(
-      { vendor: req.userId },
-      { $set: req.body },
-      { new: true }
-    );
+    const store = await Store.findOneAndUpdate({ vendor: req.userId }, { $set: req.body }, { new: true });
 
     if (!store) {
       return res.status(404).json({ success: false, error: "Store not found" });
@@ -329,7 +339,7 @@ router.post("/products", async (req, res) => {
   console.log("📝 POST /products called");
   console.log("User ID:", req.userId);
   console.log("Body:", JSON.stringify(req.body, null, 2));
-  
+
   try {
     const store = await Store.findOne({ vendor: req.userId });
     if (!store) {
@@ -341,7 +351,7 @@ router.post("/products", async (req, res) => {
       vendor: req.userId,
       ...req.body,
     });
-    
+
     await product.save();
 
     // Update store stats
@@ -350,7 +360,6 @@ router.post("/products", async (req, res) => {
 
     console.log("✅ Product created successfully");
     res.status(201).json({ success: true, product });
-    
   } catch (error) {
     console.error("❌ Error creating product:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -359,11 +368,7 @@ router.post("/products", async (req, res) => {
 
 router.put("/products/:id", async (req, res) => {
   try {
-    const product = await Product.findOneAndUpdate(
-      { _id: req.params.id, vendor: req.userId },
-      { $set: req.body },
-      { new: true }
-    );
+    const product = await Product.findOneAndUpdate({ _id: req.params.id, vendor: req.userId }, { $set: req.body }, { new: true });
 
     if (!product) {
       return res.status(404).json({ success: false, error: "Product not found" });
@@ -377,20 +382,13 @@ router.put("/products/:id", async (req, res) => {
 
 router.delete("/products/:id", async (req, res) => {
   try {
-    const product = await Product.findOneAndUpdate(
-      { _id: req.params.id, vendor: req.userId },
-      { isActive: false },
-      { new: true }
-    );
+    const product = await Product.findOneAndUpdate({ _id: req.params.id, vendor: req.userId }, { isActive: false }, { new: true });
 
     if (!product) {
       return res.status(404).json({ success: false, error: "Product not found" });
     }
 
-    await Store.findOneAndUpdate(
-      { vendor: req.userId },
-      { $inc: { "stats.totalProducts": -1 } }
-    );
+    await Store.findOneAndUpdate({ vendor: req.userId }, { $inc: { "stats.totalProducts": -1 } });
 
     res.json({ success: true, message: "Product deleted" });
   } catch (error) {
@@ -418,7 +416,205 @@ router.patch("/products/:id/stock", async (req, res) => {
   }
 });
 
-// ... (keep all your order routes and dashboard routes as they are)
+// ==================== VENDOR ORDER MANAGEMENT ====================
+
+// GET /api/vendor/orders - Get all orders for vendor's store
+router.get("/orders", async (req, res) => {
+  try {
+    const store = await Store.findOne({ vendor: req.userId });
+    if (!store) {
+      return res.status(404).json({ success: false, error: "Store not found" });
+    }
+
+    const { status = "all", page = 1, limit = 20 } = req.query;
+
+    let query = { store: store._id };
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    const orders = await Order.find(query)
+      .populate("customer", "name phone email")
+      .populate("deliveryPartner", "name phone")
+      .sort({ createdAt: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit));
+
+    const total = await Order.countDocuments(query);
+
+    // Get status counts for badges
+    const statusCounts = {
+      all: await Order.countDocuments({ store: store._id }),
+      pending: await Order.countDocuments({ store: store._id, status: "pending" }),
+      confirmed: await Order.countDocuments({ store: store._id, status: "confirmed" }),
+      preparing: await Order.countDocuments({ store: store._id, status: "preparing" }),
+      ready: await Order.countDocuments({ store: store._id, status: "ready" }),
+      out_for_delivery: await Order.countDocuments({ store: store._id, status: "out_for_delivery" }),
+      delivered: await Order.countDocuments({ store: store._id, status: "delivered" }),
+      cancelled: await Order.countDocuments({ store: store._id, status: "cancelled" }),
+    };
+
+    console.log(`📦 Vendor orders fetched: ${orders.length} orders`);
+
+    res.json({
+      success: true,
+      orders,
+      statusCounts,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching vendor orders:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/vendor/orders/:id - Get single order details
+router.get("/orders/:id", async (req, res) => {
+  try {
+    const store = await Store.findOne({ vendor: req.userId });
+    if (!store) {
+      return res.status(404).json({ success: false, error: "Store not found" });
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, store: store._id })
+      .populate("customer", "name phone email")
+      .populate("deliveryPartner", "name phone")
+      .populate("items.product", "name images price");
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error("❌ Error fetching order details:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/vendor/orders/:id/status - Update order status
+router.patch("/orders/:id/status", async (req, res) => {
+  try {
+    const { status, note } = req.body;
+
+    const store = await Store.findOne({ vendor: req.userId });
+    if (!store) {
+      return res.status(404).json({ success: false, error: "Store not found" });
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, store: store._id });
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    // Validate status transition
+    const validTransitions = {
+      pending: ["confirmed", "cancelled"],
+      confirmed: ["preparing", "cancelled"],
+      preparing: ["ready", "cancelled"],
+      ready: ["out_for_delivery", "delivered", "cancelled"],
+      out_for_delivery: ["delivered", "cancelled"],
+    };
+
+    if (validTransitions[order.status] && !validTransitions[order.status].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot change status from ${order.status} to ${status}`,
+      });
+    }
+
+    // Update order status
+    order.status = status;
+    order.statusHistory.push({
+      status,
+      timestamp: new Date(),
+      note: note || `Status updated to ${status} by vendor`,
+      updatedBy: req.userId,
+    });
+
+    // Handle cancelled orders
+    if (status === "cancelled") {
+      order.cancelledAt = new Date();
+      order.cancellationReason = note || "Cancelled by vendor";
+      order.cancelledBy = "vendor";
+    }
+
+    // Handle delivered orders
+    if (status === "delivered") {
+      order.deliveredAt = new Date();
+      // Update store stats
+      await Store.findByIdAndUpdate(store._id, {
+        $inc: { "stats.totalRevenue": order.total },
+      });
+    }
+
+    await order.save();
+
+    console.log(`✅ Order ${order.orderNumber} status updated to ${status}`);
+
+    res.json({
+      success: true,
+      order,
+      message: `Order status updated to ${status}`,
+    });
+  } catch (error) {
+    console.error("❌ Error updating order status:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/vendor/orders/:id/assign-delivery - Assign delivery partner (optional)
+router.patch("/orders/:id/assign-delivery", async (req, res) => {
+  try {
+    const { deliveryPartnerId } = req.body;
+
+    const store = await Store.findOne({ vendor: req.userId });
+    if (!store) {
+      return res.status(404).json({ success: false, error: "Store not found" });
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, store: store._id });
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    if (!["ready", "confirmed", "preparing"].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Can only assign delivery partner for ready/confirmed/preparing orders",
+      });
+    }
+
+    order.deliveryPartner = deliveryPartnerId;
+    order.statusHistory.push({
+      status: order.status,
+      timestamp: new Date(),
+      note: "Delivery partner assigned",
+      updatedBy: req.userId,
+    });
+
+    await order.save();
+
+    const updatedOrder = await Order.findById(order._id)
+      .populate("customer", "name phone email")
+      .populate("deliveryPartner", "name phone");
+
+    res.json({
+      success: true,
+      order: updatedOrder,
+      message: "Delivery partner assigned successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error assigning delivery partner:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== DASHBOARD ====================
 
 router.get("/dashboard", async (req, res) => {
   try {
@@ -437,19 +633,14 @@ router.get("/dashboard", async (req, res) => {
       createdAt: { $gte: todayStart, $lte: todayEnd },
     });
 
-    const todayRevenue = todayOrders
-      .filter(o => o.status !== "cancelled")
-      .reduce((sum, o) => sum + o.total, 0);
+    const todayRevenue = todayOrders.filter((o) => o.status !== "cancelled").reduce((sum, o) => sum + o.total, 0);
 
     const pendingOrders = await Order.countDocuments({
       store: store._id,
       status: { $in: ["pending", "confirmed", "preparing"] },
     });
 
-    const recentOrders = await Order.find({ store: store._id })
-      .populate("customer", "name phone")
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const recentOrders = await Order.find({ store: store._id }).populate("customer", "name phone").sort({ createdAt: -1 }).limit(5);
 
     const totalProducts = await Product.countDocuments({
       store: store._id,
