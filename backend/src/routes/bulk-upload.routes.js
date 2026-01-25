@@ -221,6 +221,14 @@ function processRestaurantProduct(row, storeId, vendorId) {
     isActive: true,
     productType: "food",
     storeType: "restaurant",
+    
+    // IMPORTANT: Add meta to match manual add format
+    meta: {
+      isVeg: foodType === "veg",
+      prepTime: prepTime,
+      serves: serves ? parseInt(serves) : null,
+    },
+    
     addons: [],
     variants: [],
   };
@@ -229,42 +237,73 @@ function processRestaurantProduct(row, storeId, vendorId) {
 // ==================== MEDICAL PRODUCT PROCESSOR ====================
 
 function processMedicalProduct(row, storeId, vendorId) {
+  console.log("\n  📝 Processing row:", JSON.stringify(row).substring(0, 200));
+  
   const name = getString(getFromRow(row, [
     "Medicine Name", "medicine name", "MedicineName",
     "Name", "name", "Product Name"
   ]));
   
-  if (!name) return null;
+  if (!name) {
+    console.log("  ❌ No name found");
+    return null;
+  }
 
   const mrp = getNumber(getFromRow(row, ["MRP", "mrp", "Price", "price"]), 0);
   const sellingPrice = getNumber(getFromRow(row, ["Selling Price", "selling price", "Sale Price"]), mrp);
 
-  if (mrp <= 0 && sellingPrice <= 0) return null;
+  if (mrp <= 0 && sellingPrice <= 0) {
+    console.log(`  ❌ No valid price for: ${name}`);
+    return null;
+  }
 
   const finalPrice = mrp > 0 ? mrp : sellingPrice;
-  const finalDiscountPrice = sellingPrice > 0 ? sellingPrice : finalPrice;
+  const finalDiscountPrice = sellingPrice > 0 && sellingPrice < finalPrice ? sellingPrice : finalPrice;
+
+  const brand = getString(getFromRow(row, ["Brand", "brand", "Manufacturer", "manufacturer", "Company"]));
+  const saltName = getString(getFromRow(row, ["Generic Name", "generic name", "Salt", "salt", "Salt Name"]));
+  const batchNo = getString(getFromRow(row, ["Batch No", "batch no", "Batch Number", "batch number"]));
+  const expiryDate = getString(getFromRow(row, ["Expiry Date", "expiry date", "Expiry", "expiry"]));
+  const prescriptionRequired = parseBoolean(getFromRow(row, ["Prescription Required", "prescription required", "Rx Required", "Rx"]));
+  const stock = getInt(getFromRow(row, ["Stock", "stock", "Quantity", "quantity"]), 10);
+  const unit = getString(getFromRow(row, ["Unit", "unit"]), "strip");
+
+  console.log(`  ✅ ${name} | ₹${finalPrice} (MRP: ₹${mrp}) | ${brand || 'No Brand'} | ${prescriptionRequired ? 'Rx' : 'OTC'}`);
 
   return {
     store: storeId,
     vendor: vendorId,
     name: name,
-    genericName: getString(getFromRow(row, ["Generic Name", "generic name", "Salt"])),
+    genericName: saltName,
     description: getString(getFromRow(row, ["Description", "description"])),
     category: getString(getFromRow(row, ["Category", "category"]), "Medicine"),
     price: finalPrice,
     discountPrice: finalDiscountPrice,
-    manufacturer: getString(getFromRow(row, ["Manufacturer", "manufacturer", "Company", "Brand"])),
-    brand: getString(getFromRow(row, ["Brand", "brand", "Manufacturer"])),
-    stock: getInt(getFromRow(row, ["Stock", "stock", "Quantity"]), 10),
-    stockQuantity: getInt(getFromRow(row, ["Stock", "stock", "Quantity"]), 10),
-    unit: getString(getFromRow(row, ["Unit", "unit"]), "strip"),
-    prescriptionRequired: parseBoolean(getFromRow(row, ["Prescription Required", "prescription required"])),
-    images: [],
-    inStock: true,
+    manufacturer: brand,
+    brand: brand,
+    batchNumber: batchNo,
+    stock: stock,
+    stockQuantity: stock,
+    unit: unit,
+    prescriptionRequired: prescriptionRequired,
+    images: getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))
+      ? [getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))]
+      : [],
+    inStock: stock > 0,
     isActive: true,
     isAvailable: true,
     productType: "medical",
     storeType: "medical",
+    
+    // IMPORTANT: Add meta to match manual add format
+    meta: {
+      mrp: mrp,
+      brand: brand,
+      saltName: saltName,
+      batchNo: batchNo,
+      expiryDate: expiryDate,
+      prescriptionRequired: prescriptionRequired,
+    },
   };
 }
 
@@ -455,32 +494,84 @@ router.get("/templates/:type", (req, res) => {
 
   switch (type) {
     case "medical":
-      headers = ["Medicine Name", "Category", "MRP", "Selling Price", "Stock", "Unit", "Brand", "Generic Name", "Prescription Required"];
+      headers = [
+        "Medicine Name",
+        "Category", 
+        "MRP",
+        "Selling Price",
+        "Stock",
+        "Unit",
+        "Brand",
+        "Generic Name",
+        "Batch No",
+        "Expiry Date",
+        "Prescription Required",
+        "Description"
+      ];
       sampleData = [
-        ["Paracetamol 500mg", "Pain Relief", 25, 22, 100, "strip", "Cipla", "Paracetamol", "No"],
-        ["Amoxicillin 250mg", "Antibiotics", 85, 78, 50, "strip", "Sun Pharma", "Amoxicillin", "Yes"],
+        ["Paracetamol 500mg", "Pain Relief", 25, 22, 100, "strip", "Cipla", "Paracetamol", "B123", "2027-06", "No", "For fever and pain relief"],
+        ["Amoxicillin 250mg", "Antibiotics", 85, 78, 50, "strip", "Sun Pharma", "Amoxicillin", "B456", "2026-12", "Yes", "Antibiotic for infections"],
+        ["Cetrizine 10mg", "Allergy", 15, 12, 200, "strip", "Alkem", "Cetrizine", "B789", "2027-03", "No", "For allergic reactions"],
       ];
       break;
 
     case "restaurant":
-      headers = ["Item Name", "Category", "Price", "Selling Price", "Veg/Non-Veg", "Prep Time", "Serves", "Description"];
+      headers = [
+        "Item Name",
+        "Category",
+        "Price",
+        "Selling Price",
+        "Veg/Non-Veg",
+        "Prep Time",
+        "Serves",
+        "Description",
+        "Cuisine",
+        "Spice Level"
+      ];
       sampleData = [
-        ["Butter Chicken", "Main Course", 320, 299, "Non-Veg", 30, 2, "Creamy chicken curry"],
-        ["Paneer Tikka", "Starters", 220, 199, "Veg", 20, 2, "Grilled cottage cheese"],
+        ["Butter Chicken", "Main Course", 320, 299, "Non-Veg", 30, 2, "Creamy chicken curry", "North Indian", "medium"],
+        ["Paneer Tikka", "Starters", 220, 199, "Veg", 20, 2, "Grilled cottage cheese", "North Indian", "hot"],
+        ["Veg Biryani", "Rice & Biryani", 240, 220, "Veg", 35, 1, "Aromatic rice with vegetables", "Hyderabadi", "medium"],
+        ["Chicken 65", "Starters", 280, 260, "Non-Veg", 25, 2, "Spicy fried chicken", "South Indian", "hot"],
       ];
       break;
 
+    case "grocery":
+    case "general":
     default:
-      headers = ["Product Name", "Category", "MRP", "Selling Price", "Stock", "Unit", "Brand", "Description"];
+      headers = [
+        "Product Name",
+        "Category",
+        "MRP",
+        "Selling Price",
+        "Stock",
+        "Unit",
+        "Brand",
+        "Barcode",
+        "SKU",
+        "Description"
+      ];
       sampleData = [
-        ["Tata Salt", "Grocery", 28, 26, 100, "kg", "Tata", "Iodised salt"],
-        ["Amul Butter", "Dairy", 56, 54, 50, "pack", "Amul", "Salted butter"],
+        ["Tata Salt", "Grocery", 28, 26, 100, "kg", "Tata", "8901234567890", "SALT-1KG", "Iodised salt"],
+        ["Amul Butter", "Dairy", 56, 54, 50, "pack", "Amul", "8901234567891", "BUTTER-100G", "Salted butter"],
+        ["Britannia Bread", "Bakery", 40, 38, 75, "pack", "Britannia", "8901234567892", "BREAD-400G", "White bread"],
+        ["Lays Chips", "Snacks", 20, 18, 200, "pack", "Lays", "8901234567893", "CHIPS-50G", "Classic salted chips"],
       ];
   }
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
-  ws["!cols"] = headers.map(() => ({ wch: 18 }));
+  
+  // Auto-size columns
+  const columnWidths = headers.map((header, i) => {
+    const maxLength = Math.max(
+      header.length,
+      ...sampleData.map(row => String(row[i] || "").length)
+    );
+    return { wch: Math.min(Math.max(maxLength + 2, 12), 30) };
+  });
+  ws["!cols"] = columnWidths;
+  
   XLSX.utils.book_append_sheet(wb, ws, "Products");
 
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
