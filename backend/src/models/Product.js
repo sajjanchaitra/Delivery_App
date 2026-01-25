@@ -23,26 +23,20 @@ const productSchema = new mongoose.Schema(
     brand: { type: String, default: "" },
 
     // ==================== PRODUCT TYPE ====================
-    // (Your old logic uses productType: general / medical / food)
     productType: {
       type: String,
       enum: ["general", "medical", "food"],
       default: "general",
     },
 
-    // ==================== STORE TYPE (NEW) ====================
-    // This matches Store.storeType and your frontend logic
+    // ==================== STORE TYPE ====================
     storeType: {
       type: String,
       enum: ["general", "medical", "restaurant"],
       default: "general",
     },
 
-    // ==================== META (NEW) ====================
-    // Flexible storeType-based fields coming from frontend
-    // Example:
-    // restaurant: { isVeg, prepTime, serves }
-    // medical: { mrp, expiryDate, prescriptionRequired }
+    // ==================== META ====================
     meta: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -53,24 +47,18 @@ const productSchema = new mongoose.Schema(
     thumbnail: { type: String, default: "" },
 
     // ==================== PRICING ====================
-    price: { type: Number, required: true }, // MRP
-    discountPrice: { type: Number }, // Selling price
-    salePrice: { type: Number }, // Sale price (temporary)
-    costPrice: { type: Number }, // Purchase price (for profit calc)
+    price: { type: Number, required: true },
+    discountPrice: { type: Number },
+    salePrice: { type: Number },
+    costPrice: { type: Number },
 
     // ==================== QUANTITY & STOCK ====================
-    quantity: { type: String, default: "1" }, // Display quantity (e.g., "500g", "1L")
-    unit: { type: String, default: "pcs" }, // kg, g, L, ml, pcs, strip, etc.
+    quantity: { type: String, default: "1" },
+    unit: { type: String, default: "pcs" },
     packSize: { type: String, default: "1" },
-
-    // Main stock field
     stock: { type: Number, default: 0 },
-
-    // IMPORTANT: Frontend is using stockQuantity in UI
-    // so keep it for compatibility (optional but recommended)
     stockQuantity: { type: Number, default: 0 },
-
-    minStock: { type: Number, default: 5 }, // Alert threshold
+    minStock: { type: Number, default: 5 },
     maxStock: { type: Number, default: 1000 },
 
     // ==================== IDENTIFIERS ====================
@@ -79,21 +67,21 @@ const productSchema = new mongoose.Schema(
     hsnCode: { type: String, default: "" },
 
     // ==================== TAX ====================
-    gstRate: { type: Number, default: 0 }, // Percentage
+    gstRate: { type: Number, default: 0 },
 
     // ==================== MEDICAL PRODUCT FIELDS ====================
-    genericName: { type: String, default: "" }, // Salt composition
+    genericName: { type: String, default: "" },
     manufacturer: { type: String, default: "" },
     batchNumber: { type: String, default: "" },
     expiryDate: { type: Date },
     manufactureDate: { type: Date },
     prescriptionRequired: { type: Boolean, default: false },
-    isControlled: { type: Boolean, default: false }, // Schedule H, H1, X
-    drugSchedule: { type: String, default: "" }, // H, H1, X, G
+    isControlled: { type: Boolean, default: false },
+    drugSchedule: { type: String, default: "" },
     composition: { type: String, default: "" },
     dosage: { type: String, default: "" },
     sideEffects: { type: String, default: "" },
-    storage: { type: String, default: "" }, // Storage instructions
+    storage: { type: String, default: "" },
 
     // ==================== FOOD/RESTAURANT FIELDS ====================
     foodType: {
@@ -107,12 +95,11 @@ const productSchema = new mongoose.Schema(
       default: "medium",
     },
     cuisine: { type: String, default: "" },
-    preparationTime: { type: Number, default: 20 }, // minutes
-    serves: { type: String, default: "1" }, // Serving size
+    preparationTime: { type: Number, default: 20 },
+    serves: { type: String, default: "1" },
     calories: { type: Number, default: 0 },
-
     ingredients: [{ type: String }],
-    allergens: [{ type: String }], // Nuts, Dairy, Gluten, etc.
+    allergens: [{ type: String }],
     nutritionInfo: {
       calories: { type: Number, default: 0 },
       protein: { type: Number, default: 0 },
@@ -120,8 +107,6 @@ const productSchema = new mongoose.Schema(
       fat: { type: Number, default: 0 },
       fiber: { type: Number, default: 0 },
     },
-
-    // Add-ons and Variants (for food)
     addons: [
       {
         name: { type: String },
@@ -129,19 +114,17 @@ const productSchema = new mongoose.Schema(
         isAvailable: { type: Boolean, default: true },
       },
     ],
-
     variants: [
       {
-        name: { type: String }, // e.g., "Small", "Medium", "Large"
+        name: { type: String },
         price: { type: Number },
         discountPrice: { type: Number },
         isAvailable: { type: Boolean, default: true },
       },
     ],
-
     customizations: [
       {
-        name: { type: String }, // e.g., "Choose your base"
+        name: { type: String },
         required: { type: Boolean, default: false },
         maxSelection: { type: Number, default: 1 },
         options: [
@@ -159,8 +142,6 @@ const productSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     isOnSale: { type: Boolean, default: false },
-
-    // Availability timing (for restaurants)
     availableFrom: { type: String, default: "00:00" },
     availableTill: { type: String, default: "23:59" },
     availableDays: {
@@ -259,27 +240,33 @@ productSchema.methods.isExpiringSoon = function () {
   return new Date(this.expiryDate) <= threeMonthsLater;
 };
 
-// ==================== PRE SAVE ====================
-productSchema.pre("save", function (next) {
-  const safeTags = Array.isArray(this.tags) ? this.tags : [];
+// ==================== PRE SAVE HOOK (FIXED) ====================
+productSchema.pre("save", async function () {
+  // No need for 'next' parameter in async functions
+  try {
+    // Safely handle tags
+    const safeTags = Array.isArray(this.tags) ? this.tags : [];
 
-  const keywords = [
-    this.name,
-    this.brand,
-    this.category,
-    this.genericName,
-    this.manufacturer,
-    ...safeTags,
-  ].filter(Boolean);
+    // Build search keywords
+    const keywords = [
+      this.name,
+      this.brand,
+      this.category,
+      this.genericName,
+      this.manufacturer,
+      ...safeTags,
+    ].filter(Boolean);
 
-  this.searchKeywords = [...new Set(keywords.map((k) => String(k).toLowerCase()))];
+    this.searchKeywords = [...new Set(keywords.map((k) => String(k).toLowerCase()))];
 
-  // Keep stockQuantity synced with stock (optional safety)
-  if (typeof this.stock === "number") {
-    this.stockQuantity = this.stock;
+    // Keep stockQuantity synced with stock
+    if (typeof this.stock === "number") {
+      this.stockQuantity = this.stock;
+    }
+  } catch (error) {
+    console.error("❌ Pre-save hook error:", error);
+    throw error; // In async functions, throw instead of next(error)
   }
-
-  next();
 });
 
 module.exports = mongoose.model("Product", productSchema);
