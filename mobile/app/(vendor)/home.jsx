@@ -138,12 +138,12 @@ export default function VendorHome() {
     checkStoreAndFetchData();
   };
 
-  const quickActions = [
-    { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
-    { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
-    { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
-    { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup" },
-  ];
+const quickActions = [
+  { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
+  { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
+  { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
+  { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup/select-type" },  // ← FIXED
+];
 
   if (loading) {
     return (
@@ -196,7 +196,7 @@ export default function VendorHome() {
 
           <TouchableOpacity
             style={styles.setupButton}
-            onPress={() => router.push("/(vendor)/store-setup")}
+            onPress={() => router.push("/(vendor)/store-setup/select-type")}
           >
             <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.setupButtonGradient}>
               <Ionicons name="storefront" size={20} color="#FFF" />

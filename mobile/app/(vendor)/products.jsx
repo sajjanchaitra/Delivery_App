@@ -30,17 +30,72 @@ export default function VendorProducts() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const categories = [
-    "all",
-    "Vegetables",
-    "Fruits",
-    "Dairy",
-    "Bakery",
-    "Beverages",
-    "Snacks",
-    "Meat",
-    "Seafood",
-  ];
+  const [storeType, setStoreType] = useState("general"); // general, medical, restaurant
+
+  // Load store type
+  useEffect(() => {
+    loadStoreType();
+  }, []);
+
+  const loadStoreType = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/vendor/store`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success && data.store) {
+        setStoreType(data.store.storeType || "general");
+      }
+    } catch (error) {
+      console.log("Error loading store type:", error);
+    }
+  };
+
+  const getCategoriesByType = () => {
+    switch (storeType) {
+      case "medical":
+        return [
+          "all",
+          "Medicines",
+          "Healthcare",
+          "Personal Care",
+          "Baby Care",
+          "Ayurvedic",
+          "Vitamins",
+          "First Aid",
+          "Medical Devices",
+        ];
+      case "restaurant":
+        return [
+          "all",
+          "Starters",
+          "Main Course",
+          "Rice & Biryani",
+          "Breads",
+          "Chinese",
+          "Desserts",
+          "Beverages",
+          "Combos",
+        ];
+      default:
+        return [
+          "all",
+          "Vegetables",
+          "Fruits",
+          "Dairy",
+          "Bakery",
+          "Beverages",
+          "Snacks",
+          "Meat",
+          "Seafood",
+          "Grocery",
+          "Household",
+        ];
+    }
+  };
+
+  const categories = getCategoriesByType();
 
   useFocusEffect(
     useCallback(() => {
@@ -170,6 +225,70 @@ export default function VendorProducts() {
     fetchProducts();
   };
 
+  const getProductEmoji = (p) => {
+    if (storeType === "restaurant") return "🍽️";
+    if (storeType === "medical") return "💊";
+    return "🛒";
+  };
+
+  const renderExtraBadges = (product) => {
+    const meta = product.meta || {};
+
+    // RESTO badges
+    if (storeType === "restaurant") {
+      return (
+        <View style={styles.badgeRow}>
+          <View
+            style={[
+              styles.badge,
+              meta.isVeg ? styles.badgeVeg : styles.badgeNonVeg,
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                meta.isVeg ? styles.badgeTextVeg : styles.badgeTextNonVeg,
+              ]}
+            >
+              {meta.isVeg ? "VEG" : "NON-VEG"}
+            </Text>
+          </View>
+
+          {meta.prepTime ? (
+            <View style={styles.badgeGray}>
+              <Text style={styles.badgeGrayText}>{meta.prepTime} min</Text>
+            </View>
+          ) : null}
+        </View>
+      );
+    }
+
+    // MEDICAL badges
+    if (storeType === "medical") {
+      return (
+        <View style={styles.badgeRow}>
+          {meta.prescriptionRequired ? (
+            <View style={styles.badgeRed}>
+              <Text style={styles.badgeRedText}>Rx</Text>
+            </View>
+          ) : (
+            <View style={styles.badgeGreen}>
+              <Text style={styles.badgeGreenText}>OTC</Text>
+            </View>
+          )}
+
+          {meta.expiryDate ? (
+            <View style={styles.badgeGray}>
+              <Text style={styles.badgeGrayText}>Exp {meta.expiryDate}</Text>
+            </View>
+          ) : null}
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -185,14 +304,17 @@ export default function VendorProducts() {
       {/* Header */}
       <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>My Products</Text>
+          <Text style={styles.headerTitle}>
+            {storeType === "restaurant"
+              ? "My Menu"
+              : storeType === "medical"
+              ? "My Medicines"
+              : "My Products"}
+          </Text>
 
           <TouchableOpacity
             style={styles.addButton}
@@ -204,15 +326,10 @@ export default function VendorProducts() {
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#64748B"
-            style={styles.searchIcon}
-          />
+          <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products..."
+            placeholder="Search..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -247,7 +364,9 @@ export default function VendorProducts() {
                 selectedCategory === category && styles.categoryTextActive,
               ]}
             >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
+              {category === "all"
+                ? "All"
+                : category.charAt(0).toUpperCase() + category.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -257,7 +376,7 @@ export default function VendorProducts() {
       <View style={styles.countContainer}>
         <Text style={styles.countText}>
           {filteredProducts.length}{" "}
-          {filteredProducts.length === 1 ? "Product" : "Products"}
+          {filteredProducts.length === 1 ? "Item" : "Items"}
         </Text>
       </View>
 
@@ -276,14 +395,12 @@ export default function VendorProducts() {
         {filteredProducts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="cube-outline" size={64} color="#CBD5E1" />
-            <Text style={styles.emptyText}>No products found</Text>
+            <Text style={styles.emptyText}>No items found</Text>
             <TouchableOpacity
               style={styles.addFirstButton}
               onPress={() => router.push("/(vendor)/add-product")}
             >
-              <Text style={styles.addFirstButtonText}>
-                Add Your First Product
-              </Text>
+              <Text style={styles.addFirstButtonText}>Add Your First Item</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -297,7 +414,7 @@ export default function VendorProducts() {
                       style={styles.productImageImg}
                     />
                   ) : (
-                    <Text style={styles.productEmoji}>🛒</Text>
+                    <Text style={styles.productEmoji}>{getProductEmoji(product)}</Text>
                   )}
                 </View>
 
@@ -305,7 +422,13 @@ export default function VendorProducts() {
                   <Text style={styles.productName} numberOfLines={1}>
                     {product.name}
                   </Text>
-                  <Text style={styles.productCategory}>{product.category}</Text>
+
+                  <Text style={styles.productCategory}>
+                    {product.category || "Uncategorized"}
+                  </Text>
+
+                  {/* Extra badges */}
+                  {renderExtraBadges(product)}
 
                   <View style={styles.productMeta}>
                     <View style={styles.priceContainer}>
@@ -328,6 +451,13 @@ export default function VendorProducts() {
                         ? `${product.stockQuantity} ${product.unit}`
                         : "Out of stock"}
                     </Text>
+
+                    {/* Medical MRP show */}
+                    {storeType === "medical" && product.meta?.mrp ? (
+                      <Text style={styles.productMrp}>
+                        MRP ₹{product.meta.mrp}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               </View>
@@ -350,14 +480,16 @@ export default function VendorProducts() {
                         : styles.statusButtonTextInactive,
                     ]}
                   >
-                    {product.inStock ? "In Stock" : "Out of Stock"}
+                    {product.inStock ? "In Stock" : "Out"}
                   </Text>
                 </TouchableOpacity>
 
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => Alert.alert("Edit", "Edit feature coming soon!")}
+                    onPress={() =>
+                      Alert.alert("Edit", "Edit feature coming soon!")
+                    }
                   >
                     <Ionicons name="create-outline" size={20} color="#3B82F6" />
                   </TouchableOpacity>
@@ -381,21 +513,15 @@ export default function VendorProducts() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
   },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
+
+  header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 },
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
@@ -410,11 +536,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFF",
-  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#FFF" },
   addButton: {
     width: 44,
     height: 44,
@@ -423,6 +545,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -431,17 +554,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 48,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: "#1E293B",
-  },
-  categoriesScroll: {
-    maxHeight: 60,
-  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: "#1E293B" },
+
+  categoriesScroll: { maxHeight: 60 },
   categoriesContent: {
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -454,30 +570,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     marginRight: 8,
   },
-  categoryChipActive: {
-    backgroundColor: "#22C55E",
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  categoryTextActive: {
-    color: "#FFF",
-  },
-  countContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  countText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
+  categoryChipActive: { backgroundColor: "#22C55E" },
+  categoryText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  categoryTextActive: { color: "#FFF" },
+
+  countContainer: { paddingHorizontal: 20, paddingVertical: 12 },
+  countText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+
+  scrollView: { flex: 1, paddingHorizontal: 20 },
+
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -495,11 +596,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
-  addFirstButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFF",
-  },
+  addFirstButtonText: { fontSize: 15, fontWeight: "600", color: "#FFF" },
+
   productCard: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -513,11 +611,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  productLeft: {
-    flexDirection: "row",
-    flex: 1,
-    marginRight: 12,
-  },
+  productLeft: { flexDirection: "row", flex: 1, marginRight: 12 },
+
   productImage: {
     width: 70,
     height: 70,
@@ -527,81 +622,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
   },
-  productImageImg: {
-    width: "100%",
-    height: "100%",
-  },
-  productEmoji: {
-    fontSize: 32,
-  },
-  productInfo: {
-    marginLeft: 12,
-    flex: 1,
-    justifyContent: "center",
-  },
-  productName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1E293B",
-  },
-  productCategory: {
-    fontSize: 12,
-    color: "#94A3B8",
-    marginTop: 4,
-  },
-  productMeta: {
-    marginTop: 8,
-  },
+  productImageImg: { width: "100%", height: "100%" },
+  productEmoji: { fontSize: 28 },
+
+  productInfo: { marginLeft: 12, flex: 1, justifyContent: "center" },
+  productName: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
+  productCategory: { fontSize: 12, color: "#94A3B8", marginTop: 4 },
+
+  productMeta: { marginTop: 8 },
+
   priceContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 4,
   },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#22C55E",
-  },
+  productPrice: { fontSize: 16, fontWeight: "700", color: "#22C55E" },
   productOriginalPrice: {
     fontSize: 13,
     fontWeight: "500",
     color: "#94A3B8",
     textDecorationLine: "line-through",
   },
-  productStock: {
-    fontSize: 12,
-    color: "#64748B",
-  },
+  productStock: { fontSize: 12, color: "#64748B" },
+  productMrp: { fontSize: 12, color: "#64748B", marginTop: 2 },
+
   productActions: {
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  statusButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  statusButtonActive: {
-    backgroundColor: "#DCFCE7",
-  },
-  statusButtonInactive: {
-    backgroundColor: "#FEE2E2",
-  },
-  statusButtonText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  statusButtonTextActive: {
-    color: "#16A34A",
-  },
-  statusButtonTextInactive: {
-    color: "#DC2626",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
+
+  statusButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  statusButtonActive: { backgroundColor: "#DCFCE7" },
+  statusButtonInactive: { backgroundColor: "#FEE2E2" },
+  statusButtonText: { fontSize: 11, fontWeight: "600" },
+  statusButtonTextActive: { color: "#16A34A" },
+  statusButtonTextInactive: { color: "#DC2626" },
+
+  actionButtons: { flexDirection: "row", gap: 8 },
   actionButton: {
     width: 36,
     height: 36,
@@ -610,4 +668,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
+  // Badges
+  badgeRow: { flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" },
+
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeVeg: { backgroundColor: "#DCFCE7" },
+  badgeNonVeg: { backgroundColor: "#FEE2E2" },
+  badgeText: { fontSize: 11, fontWeight: "700" },
+  badgeTextVeg: { color: "#16A34A" },
+  badgeTextNonVeg: { color: "#DC2626" },
+
+  badgeGray: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+  },
+  badgeGrayText: { fontSize: 11, fontWeight: "600", color: "#475569" },
+
+  badgeGreen: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#DCFCE7",
+  },
+  badgeGreenText: { fontSize: 11, fontWeight: "700", color: "#16A34A" },
+
+  badgeRed: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#FEE2E2",
+  },
+  badgeRedText: { fontSize: 11, fontWeight: "700", color: "#DC2626" },
 });
