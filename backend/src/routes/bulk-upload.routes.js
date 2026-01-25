@@ -91,7 +91,7 @@ function getFromRow(row, possibleNames, defaultVal = "") {
 // ==================== RESTAURANT PRODUCT PROCESSOR (FIXED) ====================
 
 function processRestaurantProduct(row, storeId, vendorId) {
-  console.log("\n  📝 Processing row:", JSON.stringify(row).substring(0, 150));
+  console.log("\n  📝 Processing row:", JSON.stringify(row).substring(0, 200));
   
   // Get item name with multiple possible column names
   const name = getString(
@@ -143,10 +143,31 @@ function processRestaurantProduct(row, storeId, vendorId) {
     "veg"
   );
   
-  // Remove spaces and hyphens, then check
-  const cleanFoodType = foodTypeRaw.toLowerCase().replace(/[\s-]/g, "");
-  const isNonVeg = cleanFoodType.includes("non") || cleanFoodType.includes("chicken") || cleanFoodType.includes("meat");
-  const foodType = isNonVeg ? "nonveg" : "veg";
+  // DETAILED DEBUGGING
+  console.log(`  🔍 RAW Food Type: "${foodTypeRaw}"`);
+  
+  // Clean the food type
+  const cleanFoodType = foodTypeRaw.toLowerCase().trim().replace(/[\s-_]/g, "");
+  console.log(`  🔍 CLEAN Food Type: "${cleanFoodType}"`);
+  
+  // Determine if non-veg
+  let foodType = "veg"; // default
+  
+  if (cleanFoodType.includes("non") || 
+      cleanFoodType.includes("chicken") || 
+      cleanFoodType.includes("mutton") ||
+      cleanFoodType.includes("meat") ||
+      cleanFoodType.includes("fish") ||
+      cleanFoodType.includes("egg")) {
+    foodType = "nonveg";
+  }
+  
+  // Special check: if it's EXACTLY "veg", make sure it stays veg
+  if (cleanFoodType === "veg" || cleanFoodType === "vegetarian") {
+    foodType = "veg";
+  }
+  
+  console.log(`  🍽️ FINAL Food Type: "${foodType}"`);
 
   // Get other fields
   const category = getString(
