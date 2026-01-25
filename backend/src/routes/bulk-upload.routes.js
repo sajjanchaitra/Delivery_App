@@ -1,5 +1,6 @@
 // backend/src/routes/bulk-upload.routes.js
 // Bulk Upload Routes for Excel Product Import
+// UPDATED: Only essential fields required, all others optional
 
 const express = require("express");
 const multer = require("multer");
@@ -22,7 +23,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   },
 });
@@ -44,7 +45,277 @@ const upload = multer({
   },
 });
 
-// ==================== BULK UPLOAD ====================
+// ==================== HELPER FUNCTIONS ====================
+
+// Safely get string value
+function getString(value, defaultVal = "") {
+  if (value === null || value === undefined) return defaultVal;
+  return String(value).trim();
+}
+
+// Safely get number value
+function getNumber(value, defaultVal = 0) {
+  if (value === null || value === undefined) return defaultVal;
+  const num = parseFloat(value);
+  return isNaN(num) ? defaultVal : num;
+}
+
+// Safely get integer value
+function getInt(value, defaultVal = 0) {
+  if (value === null || value === undefined) return defaultVal;
+  const num = parseInt(value);
+  return isNaN(num) ? defaultVal : num;
+}
+
+// Parse boolean from various formats
+function parseBoolean(value, defaultVal = false) {
+  if (value === null || value === undefined) return defaultVal;
+  const str = String(value).toLowerCase().trim();
+  return ["yes", "true", "1", "y"].includes(str);
+}
+
+// Parse Excel date
+function parseExcelDate(value) {
+  if (!value) return null;
+
+  try {
+    // If it's a number (Excel date serial)
+    if (typeof value === "number") {
+      const date = XLSX.SSF.parse_date_code(value);
+      if (date) {
+        return new Date(date.y, date.m - 1, date.d);
+      }
+    }
+
+    // Try parsing as string
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Get value from row with multiple possible column names
+function getFromRow(row, possibleNames, defaultVal = "") {
+  for (const name of possibleNames) {
+    if (row[name] !== null && row[name] !== undefined && row[name] !== "") {
+      return row[name];
+    }
+  }
+  return defaultVal;
+}
+
+// ==================== PRODUCT PROCESSORS ====================
+
+// Process Medical/Pharmacy Products - MINIMAL REQUIRED FIELDS
+function processMedicalProduct(row, storeId, vendorId) {
+  // Get name from multiple possible columns
+  const name = getString(
+    getFromRow(row, ["Medicine Name", "Name", "Product Name", "Item Name", "medicine name", "name"])
+  );
+
+  // Name is required
+  if (!name) return null;
+
+  // Get price - try multiple columns
+  const mrp = getNumber(getFromRow(row, ["MRP", "mrp", "Price", "price"]), 0);
+  const sellingPrice = getNumber(
+    getFromRow(row, ["Selling Price", "selling price", "Sale Price", "sale price", "SP"]),
+    mrp
+  );
+
+  // Price is required
+  if (mrp <= 0 && sellingPrice <= 0) return null;
+
+  const finalPrice = mrp > 0 ? mrp : sellingPrice;
+  const finalDiscountPrice = sellingPrice > 0 ? sellingPrice : finalPrice;
+
+  return {
+    store: storeId,
+    vendor: vendorId,
+    name: name,
+    
+    // Optional fields with safe defaults
+    genericName: getString(getFromRow(row, ["Generic Name", "generic name", "Salt", "salt", "Salt Name"])),
+    description: getString(getFromRow(row, ["Description", "description", "Desc"])),
+    category: getString(getFromRow(row, ["Category", "category", "Cat"]), "Medicine"),
+
+    price: finalPrice,
+    discountPrice: finalDiscountPrice,
+
+    manufacturer: getString(getFromRow(row, ["Manufacturer", "manufacturer", "Company", "company", "Brand", "brand"])),
+    brand: getString(getFromRow(row, ["Brand", "brand", "Manufacturer", "manufacturer"])),
+    batchNumber: getString(getFromRow(row, ["Batch No", "batch no", "Batch", "batch", "Batch Number"])),
+    hsnCode: getString(getFromRow(row, ["HSN Code", "hsn code", "HSN", "hsn"])),
+
+    expiryDate: parseExcelDate(getFromRow(row, ["Expiry Date", "expiry date", "Expiry", "expiry", "Exp Date"])),
+    manufactureDate: parseExcelDate(getFromRow(row, ["Manufacture Date", "manufacture date", "Mfg Date", "mfg date"])),
+
+    stock: getInt(getFromRow(row, ["Stock", "stock", "Quantity", "quantity", "Qty", "qty"]), 10),
+    stockQuantity: getInt(getFromRow(row, ["Stock", "stock", "Quantity", "quantity", "Qty", "qty"]), 10),
+    unit: getString(getFromRow(row, ["Unit", "unit"]), "strip"),
+    packSize: getString(getFromRow(row, ["Pack Size", "pack size", "Pack", "pack"]), "1"),
+
+    prescriptionRequired: parseBoolean(getFromRow(row, ["Prescription Required", "prescription required", "Rx Required", "Rx"])),
+    isControlled: parseBoolean(getFromRow(row, ["Controlled", "controlled", "Schedule H", "schedule h"])),
+
+    // Image is optional
+    images: getString(getFromRow(row, ["Image URL", "image url", "Image", "image"])) 
+      ? [getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))] 
+      : [],
+
+    inStock: getInt(getFromRow(row, ["Stock", "stock", "Quantity", "quantity"]), 10) > 0,
+    isActive: true,
+    isAvailable: true,
+    productType: "medical",
+    storeType: "medical",
+  };
+}
+
+// Process Restaurant Menu Items - MINIMAL REQUIRED FIELDS
+function processRestaurantProduct(row, storeId, vendorId) {
+  // Get name from multiple possible columns
+  const name = getString(
+    getFromRow(row, ["Item Name", "item name", "Dish Name", "dish name", "Name", "name", "Product Name"])
+  );
+
+  // Name is required
+  if (!name) return null;
+
+  // Get price - try multiple columns
+  const price = getNumber(getFromRow(row, ["Price", "price", "MRP", "mrp"]), 0);
+  const sellingPrice = getNumber(
+    getFromRow(row, ["Selling Price", "selling price", "Offer Price", "offer price"]),
+    price
+  );
+
+  // Price is required
+  if (price <= 0 && sellingPrice <= 0) return null;
+
+  const finalPrice = price > 0 ? price : sellingPrice;
+  const finalDiscountPrice = sellingPrice > 0 ? sellingPrice : finalPrice;
+
+  // Determine veg/non-veg
+  const foodTypeRaw = getString(getFromRow(row, ["Veg/Non-Veg", "veg/non-veg", "Type", "type", "Food Type", "food type"]), "veg");
+  const isNonVeg = foodTypeRaw.toLowerCase().includes("non");
+
+  return {
+    store: storeId,
+    vendor: vendorId,
+    name: name,
+
+    // Optional fields with safe defaults
+    description: getString(getFromRow(row, ["Description", "description", "Desc"])),
+    category: getString(getFromRow(row, ["Category", "category", "Menu Category", "menu category"]), "Main Course"),
+
+    price: finalPrice,
+    discountPrice: finalDiscountPrice,
+
+    foodType: isNonVeg ? "nonveg" : "veg",
+    spiceLevel: getString(getFromRow(row, ["Spice Level", "spice level", "Spice"]), "medium"),
+    cuisine: getString(getFromRow(row, ["Cuisine", "cuisine", "Cuisine Type"])),
+
+    preparationTime: getInt(getFromRow(row, ["Prep Time", "prep time", "Preparation Time", "preparation time"]), 20),
+    serves: getString(getFromRow(row, ["Serves", "serves", "Portion", "portion"]), "1"),
+
+    // Parse ingredients if provided (comma-separated)
+    ingredients: getString(getFromRow(row, ["Ingredients", "ingredients"]))
+      ? getString(getFromRow(row, ["Ingredients", "ingredients"])).split(",").map((i) => i.trim()).filter(Boolean)
+      : [],
+
+    // Parse allergens if provided (comma-separated)
+    allergens: getString(getFromRow(row, ["Allergens", "allergens"]))
+      ? getString(getFromRow(row, ["Allergens", "allergens"])).split(",").map((i) => i.trim()).filter(Boolean)
+      : [],
+
+    calories: getInt(getFromRow(row, ["Calories", "calories"]), 0),
+
+    // Image is optional
+    images: getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))
+      ? [getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))]
+      : [],
+
+    // Stock for restaurant = availability
+    stock: 100,
+    stockQuantity: 100,
+    inStock: !parseBoolean(getFromRow(row, ["Not Available", "not available", "Unavailable"])),
+    isAvailable: parseBoolean(getFromRow(row, ["Available", "available"]), true),
+    isActive: true,
+    productType: "food",
+    storeType: "restaurant",
+
+    addons: [],
+    variants: [],
+  };
+}
+
+// Process General Store Products - MINIMAL REQUIRED FIELDS
+function processGeneralProduct(row, storeId, vendorId) {
+  // Get name from multiple possible columns
+  const name = getString(
+    getFromRow(row, ["Product Name", "product name", "Name", "name", "Item Name", "item name"])
+  );
+
+  // Name is required
+  if (!name) return null;
+
+  // Get price - try multiple columns
+  const mrp = getNumber(getFromRow(row, ["MRP", "mrp", "Price", "price"]), 0);
+  const sellingPrice = getNumber(
+    getFromRow(row, ["Selling Price", "selling price", "Sale Price", "sale price", "SP"]),
+    mrp
+  );
+
+  // Price is required
+  if (mrp <= 0 && sellingPrice <= 0) return null;
+
+  const finalPrice = mrp > 0 ? mrp : sellingPrice;
+  const finalDiscountPrice = sellingPrice > 0 ? sellingPrice : finalPrice;
+
+  return {
+    store: storeId,
+    vendor: vendorId,
+    name: name,
+
+    // Optional fields with safe defaults
+    description: getString(getFromRow(row, ["Description", "description", "Desc"])),
+    category: getString(getFromRow(row, ["Category", "category", "Cat"]), "General"),
+    brand: getString(getFromRow(row, ["Brand", "brand", "Company", "company"])),
+
+    price: finalPrice,
+    discountPrice: finalDiscountPrice,
+
+    unit: getString(getFromRow(row, ["Unit", "unit"]), "pcs"),
+    quantity: getString(getFromRow(row, ["Size", "size", "Weight", "weight", "Volume", "volume"]), "1"),
+    packSize: getString(getFromRow(row, ["Pack Size", "pack size"]), "1"),
+
+    stock: getInt(getFromRow(row, ["Stock", "stock", "Qty", "qty", "Quantity", "quantity"]), 10),
+    stockQuantity: getInt(getFromRow(row, ["Stock", "stock", "Qty", "qty", "Quantity", "quantity"]), 10),
+    minStock: getInt(getFromRow(row, ["Min Stock", "min stock", "Reorder Level"]), 5),
+
+    // Optional identifiers - won't cause error if missing
+    barcode: getString(getFromRow(row, ["Barcode", "barcode", "EAN", "ean"])),
+    sku: getString(getFromRow(row, ["SKU", "sku", "Product Code", "product code"])),
+    hsnCode: getString(getFromRow(row, ["HSN Code", "hsn code", "HSN", "hsn"])),
+
+    gstRate: getNumber(getFromRow(row, ["GST %", "gst %", "GST Rate", "gst rate", "GST"]), 0),
+
+    expiryDate: parseExcelDate(getFromRow(row, ["Expiry Date", "expiry date", "Expiry", "expiry"])),
+
+    // Image is optional
+    images: getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))
+      ? [getString(getFromRow(row, ["Image URL", "image url", "Image", "image"]))]
+      : [],
+
+    inStock: getInt(getFromRow(row, ["Stock", "stock", "Qty", "qty"]), 10) > 0,
+    isActive: true,
+    isAvailable: true,
+    productType: "general",
+    storeType: "general",
+  };
+}
+
+// ==================== BULK UPLOAD ROUTE ====================
 
 // POST /api/vendor/products/bulk-upload
 router.post("/bulk-upload", auth, isVendor, upload.single("file"), async (req, res) => {
@@ -59,6 +330,8 @@ router.post("/bulk-upload", auth, isVendor, upload.single("file"), async (req, r
     // Get vendor's store
     const store = await Store.findOne({ vendor: req.userId });
     if (!store) {
+      // Clean up file
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(404).json({ success: false, error: "Store not found. Create a store first." });
     }
 
@@ -69,10 +342,12 @@ router.post("/bulk-upload", auth, isVendor, upload.single("file"), async (req, r
     const data = XLSX.utils.sheet_to_json(worksheet);
 
     if (!data || data.length === 0) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({ success: false, error: "Excel file is empty" });
     }
 
     console.log(`📊 Found ${data.length} rows in Excel`);
+    console.log(`📋 Columns found:`, Object.keys(data[0] || {}));
 
     // Process based on store type
     let products = [];
@@ -81,6 +356,13 @@ router.post("/bulk-upload", auth, isVendor, upload.single("file"), async (req, r
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
+
+      // Skip completely empty rows
+      if (!row || Object.keys(row).length === 0) {
+        skippedCount++;
+        continue;
+      }
+
       try {
         let productData;
 
@@ -99,6 +381,11 @@ router.post("/bulk-upload", auth, isVendor, upload.single("file"), async (req, r
           products.push(productData);
         } else {
           skippedCount++;
+          errors.push({
+            row: i + 2,
+            error: "Missing required field (Name or Price)",
+            data: JSON.stringify(row).substring(0, 100),
+          });
         }
       } catch (error) {
         console.error(`Row ${i + 2} error:`, error.message);
@@ -107,220 +394,105 @@ router.post("/bulk-upload", auth, isVendor, upload.single("file"), async (req, r
       }
     }
 
+    console.log(`📦 Processed ${products.length} valid products, ${skippedCount} skipped`);
+
     // Insert products into database
+    let insertedCount = 0;
     if (products.length > 0) {
-      await Product.insertMany(products, { ordered: false });
-      
-      // Update store product count
-      await Store.findByIdAndUpdate(store._id, {
-        $inc: { "stats.totalProducts": products.length },
-      });
+      try {
+        const result = await Product.insertMany(products, { ordered: false });
+        insertedCount = result.length;
+
+        // Update store product count
+        await Store.findByIdAndUpdate(store._id, {
+          $inc: { "stats.totalProducts": insertedCount },
+        });
+      } catch (insertError) {
+        // Handle partial insert (some succeeded, some failed)
+        if (insertError.insertedDocs) {
+          insertedCount = insertError.insertedDocs.length;
+          await Store.findByIdAndUpdate(store._id, {
+            $inc: { "stats.totalProducts": insertedCount },
+          });
+        }
+        console.error("Insert error (partial success):", insertError.message);
+      }
     }
 
     // Delete uploaded file
-    fs.unlinkSync(req.file.path);
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
 
-    console.log(`✅ Uploaded ${products.length} products, skipped ${skippedCount}`);
+    console.log(`✅ Uploaded ${insertedCount} products, skipped ${skippedCount}`);
 
     res.json({
       success: true,
-      uploadedCount: products.length,
+      uploadedCount: insertedCount,
       skippedCount,
-      errors: errors.slice(0, 10), // Return first 10 errors
-      message: `Successfully uploaded ${products.length} products`,
+      totalRows: data.length,
+      errors: errors.slice(0, 5), // Return first 5 errors only
+      message: `Successfully uploaded ${insertedCount} products`,
     });
-
   } catch (error) {
     console.error("❌ Bulk upload error:", error);
-    
+
     // Delete file if exists
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
+
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ==================== PRODUCT PROCESSORS ====================
-
-// Process Medical/Pharmacy Products
-function processMedicalProduct(row, storeId, vendorId) {
-  const name = row["Medicine Name"] || row["Name"] || row["Product Name"];
-  if (!name) return null;
-
-  return {
-    store: storeId,
-    vendor: vendorId,
-    name: name.trim(),
-    genericName: row["Generic Name"] || row["Salt"] || "",
-    description: row["Description"] || "",
-    category: row["Category"] || "Medicine",
-    
-    price: parseFloat(row["MRP"] || row["Price"] || 0),
-    discountPrice: parseFloat(row["Selling Price"] || row["Sale Price"] || row["MRP"] || 0),
-    
-    manufacturer: row["Manufacturer"] || row["Company"] || row["Brand"] || "",
-    batchNumber: row["Batch No"] || row["Batch"] || "",
-    hsnCode: row["HSN Code"] || row["HSN"] || "",
-    
-    expiryDate: parseExcelDate(row["Expiry Date"] || row["Expiry"]),
-    manufactureDate: parseExcelDate(row["Manufacture Date"] || row["Mfg Date"]),
-    
-    stock: parseInt(row["Stock"] || row["Quantity"] || row["Qty"] || 0),
-    unit: row["Unit"] || "strip",
-    packSize: row["Pack Size"] || row["Pack"] || "1",
-    
-    prescriptionRequired: parseBoolean(row["Prescription Required"] || row["Rx Required"]),
-    isControlled: parseBoolean(row["Controlled"] || row["Schedule H"]),
-    
-    images: row["Image URL"] ? [row["Image URL"]] : [],
-    
-    inStock: parseInt(row["Stock"] || row["Quantity"] || 0) > 0,
-    isActive: true,
-    productType: "medical",
-  };
-}
-
-// Process Restaurant Menu Items
-function processRestaurantProduct(row, storeId, vendorId) {
-  const name = row["Item Name"] || row["Dish Name"] || row["Name"];
-  if (!name) return null;
-
-  return {
-    store: storeId,
-    vendor: vendorId,
-    name: name.trim(),
-    description: row["Description"] || "",
-    category: row["Category"] || row["Menu Category"] || "Main Course",
-    
-    price: parseFloat(row["Price"] || row["MRP"] || 0),
-    discountPrice: parseFloat(row["Selling Price"] || row["Offer Price"] || row["Price"] || 0),
-    
-    foodType: (row["Veg/Non-Veg"] || row["Type"] || "veg").toLowerCase().includes("non") ? "nonveg" : "veg",
-    spiceLevel: row["Spice Level"] || "medium",
-    cuisine: row["Cuisine"] || row["Cuisine Type"] || "",
-    
-    preparationTime: parseInt(row["Prep Time"] || row["Preparation Time"] || 20),
-    serves: row["Serves"] || row["Portion"] || "1",
-    
-    ingredients: row["Ingredients"] ? row["Ingredients"].split(",").map(i => i.trim()) : [],
-    allergens: row["Allergens"] ? row["Allergens"].split(",").map(i => i.trim()) : [],
-    
-    calories: parseInt(row["Calories"] || 0),
-    
-    images: row["Image URL"] ? [row["Image URL"]] : [],
-    
-    inStock: !parseBoolean(row["Not Available"]),
-    isAvailable: parseBoolean(row["Available"] || "yes"),
-    isActive: true,
-    productType: "food",
-    
-    addons: [], // Can be added later
-    variants: [], // Can be added later
-  };
-}
-
-// Process General Store Products
-function processGeneralProduct(row, storeId, vendorId) {
-  const name = row["Product Name"] || row["Name"] || row["Item Name"];
-  if (!name) return null;
-
-  return {
-    store: storeId,
-    vendor: vendorId,
-    name: name.trim(),
-    description: row["Description"] || "",
-    category: row["Category"] || "Grocery",
-    brand: row["Brand"] || row["Company"] || "",
-    
-    price: parseFloat(row["MRP"] || row["Price"] || 0),
-    discountPrice: parseFloat(row["Selling Price"] || row["Sale Price"] || row["MRP"] || 0),
-    
-    unit: row["Unit"] || "pcs",
-    quantity: row["Size"] || row["Weight"] || row["Volume"] || "1",
-    packSize: row["Pack Size"] || "1",
-    
-    stock: parseInt(row["Stock"] || row["Qty"] || row["Quantity"] || 0),
-    minStock: parseInt(row["Min Stock"] || row["Reorder Level"] || 5),
-    
-    barcode: row["Barcode"] || row["EAN"] || "",
-    sku: row["SKU"] || row["Product Code"] || "",
-    hsnCode: row["HSN Code"] || row["HSN"] || "",
-    
-    gstRate: parseFloat(row["GST %"] || row["GST Rate"] || 0),
-    
-    expiryDate: parseExcelDate(row["Expiry Date"] || row["Expiry"]),
-    
-    images: row["Image URL"] ? [row["Image URL"]] : [],
-    
-    inStock: parseInt(row["Stock"] || row["Qty"] || 0) > 0,
-    isActive: true,
-    productType: "general",
-  };
-}
-
-// ==================== HELPER FUNCTIONS ====================
-
-function parseBoolean(value) {
-  if (!value) return false;
-  const str = String(value).toLowerCase().trim();
-  return ["yes", "true", "1", "y"].includes(str);
-}
-
-function parseExcelDate(value) {
-  if (!value) return null;
-  
-  // If it's a number (Excel date serial)
-  if (typeof value === "number") {
-    const date = XLSX.SSF.parse_date_code(value);
-    return new Date(date.y, date.m - 1, date.d);
-  }
-  
-  // Try parsing as string
-  const parsed = new Date(value);
-  return isNaN(parsed.getTime()) ? null : parsed;
-}
-
 // ==================== TEMPLATE DOWNLOADS ====================
+// UPDATED: Simplified templates with only essential columns
 
 // GET /api/vendor/templates/:type
 router.get("/templates/:type", (req, res) => {
   const { type } = req.params;
-  
+
   let headers = [];
   let sampleData = [];
 
   switch (type) {
     case "medical":
+      // Essential columns only
       headers = [
-        "Medicine Name", "Generic Name", "Category", "MRP", "Selling Price",
-        "Manufacturer", "Batch No", "Expiry Date", "Stock", "Unit",
-        "Pack Size", "Prescription Required", "HSN Code", "Description", "Image URL"
+        "Medicine Name",
+        "Category",
+        "MRP",
+        "Selling Price",
+        "Stock",
+        "Unit",
+        "Brand",
+        "Generic Name",
+        "Prescription Required",
       ];
       sampleData = [
-        ["Paracetamol 500mg", "Paracetamol", "Pain Relief", 25, 22,
-         "Cipla", "B001", "2025-12-31", 100, "strip",
-         "10 tablets", "No", "30049099", "For fever and pain", ""],
-        ["Amoxicillin 250mg", "Amoxicillin", "Antibiotics", 85, 78,
-         "Sun Pharma", "B002", "2025-06-30", 50, "strip",
-         "10 capsules", "Yes", "30041000", "Antibiotic medication", ""]
+        ["Paracetamol 500mg", "Pain Relief", 25, 22, 100, "strip", "Cipla", "Paracetamol", "No"],
+        ["Amoxicillin 250mg", "Antibiotics", 85, 78, 50, "strip", "Sun Pharma", "Amoxicillin", "Yes"],
+        ["Crocin Advance", "Pain Relief", 30, 28, 75, "strip", "GSK", "Paracetamol", "No"],
       ];
       break;
 
     case "restaurant":
+      // Essential columns only
       headers = [
-        "Item Name", "Category", "Price", "Selling Price", "Veg/Non-Veg",
-        "Prep Time", "Serves", "Description", "Cuisine", "Spice Level",
-        "Calories", "Ingredients", "Available", "Image URL"
+        "Item Name",
+        "Category",
+        "Price",
+        "Selling Price",
+        "Veg/Non-Veg",
+        "Prep Time",
+        "Serves",
+        "Description",
       ];
       sampleData = [
-        ["Butter Chicken", "Main Course", 320, 299, "Non-Veg",
-         30, "2", "Creamy tomato gravy with chicken", "North Indian", "Medium",
-         450, "Chicken, Butter, Cream, Tomatoes", "Yes", ""],
-        ["Paneer Tikka", "Starters", 220, 199, "Veg",
-         20, "2", "Grilled cottage cheese with spices", "North Indian", "Mild",
-         280, "Paneer, Bell Peppers, Onions", "Yes", ""]
+        ["Butter Chicken", "Main Course", 320, 299, "Non-Veg", 30, 2, "Creamy tomato gravy with chicken"],
+        ["Paneer Tikka", "Starters", 220, 199, "Veg", 20, 2, "Grilled cottage cheese with spices"],
+        ["Dal Makhani", "Main Course", 180, 160, "Veg", 25, 2, "Creamy black lentils"],
       ];
       break;
 
@@ -328,18 +500,21 @@ router.get("/templates/:type", (req, res) => {
     case "vegetables":
     case "general":
     default:
+      // Essential columns only
       headers = [
-        "Product Name", "Category", "Brand", "MRP", "Selling Price",
-        "Unit", "Size", "Stock", "Barcode", "SKU",
-        "HSN Code", "GST %", "Expiry Date", "Description", "Image URL"
+        "Product Name",
+        "Category",
+        "MRP",
+        "Selling Price",
+        "Stock",
+        "Unit",
+        "Brand",
+        "Description",
       ];
       sampleData = [
-        ["Tata Salt", "Grocery", "Tata", 28, 26,
-         "kg", "1", 100, "8901234567890", "SALT001",
-         "25010010", 5, "", "Iodised salt", ""],
-        ["Amul Butter", "Dairy", "Amul", 56, 54,
-         "g", "100", 50, "8901234567891", "BUTTER001",
-         "04051000", 12, "2025-03-15", "Salted butter", ""]
+        ["Tata Salt", "Grocery", 28, 26, 100, "kg", "Tata", "Iodised salt"],
+        ["Amul Butter", "Dairy", 56, 54, 50, "pack", "Amul", "Salted butter 100g"],
+        ["Fresh Tomatoes", "Vegetables", 40, 35, 200, "kg", "", "Farm fresh tomatoes"],
       ];
       break;
   }
