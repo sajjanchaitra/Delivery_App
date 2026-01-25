@@ -1,5 +1,5 @@
 // backend/src/models/Product.js
-// Updated Product Model with Multi-Type Support
+// Updated Product Model with Multi-Type Support + storeType + meta + stockQuantity fix
 
 const mongoose = require("mongoose");
 
@@ -15,47 +15,72 @@ const productSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    
-    // Basic Info
+
+    // ==================== BASIC INFO ====================
     name: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     category: { type: String, required: true },
     brand: { type: String, default: "" },
-    
-    // Product Type
+
+    // ==================== PRODUCT TYPE ====================
+    // (Your old logic uses productType: general / medical / food)
     productType: {
       type: String,
       enum: ["general", "medical", "food"],
       default: "general",
     },
-    
-    // Images
+
+    // ==================== STORE TYPE (NEW) ====================
+    // This matches Store.storeType and your frontend logic
+    storeType: {
+      type: String,
+      enum: ["general", "medical", "restaurant"],
+      default: "general",
+    },
+
+    // ==================== META (NEW) ====================
+    // Flexible storeType-based fields coming from frontend
+    // Example:
+    // restaurant: { isVeg, prepTime, serves }
+    // medical: { mrp, expiryDate, prescriptionRequired }
+    meta: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
+    // ==================== IMAGES ====================
     images: [{ type: String }],
     thumbnail: { type: String, default: "" },
-    
-    // Pricing
+
+    // ==================== PRICING ====================
     price: { type: Number, required: true }, // MRP
     discountPrice: { type: Number }, // Selling price
     salePrice: { type: Number }, // Sale price (temporary)
     costPrice: { type: Number }, // Purchase price (for profit calc)
-    
-    // Quantity & Stock
+
+    // ==================== QUANTITY & STOCK ====================
     quantity: { type: String, default: "1" }, // Display quantity (e.g., "500g", "1L")
     unit: { type: String, default: "pcs" }, // kg, g, L, ml, pcs, strip, etc.
     packSize: { type: String, default: "1" },
-    
+
+    // Main stock field
     stock: { type: Number, default: 0 },
+
+    // IMPORTANT: Frontend is using stockQuantity in UI
+    // so keep it for compatibility (optional but recommended)
+    stockQuantity: { type: Number, default: 0 },
+
     minStock: { type: Number, default: 5 }, // Alert threshold
     maxStock: { type: Number, default: 1000 },
-    
-    // Identifiers
+
+    // ==================== IDENTIFIERS ====================
     sku: { type: String, default: "" },
     barcode: { type: String, default: "" },
     hsnCode: { type: String, default: "" },
-    
-    // Tax
+
+    // ==================== TAX ====================
     gstRate: { type: Number, default: 0 }, // Percentage
-    
+
     // ==================== MEDICAL PRODUCT FIELDS ====================
     genericName: { type: String, default: "" }, // Salt composition
     manufacturer: { type: String, default: "" },
@@ -69,23 +94,23 @@ const productSchema = new mongoose.Schema(
     dosage: { type: String, default: "" },
     sideEffects: { type: String, default: "" },
     storage: { type: String, default: "" }, // Storage instructions
-    
+
     // ==================== FOOD/RESTAURANT FIELDS ====================
-    foodType: { 
-      type: String, 
-      enum: ["veg", "nonveg", "egg"], 
-      default: "veg" 
+    foodType: {
+      type: String,
+      enum: ["veg", "nonveg", "egg"],
+      default: "veg",
     },
-    spiceLevel: { 
-      type: String, 
-      enum: ["none", "mild", "medium", "hot", "extra_hot"], 
-      default: "medium" 
+    spiceLevel: {
+      type: String,
+      enum: ["none", "mild", "medium", "hot", "extra_hot"],
+      default: "medium",
     },
     cuisine: { type: String, default: "" },
     preparationTime: { type: Number, default: 20 }, // minutes
     serves: { type: String, default: "1" }, // Serving size
     calories: { type: Number, default: 0 },
-    
+
     ingredients: [{ type: String }],
     allergens: [{ type: String }], // Nuts, Dairy, Gluten, etc.
     nutritionInfo: {
@@ -95,46 +120,62 @@ const productSchema = new mongoose.Schema(
       fat: { type: Number, default: 0 },
       fiber: { type: Number, default: 0 },
     },
-    
+
     // Add-ons and Variants (for food)
-    addons: [{
-      name: { type: String },
-      price: { type: Number },
-      isAvailable: { type: Boolean, default: true },
-    }],
-    
-    variants: [{
-      name: { type: String }, // e.g., "Small", "Medium", "Large"
-      price: { type: Number },
-      discountPrice: { type: Number },
-      isAvailable: { type: Boolean, default: true },
-    }],
-    
-    customizations: [{
-      name: { type: String }, // e.g., "Choose your base"
-      required: { type: Boolean, default: false },
-      maxSelection: { type: Number, default: 1 },
-      options: [{
+    addons: [
+      {
         name: { type: String },
-        price: { type: Number, default: 0 },
-      }],
-    }],
-    
+        price: { type: Number },
+        isAvailable: { type: Boolean, default: true },
+      },
+    ],
+
+    variants: [
+      {
+        name: { type: String }, // e.g., "Small", "Medium", "Large"
+        price: { type: Number },
+        discountPrice: { type: Number },
+        isAvailable: { type: Boolean, default: true },
+      },
+    ],
+
+    customizations: [
+      {
+        name: { type: String }, // e.g., "Choose your base"
+        required: { type: Boolean, default: false },
+        maxSelection: { type: Number, default: 1 },
+        options: [
+          {
+            name: { type: String },
+            price: { type: Number, default: 0 },
+          },
+        ],
+      },
+    ],
+
     // ==================== AVAILABILITY ====================
     inStock: { type: Boolean, default: true },
     isAvailable: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     isOnSale: { type: Boolean, default: false },
-    
+
     // Availability timing (for restaurants)
     availableFrom: { type: String, default: "00:00" },
     availableTill: { type: String, default: "23:59" },
     availableDays: {
       type: [String],
-      default: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+      default: [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ],
     },
-    
+
     // ==================== STATS ====================
     soldCount: { type: Number, default: 0 },
     viewCount: { type: Number, default: 0 },
@@ -142,23 +183,23 @@ const productSchema = new mongoose.Schema(
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 },
     },
-    
+
     // ==================== SEO & SEARCH ====================
     tags: [{ type: String }],
     searchKeywords: [{ type: String }],
-    
+
     // ==================== ORDERING ====================
     sortOrder: { type: Number, default: 0 },
-    
   },
   { timestamps: true }
 );
 
-// Indexes
+// ==================== INDEXES ====================
 productSchema.index({ store: 1, isActive: 1 });
 productSchema.index({ vendor: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ productType: 1 });
+productSchema.index({ storeType: 1 });
 productSchema.index({ name: "text", description: "text", tags: "text" });
 productSchema.index({ price: 1 });
 productSchema.index({ inStock: 1 });
@@ -167,65 +208,77 @@ productSchema.index({ soldCount: -1 });
 productSchema.index({ barcode: 1 });
 productSchema.index({ sku: 1 });
 
-// Virtual for final selling price
-productSchema.virtual("finalPrice").get(function() {
+// ==================== VIRTUALS ====================
+productSchema.virtual("finalPrice").get(function () {
   return this.salePrice || this.discountPrice || this.price;
 });
 
-// Virtual for discount percentage
-productSchema.virtual("discountPercent").get(function() {
+productSchema.virtual("discountPercent").get(function () {
   const final = this.salePrice || this.discountPrice;
   if (!final || final >= this.price) return 0;
   return Math.round(((this.price - final) / this.price) * 100);
 });
 
-// Method to check if product is available now (for restaurants)
-productSchema.methods.isAvailableNow = function() {
+// ==================== METHODS ====================
+productSchema.methods.isAvailableNow = function () {
   if (!this.isActive || !this.isAvailable || !this.inStock) return false;
-  
+
   const now = new Date();
-  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const days = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
   const today = days[now.getDay()];
-  
+
   if (!this.availableDays.includes(today)) return false;
-  
+
   const currentTime = now.getHours() * 60 + now.getMinutes();
   const [fromHour, fromMin] = this.availableFrom.split(":").map(Number);
   const [tillHour, tillMin] = this.availableTill.split(":").map(Number);
-  
+
   const fromTime = fromHour * 60 + fromMin;
   const tillTime = tillHour * 60 + tillMin;
-  
+
   return currentTime >= fromTime && currentTime <= tillTime;
 };
 
-// Method to check if medicine is expired
-productSchema.methods.isExpired = function() {
+productSchema.methods.isExpired = function () {
   if (!this.expiryDate) return false;
   return new Date() > new Date(this.expiryDate);
 };
 
-// Method to check if medicine is expiring soon (within 3 months)
-productSchema.methods.isExpiringSoon = function() {
+productSchema.methods.isExpiringSoon = function () {
   if (!this.expiryDate) return false;
   const threeMonthsLater = new Date();
   threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
   return new Date(this.expiryDate) <= threeMonthsLater;
 };
 
-// Pre-save middleware to update search keywords
-productSchema.pre("save", function(next) {
-  // Auto-generate search keywords
+// ==================== PRE SAVE ====================
+productSchema.pre("save", function (next) {
+  const safeTags = Array.isArray(this.tags) ? this.tags : [];
+
   const keywords = [
     this.name,
     this.brand,
     this.category,
     this.genericName,
     this.manufacturer,
-    ...this.tags,
+    ...safeTags,
   ].filter(Boolean);
-  
-  this.searchKeywords = [...new Set(keywords.map(k => k.toLowerCase()))];
+
+  this.searchKeywords = [...new Set(keywords.map((k) => String(k).toLowerCase()))];
+
+  // Keep stockQuantity synced with stock (optional safety)
+  if (typeof this.stock === "number") {
+    this.stockQuantity = this.stock;
+  }
+
   next();
 });
 
