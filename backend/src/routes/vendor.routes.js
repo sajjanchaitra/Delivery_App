@@ -576,4 +576,199 @@ router.get("/analytics", async (req, res) => {
   }
 });
 
+// ==================== BULK UPLOAD ====================
+
+const multer = require("multer");
+const XLSX = require("xlsx");
+const fs = require("fs");
+
+// Configure multer for bulk upload
+const bulkStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = "uploads/excel";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
+const bulkUpload = multer({
+  storage: bulkStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/csv",
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type"));
+    }
+  },
+});
+
+// POST /api/vendor/products/bulk-upload
+router.post("/products/bulk-upload", bulkUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No file uploaded" });
+    }
+
+    const { storeType = "general" } = req.body;
+    console.log(`📤 Processing bulk upload for ${storeType} store`);
+
+    const store = await Store.findOne({ vendor: req.userId });
+    if (!store) {
+      // Clean up uploaded file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).json({ success: false, error: "Store not found" });
+    }
+
+    // Read Excel file
+    const workbook = XLSX.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet);
+
+    if (!data || data.length === 0) {
+      // Clean up
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({ success: false, error: "Excel file is empty" });
+    }
+
+    console.log(`📊 Found ${data.length} rows in Excel`);
+
+    let products = [];
+    let skippedCount = 0;
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      try {
+        const name = row["Product Name"] || row["Name"] || row["Medicine Name"] || row["Item Name"];
+        if (!name) {
+          skippedCount++;
+          continue;
+        }
+
+        const productData = {
+          store: store._id,
+          vendor: req.userId,
+          name: name.trim(),
+          description: row["Description"] || "",
+          category: row["Category"] || "General",
+          price: parseFloat(row["Price"] || row["MRP"] || 0),
+          discountPrice: parseFloat(row["Selling Price"] || row["Price"] || 0),
+          quantity: row["Quantity"] || "1",
+          unit: row["Unit"] || "piece",
+          stock: parseInt(row["Stock"] || 0),
+          stockQuantity: parseInt(row["Stock"] || 0),
+          inStock: parseInt(row["Stock"] || 0) > 0,
+          isActive: true,
+          storeType,
+          productType: storeType === "restaurant" ? "food" : storeType,
+          images: row["Image URL"] ? [row["Image URL"]] : [],
+        };
+
+        // Add store-specific metadata
+        if (storeType === "medical") {
+          productData.meta = {
+            mrp: parseFloat(row["MRP"] || 0),
+            brand: row["Brand"] || row["Manufacturer"] || "",
+            saltName: row["Generic Name"] || row["Salt"] || "",
+            batchNo: row["Batch No"] || "",
+            expiryDate: row["Expiry Date"] || "",
+            prescriptionRequired: String(row["Prescription Required"]).toLowerCase() === "yes",
+          };
+        } else if (storeType === "restaurant") {
+          productData.meta = {
+            isVeg: !String(row["Veg/Non-Veg"] || "veg").toLowerCase().includes("non"),
+            prepTime: parseInt(row["Prep Time"] || 0) || null,
+            serves: parseInt(row["Serves"] || 0) || null,
+          };
+        }
+
+        products.push(productData);
+      } catch (error) {
+        console.error(`Row ${i + 2} error:`, error.message);
+        skippedCount++;
+      }
+    }
+
+    // Insert products
+    if (products.length > 0) {
+      await Product.insertMany(products, { ordered: false });
+      await Store.findByIdAndUpdate(store._id, {
+        $inc: { "stats.totalProducts": products.length },
+      });
+    }
+
+    // Delete uploaded file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    console.log(`✅ Uploaded ${products.length} products, skipped ${skippedCount}`);
+
+    res.json({
+      success: true,
+      uploadedCount: products.length,
+      skippedCount,
+      message: `Successfully uploaded ${products.length} products`,
+    });
+
+  } catch (error) {
+    console.error("❌ Bulk upload error:", error);
+    
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/vendor/templates/:type - Download template
+router.get("/templates/:type", (req, res) => {
+  const { type } = req.params;
+  
+  let headers = [];
+  let sampleData = [];
+
+  switch (type) {
+    case "medical":
+      headers = ["Medicine Name", "Category", "MRP", "Selling Price", "Stock", "Unit", "Brand", "Generic Name", "Batch No", "Expiry Date", "Prescription Required", "Description"];
+      sampleData = [["Paracetamol 500mg", "Medicines", 25, 22, 100, "strip", "Cipla", "Paracetamol", "B001", "2025-12", "No", "For fever"]];
+      break;
+    case "restaurant":
+      headers = ["Item Name", "Category", "Price", "Selling Price", "Veg/Non-Veg", "Prep Time", "Serves", "Description"];
+      sampleData = [["Butter Chicken", "Main Course", 320, 299, "Non-Veg", 30, 2, "Creamy chicken curry"]];
+      break;
+    default:
+      headers = ["Product Name", "Category", "Price", "Selling Price", "Stock", "Unit", "Description"];
+      sampleData = [["Fresh Tomatoes", "Vegetables", 40, 35, 100, "kg", "Fresh red tomatoes"]];
+  }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+  ws["!cols"] = headers.map(() => ({ wch: 18 }));
+  XLSX.utils.book_append_sheet(wb, ws, "Products");
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename=${type}-template.xlsx`);
+  res.send(buffer);
+});
+
+
 module.exports = router;
