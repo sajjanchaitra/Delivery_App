@@ -34,11 +34,18 @@ export default function VendorHome() {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [userName, setUserName] = useState("Vendor");
 
-  // ✅ helper (JSX friendly)
+  // ✅ Updated helper function to handle all image URL types
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (typeof imagePath !== "string") return null;
+    
+    // If it's a local file URI (from image picker), return as-is
+    if (imagePath.startsWith("file://")) return imagePath;
+    
+    // If it's already a full URL (http/https)
     if (imagePath.startsWith("http")) return imagePath;
+    
+    // If it's a server path, prepend API URL
     return `${API_URL}${imagePath}`;
   };
 
@@ -96,6 +103,10 @@ export default function VendorHome() {
       setStoreData(storeResult.store);
       setStoreActive(storeResult?.store?.isOpen ?? true);
 
+      // Log the image data
+      console.log("🖼️ Store image from /store endpoint:", storeResult.store?.image);
+      console.log("🖼️ Store logo from /store endpoint:", storeResult.store?.logo);
+
       // Dashboard
       const dashboardResponse = await fetch(`${API_URL}/api/vendor/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -106,6 +117,21 @@ export default function VendorHome() {
 
       if (dashboardData?.success) {
         setDashboardStats(dashboardData);
+        
+        // IMPORTANT: Update store data from dashboard if it has image/logo
+        if (dashboardData.store) {
+          console.log("🖼️ Store image from /dashboard endpoint:", dashboardData.store?.image);
+          console.log("🖼️ Store logo from /dashboard endpoint:", dashboardData.store?.logo);
+          
+          // Merge dashboard store data with existing store data
+          setStoreData(prev => ({
+            ...prev,
+            ...dashboardData.store,
+            // Preserve image/logo from the first call if dashboard doesn't have it
+            image: dashboardData.store.image || prev?.image,
+            logo: dashboardData.store.logo || prev?.logo,
+          }));
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -138,12 +164,12 @@ export default function VendorHome() {
     checkStoreAndFetchData();
   };
 
-const quickActions = [
-  { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
-  { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
-  { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
-  { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup/select-type" },  // ← FIXED
-];
+  const quickActions = [
+    { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
+    { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
+    { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
+    { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup" },
+  ];
 
   if (loading) {
     return (
@@ -218,6 +244,13 @@ const quickActions = [
 
   const storeImageUrl = getImageUrl(storeData?.image || storeData?.logo);
 
+  // Debug logs for rendering
+  console.log("🎨 Rendering home page with:");
+  console.log("  - Store data:", storeData);
+  console.log("  - Image path:", storeData?.image);
+  console.log("  - Logo path:", storeData?.logo);
+  console.log("  - Final image URL:", storeImageUrl);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
@@ -227,7 +260,12 @@ const quickActions = [
         <View style={styles.headerTop}>
           <View style={styles.profileSection}>
             {storeImageUrl ? (
-              <Image source={{ uri: storeImageUrl }} style={styles.avatarImage} />
+              <Image 
+                source={{ uri: storeImageUrl }} 
+                style={styles.avatarImage}
+                onLoad={() => console.log("✅ Home page image loaded successfully")}
+                onError={(e) => console.log("❌ Home page image failed to load:", e.nativeEvent.error)}
+              />
             ) : (
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
@@ -455,8 +493,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.25)",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
-  avatarImage: { width: 48, height: 48, borderRadius: 14, backgroundColor: "#E2E8F0" },
+  avatarImage: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 14, 
+    backgroundColor: "#E2E8F0" 
+  },
   avatarText: { fontSize: 18, fontWeight: "700", color: "#FFF" },
 
   greetingContainer: { marginLeft: 12 },
@@ -534,12 +578,12 @@ const styles = StyleSheet.create({
   earningsBannerIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: "rgba(34,197,94,0.15)", justifyContent: "center", alignItems: "center" },
 
   section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B", marginBottom: 16 },
 
   quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   quickActionCard: { width: (width - 52) / 2, backgroundColor: "#FFF", borderRadius: 16, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   quickActionIcon: { width: 52, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  quickActionLabel: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
+  quickActionLabel: { fontSize: 14, fontWeight: "600", color: "#1E293B", textAlign: "center" },
 
   bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: "#FFF", paddingTop: 10, paddingBottom: 28, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: "#F1F5F9", justifyContent: "space-around", alignItems: "center" },
   navItem: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },

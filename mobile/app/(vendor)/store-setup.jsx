@@ -327,13 +327,6 @@ export default function StoreSettings() {
           </View>
         </View>
 
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Ionicons name="information-circle" size={20} color="#3B82F6" />
-          <Text style={styles.infoText}>
-            Changes will be reflected immediately on your profile and visible to customers.
-          </Text>
-        </View>
 
         {/* Save Button */}
         <TouchableOpacity
