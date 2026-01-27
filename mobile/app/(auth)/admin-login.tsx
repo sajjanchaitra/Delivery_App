@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import api from "../../services/api";
 
 export default function AdminLogin() {
@@ -101,12 +102,12 @@ export default function AdminLogin() {
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#1E293B" />
+            <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
           </TouchableOpacity>
 
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="shield-checkmark" size={64} color="#EF4444" />
+              <Ionicons name="shield-checkmark" size={64} color="#1E3A8A" />
             </View>
 
             <Text style={styles.title}>Admin Login</Text>
@@ -159,19 +160,25 @@ export default function AdminLogin() {
 
           {/* Login Button */}
           <TouchableOpacity
-            style={[styles.button, !password && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={!password || loading}
             activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <>
-                <Ionicons name="log-in" size={20} color="#FFFFFF" />
-                <Text style={styles.buttonText}>Login as Admin</Text>
-              </>
-            )}
+            <LinearGradient
+              colors={password ? ["#1E3A8A", "#3B82F6"] : ["#CBD5E1", "#CBD5E1"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.button}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="log-in" size={20} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Login as Admin</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.helpText}>
@@ -207,7 +214,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 32,
@@ -221,7 +228,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
@@ -229,7 +236,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#1E3A8A",
     marginBottom: 8,
   },
   subtitle: {
@@ -254,7 +261,7 @@ const styles = StyleSheet.create({
   phone: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#EF4444",
+    color: "#1E3A8A",
   },
   inputSection: {
     marginBottom: 24,
@@ -262,7 +269,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#334155",
+    color: "#1E3A8A",
     marginBottom: 10,
   },
   inputContainer: {
@@ -270,13 +277,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F8FAFC",
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: "#E2E8F0",
     paddingHorizontal: 16,
     height: 56,
   },
   inputFocused: {
-    borderColor: "#EF4444",
+    borderColor: "#1E3A8A",
     backgroundColor: "#FFFFFF",
   },
   inputIcon: {
@@ -293,16 +300,12 @@ const styles = StyleSheet.create({
   },
   button: {
     flexDirection: "row",
-    backgroundColor: "#EF4444",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     marginBottom: 16,
-  },
-  buttonDisabled: {
-    backgroundColor: "#CBD5E1",
   },
   buttonText: {
     fontSize: 16,

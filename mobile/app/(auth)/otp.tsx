@@ -16,6 +16,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import api from "../../services/api";
 
 const OTP_LENGTH = 6;
@@ -77,9 +78,9 @@ export default function OTP() {
     }
 
     // Auto verify when complete
-    if (newOtp.every((digit) => digit !== "")) {
-      setTimeout(() => handleVerifyOtp(newOtp.join("")), 300);
-    }
+    // if (newOtp.every((digit) => digit !== "")) {
+    //   setTimeout(() => handleVerifyOtp(newOtp.join("")), 300);
+    // }
   };
 
   const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number): void => {
@@ -208,7 +209,7 @@ export default function OTP() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
 
         <View style={styles.header}>
@@ -260,26 +261,30 @@ export default function OTP() {
             {roles.map((role) => (
               <TouchableOpacity
                 key={role.id}
-                style={[
-                  styles.roleButton,
-                  selectedRole === role.id && styles.roleButtonActive,
-                ]}
                 onPress={() => setSelectedRole(role.id)}
                 activeOpacity={0.7}
+                style={styles.roleButtonWrapper}
               >
-                <Ionicons
-                  name={role.icon}
-                  size={20}
-                  color={selectedRole === role.id ? "#FFFFFF" : "#64748B"}
-                />
-                <Text
-                  style={[
-                    styles.roleText,
-                    selectedRole === role.id && styles.roleTextActive,
-                  ]}
-                >
-                  {role.label}
-                </Text>
+                <View
+  style={[
+    styles.roleButton,
+    selectedRole === role.id && styles.roleButtonSelected,
+  ]}
+>
+  <Ionicons
+    name={role.icon}
+    size={20}
+    color={selectedRole === role.id ? "#1E3A8A" : "#6B7280"}
+  />
+  <Text
+    style={[
+      styles.roleText,
+      selectedRole === role.id && styles.roleTextSelected,
+    ]}
+  >
+    {role.label}
+  </Text>
+</View>
               </TouchableOpacity>
             ))}
           </View>
@@ -306,16 +311,22 @@ export default function OTP() {
 
         {/* Verify Button */}
         <TouchableOpacity
-          style={[styles.button, !isOtpComplete && styles.buttonDisabled]}
           onPress={() => handleVerifyOtp(otp.join(""))}
           disabled={!isOtpComplete || loading}
           activeOpacity={0.8}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <Text style={styles.buttonText}>Verify & Continue</Text>
-          )}
+          <LinearGradient
+            colors={isOtpComplete ? ["#DC2626", "#F87171"] : ["#CBD5E1", "#CBD5E1"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.button}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Text style={styles.buttonText}>Verify & Continue</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -339,7 +350,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
@@ -350,12 +361,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#1E3A8A",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: "#64748B",
+    color: "#6B7280",
     lineHeight: 22,
   },
   testBanner: {
@@ -387,16 +398,16 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     fontSize: 24,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#1E3A8A",
     textAlign: "center",
   },
   otpInputFocused: {
-    borderColor: "#22C55E",
+    borderColor: "#1E3A8A",
     backgroundColor: "#FFFFFF",
   },
   otpInputFilled: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#22C55E",
+    backgroundColor: "#EFF6FF",
+    borderColor: "#1E3A8A",
   },
   roleSection: {
     marginBottom: 20,
@@ -404,15 +415,17 @@ const styles = StyleSheet.create({
   roleLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#334155",
+    color: "#1E3A8A",
     marginBottom: 12,
   },
   roleContainer: {
     flexDirection: "row",
     gap: 10,
   },
-  roleButton: {
+  roleButtonWrapper: {
     flex: 1,
+  },
+  roleButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -423,16 +436,22 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#E2E8F0",
   },
-  roleButtonActive: {
-    backgroundColor: "#22C55E",
-    borderColor: "#22C55E",
+  roleButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
   },
   roleText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#64748B",
+    color: "#6B7280",
   },
   roleTextActive: {
+    fontSize: 13,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   resendContainer: {
@@ -444,30 +463,35 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
-    color: "#64748B",
+    color: "#6B7280",
   },
   resendButton: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#22C55E",
+    color: "#E63946",
   },
   resendButtonDisabled: {
     color: "#94A3B8",
   },
   button: {
-    backgroundColor: "#22C55E",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
-  buttonDisabled: {
-    backgroundColor: "#CBD5E1",
-  },
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
   },
+  roleButtonSelected: {
+  borderColor: "#1E3A8A",
+  backgroundColor: "#EFF6FF",
+},
+
+roleTextSelected: {
+  color: "#1E3A8A",
+},
+
 });

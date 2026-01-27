@@ -15,6 +15,22 @@ import { storage, StorageKeys } from '../../utils/storage';
 
 type Gender = 'male' | 'female' | 'other' | '';
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function EditProfile() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -107,7 +123,7 @@ export default function EditProfile() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
@@ -117,7 +133,7 @@ export default function EditProfile() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={{ width: 40 }} />
@@ -135,7 +151,7 @@ export default function EditProfile() {
                 setFormData(prev => ({ ...prev, name: text }));
               }}
               placeholder="Enter your name"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={COLORS.textLight}
             />
           </View>
 
@@ -149,7 +165,7 @@ export default function EditProfile() {
                 setFormData(prev => ({ ...prev, email: text }));
               }}
               placeholder="Enter your email"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={COLORS.textLight}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -165,7 +181,7 @@ export default function EditProfile() {
                 setFormData(prev => ({ ...prev, phone: text }));
               }}
               placeholder="Enter your phone number"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={COLORS.textLight}
               keyboardType="phone-pad"
             />
           </View>
@@ -193,7 +209,7 @@ export default function EditProfile() {
                         : 'radio-button-off'
                     }
                     size={20}
-                    color={formData.gender === gender ? '#22C55E' : '#94A3B8'}
+                    color={formData.gender === gender ? COLORS.primary : COLORS.textLight}
                   />
                   <Text
                     style={[
@@ -218,7 +234,7 @@ export default function EditProfile() {
                 setFormData(prev => ({ ...prev, dateOfBirth: text }));
               }}
               placeholder="DD/MM/YYYY"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={COLORS.textLight}
             />
           </View>
 
@@ -232,7 +248,7 @@ export default function EditProfile() {
                 setFormData(prev => ({ ...prev, location: text }));
               }}
               placeholder="Enter your location"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={COLORS.textLight}
               multiline
             />
           </View>
@@ -266,18 +282,18 @@ export default function EditProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.bg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.bg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#64748B',
+    color: COLORS.textLight,
   },
   header: {
     flexDirection: 'row',
@@ -286,8 +302,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 16,
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     width: 40,
@@ -297,7 +314,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: COLORS.text,
   },
   scrollView: {
     flex: 1,
@@ -311,18 +328,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
+    color: COLORS.text,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: '#1E293B',
-    backgroundColor: '#F8FAFC',
+    color: COLORS.text,
+    backgroundColor: COLORS.card,
   },
   locationInput: {
     minHeight: 60,
@@ -340,47 +357,50 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.card,
   },
   genderOptionActive: {
-    borderColor: '#22C55E',
-    backgroundColor: '#F0FDF4',
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.softPink,
   },
   genderText: {
     fontSize: 14,
-    color: '#64748B',
+    color: COLORS.textLight,
   },
   genderTextActive: {
-    color: '#22C55E',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   debugContainer: {
     marginTop: 20,
     padding: 12,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
+    backgroundColor: COLORS.softBlue,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   debugTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: COLORS.text,
     marginBottom: 8,
   },
   debugText: {
     fontSize: 11,
-    color: '#64748B',
+    color: COLORS.textLight,
     fontFamily: 'monospace',
   },
   footer: {
     padding: 20,
     paddingBottom: 32,
+    backgroundColor: COLORS.card,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: COLORS.border,
   },
   saveButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

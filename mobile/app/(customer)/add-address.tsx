@@ -190,7 +190,7 @@ export default function AddAddress() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading address...</Text>
       </View>
     );
@@ -226,7 +226,7 @@ export default function AddAddress() {
                   <Ionicons
                     name={type === "home" ? "home" : type === "work" ? "briefcase" : "location"}
                     size={18}
-                    color={formData.type === type ? "#22C55E" : "#94A3B8"}
+                    color={formData.type === type ? "#DC2626" : "#94A3B8"}
                   />
                   <Text style={[styles.typeText, formData.type === type && styles.typeTextActive]}>
                     {type === "home" ? "Home" : type === "work" ? "Work" : "Other"}
@@ -339,7 +339,7 @@ export default function AddAddress() {
             <Ionicons
               name={formData.isDefault ? "checkbox" : "square-outline"}
               size={22}
-              color={formData.isDefault ? "#22C55E" : "#94A3B8"}
+              color={formData.isDefault ? "#DC2626" : "#94A3B8"}
             />
             <Text style={styles.defaultText}>Set as default address</Text>
           </TouchableOpacity>
@@ -422,9 +422,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#F8FAFC",
   },
-  typeOptionActive: { borderColor: "#22C55E", backgroundColor: "#F0FDF4" },
+  typeOptionActive: { borderColor: "#DC2626", backgroundColor: "#FEE2E2" },
   typeText: { fontSize: 14, color: "#64748B" },
-  typeTextActive: { color: "#22C55E", fontWeight: "700" },
+  typeTextActive: { color: "#DC2626", fontWeight: "700" },
 
   row: { flexDirection: "row" },
 
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#F1F5F9",
   },
   saveButton: {
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",

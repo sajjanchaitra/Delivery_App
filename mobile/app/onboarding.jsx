@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.5)",
   },
   dotActive: {
-    backgroundColor: "#22C55E",
+    backgroundColor: "#E63946",
     width: 28,
   },
   contentContainer: {
@@ -208,13 +208,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#1E3A8A",
     lineHeight: 42,
     marginBottom: 16,
   },
   description: {
     fontSize: 15,
-    color: "#64748B",
+    color: "#6B7280",
     lineHeight: 24,
     marginBottom: 32,
   },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     flex: 1,
-    backgroundColor: "#1E293B",
+    backgroundColor: "#1E3A8A",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   getStartedButton: {
     flex: 1,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#E63946",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -254,10 +254,10 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    color: "#64748B",
+    color: "#6B7280",
   },
   loginLink: {
-    color: "#22C55E",
+    color: "#E63946",
     fontWeight: "600",
   },
 });

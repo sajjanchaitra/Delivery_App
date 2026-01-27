@@ -137,7 +137,7 @@ export default function AddressesScreen() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading addresses...</Text>
       </View>
     );
@@ -167,8 +167,8 @@ export default function AddressesScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#22C55E"]}
-            tintColor="#22C55E"
+            colors={["#DC2626"]}
+            tintColor="#DC2626"
           />
         }
       >
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: "#94A3B8", marginTop: 12 },
   bigAddBtn: {
     marginTop: 16,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 12,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addrTitle: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
-  defaultTag: { fontSize: 13, fontWeight: "700", color: "#22C55E" },
+  defaultTag: { fontSize: 13, fontWeight: "700", color: "#DC2626" },
 
   addrText: { marginTop: 8, fontSize: 13, color: "#475569" },
   addrSub: { marginTop: 6, fontSize: 12, color: "#94A3B8" },
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
 
   actionBtn: {
     flex: 1,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: "center",
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   actionBtnOutline: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#22C55E",
+    borderColor: "#DC2626",
   },
-  actionBtnTextOutline: { color: "#22C55E" },
+  actionBtnTextOutline: { color: "#DC2626" },
 });

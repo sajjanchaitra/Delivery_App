@@ -40,7 +40,7 @@ export default function OrderSuccessScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor="#DC2626" />
 
       {/* Success Header */}
       <View style={styles.successHeader}>
@@ -78,8 +78,8 @@ export default function OrderSuccessScreen() {
           <Text style={styles.nextTitle}>What happens next?</Text>
 
           <View style={styles.nextItem}>
-            <View style={[styles.nextIcon, { backgroundColor: "#DCFCE7" }]}>
-              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+            <View style={[styles.nextIcon, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="checkmark-circle" size={20} color="#DC2626" />
             </View>
             <View style={styles.nextContent}>
               <Text style={styles.nextItemTitle}>Order Confirmed</Text>
@@ -98,8 +98,8 @@ export default function OrderSuccessScreen() {
           </View>
 
           <View style={styles.nextItem}>
-            <View style={[styles.nextIcon, { backgroundColor: "#DBEAFE" }]}>
-              <Ionicons name="bicycle" size={20} color="#3B82F6" />
+            <View style={[styles.nextIcon, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="bicycle" size={20} color="#DC2626" />
             </View>
             <View style={styles.nextContent}>
               <Text style={styles.nextItemTitle}>Out for Delivery</Text>
@@ -108,8 +108,8 @@ export default function OrderSuccessScreen() {
           </View>
 
           <View style={styles.nextItem}>
-            <View style={[styles.nextIcon, { backgroundColor: "#F3E8FF" }]}>
-              <Ionicons name="home" size={20} color="#8B5CF6" />
+            <View style={[styles.nextIcon, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="home" size={20} color="#DC2626" />
             </View>
             <View style={styles.nextContent}>
               <Text style={styles.nextItemTitle}>Delivered</Text>
@@ -126,7 +126,7 @@ export default function OrderSuccessScreen() {
             <Text style={styles.helpSubtitle}>Contact us for any queries about your order</Text>
           </View>
           <TouchableOpacity style={styles.helpButton}>
-            <Ionicons name="chatbubble-outline" size={20} color="#22C55E" />
+            <Ionicons name="chatbubble-outline" size={20} color="#DC2626" />
           </TouchableOpacity>
         </View>
 
@@ -149,7 +149,7 @@ export default function OrderSuccessScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.homeButton} onPress={() => router.replace("/(customer)/home" as any)}>
-          <Ionicons name="home" size={20} color="#22C55E" />
+          <Ionicons name="home" size={20} color="#DC2626" />
           <Text style={styles.homeText}>Go to Home</Text>
         </TouchableOpacity>
       </View>
@@ -159,7 +159,7 @@ export default function OrderSuccessScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC" },
-  successHeader: { backgroundColor: "#22C55E", paddingTop: 60, paddingBottom: 40, alignItems: "center" },
+  successHeader: { backgroundColor: "#DC2626", paddingTop: 60, paddingBottom: 40, alignItems: "center" },
   successIconContainer: { marginBottom: 20 },
   successTitle: { fontSize: 26, fontWeight: "700", color: "#FFFFFF", textAlign: "center", marginBottom: 8 },
   successSubtitle: { fontSize: 15, color: "rgba(255,255,255,0.9)", textAlign: "center" },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   orderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   orderLabel: { fontSize: 14, color: "#64748B" },
   orderValue: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
-  orderAmount: { fontSize: 20, fontWeight: "700", color: "#22C55E" },
+  orderAmount: { fontSize: 20, fontWeight: "700", color: "#DC2626" },
   nextCard: { backgroundColor: "#FFFFFF", borderRadius: 12, padding: 20, marginBottom: 16 },
   nextTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B", marginBottom: 16 },
   nextItem: { flexDirection: "row", alignItems: "flex-start", marginBottom: 16 },
@@ -181,10 +181,10 @@ const styles = StyleSheet.create({
   helpText: { flex: 1 },
   helpTitle: { fontSize: 15, fontWeight: "600", color: "#1E293B", marginBottom: 2 },
   helpSubtitle: { fontSize: 13, color: "#94A3B8" },
-  helpButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#F0FDF4", justifyContent: "center", alignItems: "center" },
+  helpButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: "#FFFFFF", paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: "#F1F5F9", gap: 12 },
-  trackButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14, gap: 8 },
+  trackButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#DC2626", borderRadius: 12, paddingVertical: 14, gap: 8 },
   trackText: { fontSize: 15, fontWeight: "600", color: "#FFFFFF" },
-  homeButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F0FDF4", borderRadius: 12, paddingVertical: 14, gap: 8, borderWidth: 1, borderColor: "#BBF7D0" },
-  homeText: { fontSize: 15, fontWeight: "600", color: "#22C55E" },
+  homeButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEE2E2", borderRadius: 12, paddingVertical: 14, gap: 8, borderWidth: 1, borderColor: "#FCA5A5" },
+  homeText: { fontSize: 15, fontWeight: "600", color: "#DC2626" },
 });

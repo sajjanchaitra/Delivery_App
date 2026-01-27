@@ -193,7 +193,7 @@ export default function CartScreen() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading cart...</Text>
       </View>
     );
@@ -241,7 +241,7 @@ export default function CartScreen() {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCart(); }} colors={["#22C55E"]} />
+              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCart(); }} colors={["#DC2626"]} />
             }
           >
             {cart.store ? (
@@ -249,7 +249,7 @@ export default function CartScreen() {
                 style={styles.storeCard}
                 onPress={() => router.push({ pathname: "/(customer)/store-details", params: { storeId: cart.store!._id } } as any)}
               >
-                <Ionicons name="storefront" size={20} color="#22C55E" />
+                <Ionicons name="storefront" size={20} color="#DC2626" />
                 <Text style={styles.storeCardName}>{cart.store.name}</Text>
                 <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
               </TouchableOpacity>
@@ -288,7 +288,7 @@ export default function CartScreen() {
 
                       <View style={styles.quantityControl}>
                         {isUpdating ? (
-                          <ActivityIndicator size="small" color="#22C55E" />
+                          <ActivityIndicator size="small" color="#DC2626" />
                         ) : (
                           <>
                             <TouchableOpacity style={styles.qtyButton} onPress={() => updateQuantity(item.product._id, item.quantity - 1)}>
@@ -372,9 +372,9 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
   emptyTitle: { fontSize: 20, fontWeight: "700", color: "#1E293B", marginTop: 16 },
   emptyText: { fontSize: 14, color: "#64748B", textAlign: "center", marginTop: 8 },
-  loginButton: { marginTop: 24, backgroundColor: "#22C55E", paddingHorizontal: 40, paddingVertical: 14, borderRadius: 12 },
+  loginButton: { marginTop: 24, backgroundColor: "#DC2626", paddingHorizontal: 40, paddingVertical: 14, borderRadius: 12 },
   loginButtonText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
-  shopButton: { marginTop: 24, backgroundColor: "#22C55E", paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
+  shopButton: { marginTop: 24, backgroundColor: "#DC2626", paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
   shopButtonText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
   scrollView: { flex: 1 },
   storeCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", marginHorizontal: 16, marginTop: 16, padding: 14, borderRadius: 12, gap: 10 },
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 14, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
   itemUnit: { fontSize: 12, color: "#94A3B8", marginBottom: 4 },
   itemPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  itemPrice: { fontSize: 15, fontWeight: "700", color: "#22C55E" },
+  itemPrice: { fontSize: 15, fontWeight: "700", color: "#DC2626" },
   itemOriginalPrice: { fontSize: 12, color: "#94A3B8", textDecorationLine: "line-through" },
   itemActions: { alignItems: "flex-end", justifyContent: "space-between" },
   removeButton: { padding: 4 },
@@ -399,17 +399,17 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   summaryLabel: { fontSize: 14, color: "#64748B" },
   summaryValue: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
-  savingsLabel: { fontSize: 14, color: "#22C55E" },
-  savingsValue: { fontSize: 14, fontWeight: "600", color: "#22C55E" },
-  freeDelivery: { color: "#22C55E" },
+  savingsLabel: { fontSize: 14, color: "#DC2626" },
+  savingsValue: { fontSize: 14, fontWeight: "600", color: "#DC2626" },
+  freeDelivery: { color: "#DC2626" },
   freeDeliveryHint: { fontSize: 12, color: "#F59E0B", backgroundColor: "#FEF3C7", padding: 8, borderRadius: 6, marginBottom: 12, textAlign: "center" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
   totalLabel: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-  totalValue: { fontSize: 20, fontWeight: "700", color: "#22C55E" },
+  totalValue: { fontSize: 20, fontWeight: "700", color: "#DC2626" },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 28, borderTopWidth: 1, borderTopColor: "#F1F5F9", gap: 16 },
   bottomTotal: { alignItems: "flex-start" },
   bottomTotalLabel: { fontSize: 12, color: "#64748B" },
   bottomTotalValue: { fontSize: 20, fontWeight: "700", color: "#1E293B" },
-  checkoutButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14, gap: 8 },
+  checkoutButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#DC2626", borderRadius: 12, paddingVertical: 14, gap: 8 },
   checkoutText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
 });

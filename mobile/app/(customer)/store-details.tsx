@@ -395,7 +395,7 @@ export default function StoreDetails() {
   if (loading && !store) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading store...</Text>
       </View>
     );
@@ -422,8 +422,8 @@ export default function StoreDetails() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.headerGradient}>
+      <StatusBar barStyle="light-content" backgroundColor="#DC2626" />
+      <LinearGradient colors={["#DC2626", "#B91C1C"]} style={styles.headerGradient}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -445,7 +445,7 @@ export default function StoreDetails() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={() => loadingMore ? (
-          <View style={styles.loadingMore}><ActivityIndicator size="small" color="#22C55E" /></View>
+          <View style={styles.loadingMore}><ActivityIndicator size="small" color="#DC2626" /></View>
         ) : <View style={{ height: 100 }} />}
         ListEmptyComponent={!loading ? (
           <View style={styles.emptyProducts}>
@@ -455,7 +455,7 @@ export default function StoreDetails() {
         ) : null}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#22C55E"]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#DC2626"]} />}
       />
 
       {showSortModal && (
@@ -471,7 +471,7 @@ export default function StoreDetails() {
                 <Text style={[styles.sortOptionText, sortBy === option && styles.sortOptionTextActive]}>
                   {getSortLabel(option)}
                 </Text>
-                {sortBy === option && <Ionicons name="checkmark" size={20} color="#22C55E" />}
+                {sortBy === option && <Ionicons name="checkmark" size={20} color="#DC2626" />}
               </TouchableOpacity>
             ))}
           </View>
@@ -497,9 +497,9 @@ const styles = StyleSheet.create({
   storeInfoContainer: { padding: 16 },
   storeHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   storeName: { fontSize: 20, fontWeight: "700", color: "#1E293B", flex: 1 },
-  openBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
-  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E" },
-  openText: { fontSize: 12, fontWeight: "600", color: "#22C55E" },
+  openBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEE2E2", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#DC2626" },
+  openText: { fontSize: 12, fontWeight: "600", color: "#DC2626" },
   addressRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: 12 },
   storeAddress: { fontSize: 14, color: "#64748B", flex: 1 },
   storeMetaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
@@ -512,11 +512,11 @@ const styles = StyleSheet.create({
   topProductCard: { width: 100, alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 10, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
   topProductImage: { width: 70, height: 70, borderRadius: 8, resizeMode: "cover", marginBottom: 8 },
   topProductName: { fontSize: 12, fontWeight: "500", color: "#1E293B", textAlign: "center" },
-  topProductPrice: { fontSize: 13, fontWeight: "700", color: "#22C55E", marginTop: 4 },
+  topProductPrice: { fontSize: 13, fontWeight: "700", color: "#DC2626", marginTop: 4 },
   categorySection: { marginTop: 20, paddingVertical: 12 },
   categoriesContainer: { paddingHorizontal: 16, gap: 8 },
   categoryChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", marginRight: 8 },
-  categoryChipActive: { backgroundColor: "#22C55E", borderColor: "#22C55E" },
+  categoryChipActive: { backgroundColor: "#DC2626", borderColor: "#DC2626" },
   categoryChipText: { fontSize: 14, fontWeight: "500", color: "#64748B" },
   categoryChipTextActive: { color: "#FFFFFF", fontWeight: "600" },
   filterBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
@@ -537,9 +537,9 @@ const styles = StyleSheet.create({
   productUnit: { fontSize: 12, color: "#94A3B8", marginBottom: 8 },
   productFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   priceContainer: { flexDirection: "row", alignItems: "center", gap: 4 },
-  productPrice: { fontSize: 16, fontWeight: "700", color: "#22C55E" },
+  productPrice: { fontSize: 16, fontWeight: "700", color: "#DC2626" },
   originalPrice: { fontSize: 12, color: "#94A3B8", textDecorationLine: "line-through" },
-  addButton: { width: 32, height: 32, borderRadius: 8, backgroundColor: "#22C55E", justifyContent: "center", alignItems: "center" },
+  addButton: { width: 32, height: 32, borderRadius: 8, backgroundColor: "#DC2626", justifyContent: "center", alignItems: "center" },
   loadingMore: { paddingVertical: 20, alignItems: "center" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
   emptyProducts: { alignItems: "center", paddingVertical: 60 },
@@ -550,5 +550,5 @@ const styles = StyleSheet.create({
   sortModalTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B", marginBottom: 16 },
   sortOption: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   sortOptionText: { fontSize: 16, color: "#64748B" },
-  sortOptionTextActive: { color: "#22C55E", fontWeight: "600" },
+  sortOptionTextActive: { color: "#DC2626", fontWeight: "600" },
 });

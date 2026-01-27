@@ -123,7 +123,7 @@ export default function ProductDetails() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>{"Loading product..."}</Text>
       </View>
     );
@@ -228,7 +228,7 @@ export default function ProductDetails() {
               onPress={() => router.push({ pathname: "/(customer)/store-details", params: { storeId: product.store!._id } } as any)}
             >
               <View style={styles.storeIcon}>
-                <Ionicons name="storefront" size={24} color="#22C55E" />
+                <Ionicons name="storefront" size={24} color="#DC2626" />
               </View>
               <View style={styles.storeInfo}>
                 <Text style={styles.storeName}>{product.store.name}</Text>
@@ -324,27 +324,27 @@ const styles = StyleSheet.create({
   outOfStockText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
   thumbnailContainer: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   thumbnail: { width: 60, height: 60, borderRadius: 8, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
-  thumbnailActive: { borderColor: "#22C55E" },
+  thumbnailActive: { borderColor: "#DC2626" },
   thumbnailImage: { width: "100%", height: "100%", resizeMode: "cover" },
   productInfo: { padding: 20 },
   productName: { fontSize: 22, fontWeight: "700", color: "#1E293B", marginBottom: 8 },
   productUnit: { fontSize: 14, color: "#64748B", marginBottom: 12 },
   priceRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 },
-  currentPrice: { fontSize: 28, fontWeight: "700", color: "#22C55E" },
+  currentPrice: { fontSize: 28, fontWeight: "700", color: "#DC2626" },
   originalPrice: { fontSize: 18, color: "#94A3B8", textDecorationLine: "line-through" },
   saveBadge: { backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   saveText: { fontSize: 12, fontWeight: "600", color: "#D97706" },
   stockText: { fontSize: 14, color: "#F59E0B", marginBottom: 16 },
   storeCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, padding: 14, marginBottom: 20 },
-  storeIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center" },
+  storeIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" },
   storeInfo: { flex: 1, marginLeft: 12 },
   storeName: { fontSize: 16, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
   storeMetaRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   ratingRow: { flexDirection: "row", alignItems: "center" },
   storeRating: { fontSize: 13, fontWeight: "500", color: "#1E293B", marginLeft: 4 },
   openIndicator: { flexDirection: "row", alignItems: "center", gap: 4 },
-  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E" },
-  openText: { fontSize: 12, color: "#22C55E", fontWeight: "500" },
+  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#DC2626" },
+  openText: { fontSize: 12, color: "#DC2626", fontWeight: "500" },
   descriptionSection: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B", marginBottom: 8 },
   descriptionText: { fontSize: 14, color: "#64748B", lineHeight: 22 },
@@ -358,8 +358,8 @@ const styles = StyleSheet.create({
   quantitySelector: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1F5F9", borderRadius: 10, paddingHorizontal: 4 },
   quantityButton: { width: 36, height: 36, justifyContent: "center", alignItems: "center" },
   quantityText: { fontSize: 16, fontWeight: "600", color: "#1E293B", paddingHorizontal: 12 },
-  addToCartButton: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14 },
-  addToCartButtonDisabled: { backgroundColor: "#86EFAC" },
+  addToCartButton: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#DC2626", borderRadius: 12, paddingVertical: 14 },
+  addToCartButtonDisabled: { backgroundColor: "#FCA5A5" },
   addToCartContent: { flexDirection: "row", alignItems: "center", gap: 8 },
   addToCartText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
 });

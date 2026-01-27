@@ -30,19 +30,19 @@ const SHOP_CARD_WIDTH = (width - 52) / 2;
 const PRODUCT_CARD_WIDTH = 170;
 
 const COLORS = {
-  primary: "#1E5EFF",
-  secondary: "#FF2D55",
-  danger: "#EF4444",
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
   success: "#22C55E",
 
-  bg: "#F5F8FF",
+  bg: "#F8FAFC",
   card: "#FFFFFF",
   text: "#1E293B",
   textLight: "#64748B",
   border: "#E2E8F0",
 
-  softBlue: "#EAF1FF",
-  softPink: "#FFE9EE",
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
 };
 
 const FIXED_CATEGORIES = [
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.softBlue,
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
 
   bannerCard: {
     width: width - 40,
-    borderRadius: 1,
+    borderRadius: 16,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -775,8 +775,8 @@ const styles = StyleSheet.create({
   storeBadges: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", justifyContent: "space-between" },
   deliveryBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.7)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   deliveryText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  statusBadge: { backgroundColor: "#22C55E", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  closedBadge: { backgroundColor: "#EF4444" },
+  statusBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  closedBadge: { backgroundColor: "#64748B" },
   statusText: { color: "#fff", fontSize: 10, fontWeight: "900" },
 
   storeInfo: { padding: 12 },
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
   },
-  bottomToastSuccess: { backgroundColor: COLORS.success },
+  bottomToastSuccess: { backgroundColor: COLORS.primary },
   bottomToastError: { backgroundColor: COLORS.danger },
   bottomToastText: { flex: 1, fontSize: 14, fontWeight: "900", color: "#fff" },
 });

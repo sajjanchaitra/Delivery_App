@@ -189,15 +189,15 @@ export default function OrderDetailsScreen() {
   const getStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
       pending: "#F59E0B",
-      confirmed: "#3B82F6",
-      preparing: "#8B5CF6",
-      ready: "#06B6D4",
-      assigned: "#0EA5E9",
-      picked_up: "#14B8A6",
-      on_the_way: "#10B981",
-      delivered: "#22C55E",
-      cancelled: "#EF4444",
-      refunded: "#EF4444",
+      confirmed: "#DC2626",
+      preparing: "#DC2626",
+      ready: "#DC2626",
+      assigned: "#DC2626",
+      picked_up: "#DC2626",
+      on_the_way: "#DC2626",
+      delivered: "#DC2626",
+      cancelled: "#64748B",
+      refunded: "#64748B",
     };
     return colors[status] || "#94A3B8";
   };
@@ -265,7 +265,7 @@ export default function OrderDetailsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading order...</Text>
       </View>
     );
@@ -311,7 +311,7 @@ export default function OrderDetailsScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrderDetails(); }} colors={["#22C55E"]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrderDetails(); }} colors={["#DC2626"]} />}
       >
         {/* Order Status Card */}
         <View style={styles.statusCard}>
@@ -351,7 +351,7 @@ export default function OrderDetailsScreen() {
 
           {order.status === "cancelled" && order.cancellationReason && (
             <View style={styles.cancellationReason}>
-              <Ionicons name="information-circle" size={16} color="#EF4444" />
+              <Ionicons name="information-circle" size={16} color="#64748B" />
               <Text style={styles.cancellationText}>Reason: {order.cancellationReason}</Text>
             </View>
           )}
@@ -373,7 +373,7 @@ export default function OrderDetailsScreen() {
             </View>
             {order.store?.phone && (
               <TouchableOpacity style={styles.callButton} onPress={callStore}>
-                <Ionicons name="call" size={20} color="#22C55E" />
+                <Ionicons name="call" size={20} color="#DC2626" />
               </TouchableOpacity>
             )}
           </View>
@@ -393,7 +393,7 @@ export default function OrderDetailsScreen() {
               </View>
               {order.deliveryPartner.phone && (
                 <TouchableOpacity style={styles.callButton} onPress={callDeliveryPartner}>
-                  <Ionicons name="call" size={20} color="#22C55E" />
+                  <Ionicons name="call" size={20} color="#DC2626" />
                 </TouchableOpacity>
               )}
             </View>
@@ -420,7 +420,7 @@ export default function OrderDetailsScreen() {
           <Text style={styles.sectionTitle}>Delivery Address</Text>
           <View style={styles.addressCard}>
             <View style={styles.addressIconContainer}>
-              <Ionicons name="location" size={20} color="#22C55E" />
+              <Ionicons name="location" size={20} color="#DC2626" />
             </View>
             <View style={styles.addressInfo}>
               <Text style={styles.addressLabel}>{order.customerName}</Text>
@@ -546,34 +546,34 @@ const styles = StyleSheet.create({
   stepWrapper: { position: "relative" },
   stepItem: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   stepIconContainer: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 12 },
-  stepIconCompleted: { backgroundColor: "#22C55E" },
-  stepIconCurrent: { backgroundColor: "#22C55E", borderWidth: 3, borderColor: "#BBF7D0" },
+  stepIconCompleted: { backgroundColor: "#DC2626" },
+  stepIconCurrent: { backgroundColor: "#DC2626", borderWidth: 3, borderColor: "#FEE2E2" },
   stepTextContainer: { flex: 1 },
   stepName: { fontSize: 14, color: "#94A3B8" },
   stepNameCompleted: { color: "#1E293B", fontWeight: "600" },
-  stepTime: { fontSize: 12, color: "#22C55E", marginTop: 2 },
+  stepTime: { fontSize: 12, color: "#DC2626", marginTop: 2 },
   stepLine: { width: 2, height: 16, backgroundColor: "#E2E8F0", marginLeft: 17, marginBottom: 4 },
-  stepLineCompleted: { backgroundColor: "#22C55E" },
+  stepLineCompleted: { backgroundColor: "#DC2626" },
   cancellationReason: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF2F2", padding: 12, borderRadius: 8, marginTop: 12, gap: 8 },
-  cancellationText: { fontSize: 13, color: "#EF4444", flex: 1 },
+  cancellationText: { fontSize: 13, color: "#64748B", flex: 1 },
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B", marginBottom: 12 },
   storeCard: { flexDirection: "row", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, alignItems: "center" },
   storeImage: { width: 56, height: 56, borderRadius: 8, resizeMode: "cover" },
-  deliveryAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#22C55E", justifyContent: "center", alignItems: "center" },
+  deliveryAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#DC2626", justifyContent: "center", alignItems: "center" },
   storeInfo: { flex: 1, marginLeft: 12 },
   storeName: { fontSize: 15, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
   storeMetaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   storeMetaText: { fontSize: 13, color: "#64748B" },
-  callButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#F0FDF4", justifyContent: "center", alignItems: "center" },
+  callButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" },
   itemCard: { flexDirection: "row", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 8, alignItems: "center" },
   itemImage: { width: 50, height: 50, borderRadius: 8, resizeMode: "cover" },
   itemInfo: { flex: 1, marginLeft: 12 },
   itemName: { fontSize: 14, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
   itemPrice: { fontSize: 12, color: "#64748B" },
-  itemTotal: { fontSize: 15, fontWeight: "700", color: "#22C55E" },
+  itemTotal: { fontSize: 15, fontWeight: "700", color: "#DC2626" },
   addressCard: { flexDirection: "row", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 16 },
-  addressIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F0FDF4", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  addressIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginRight: 12 },
   addressInfo: { flex: 1 },
   addressLabel: { fontSize: 14, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
   addressText: { fontSize: 13, color: "#64748B", lineHeight: 20 },
@@ -584,21 +584,21 @@ const styles = StyleSheet.create({
   paymentRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   paymentLabel: { fontSize: 14, color: "#64748B" },
   paymentValue: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
-  freeText: { color: "#22C55E" },
-  discountLabel: { color: "#22C55E" },
-  discountValue: { color: "#22C55E" },
+  freeText: { color: "#DC2626" },
+  discountLabel: { color: "#DC2626" },
+  discountValue: { color: "#DC2626" },
   divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 8 },
   totalLabel: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-  totalValue: { fontSize: 18, fontWeight: "700", color: "#22C55E" },
+  totalValue: { fontSize: 18, fontWeight: "700", color: "#DC2626" },
   paymentMethodRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
   paymentMethodText: { fontSize: 13, color: "#64748B" },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: "#FFFFFF", paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: "#F1F5F9", gap: 12 },
   cancelButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEF2F2", borderRadius: 12, paddingVertical: 14, gap: 8, borderWidth: 1, borderColor: "#FECACA" },
   cancelText: { fontSize: 15, fontWeight: "600", color: "#EF4444" },
-  trackButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14, gap: 8 },
+  trackButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#DC2626", borderRadius: 12, paddingVertical: 14, gap: 8 },
   trackText: { fontSize: 15, fontWeight: "600", color: "#FFFFFF" },
   supportButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingVertical: 14, gap: 8, borderWidth: 1, borderColor: "#E2E8F0" },
   supportText: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
-  reorderButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#22C55E", borderRadius: 12, paddingVertical: 14, gap: 8 },
+  reorderButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#DC2626", borderRadius: 12, paddingVertical: 14, gap: 8 },
   reorderText: { fontSize: 15, fontWeight: "600", color: "#FFFFFF" },
 });

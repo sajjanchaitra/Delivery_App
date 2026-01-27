@@ -46,8 +46,7 @@ interface Product {
 export default function SearchScreen() {
   const router = useRouter();
   const searchInputRef = useRef<TextInput>(null);
- const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -201,7 +200,7 @@ export default function SearchScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#22C55E" />
+            <ActivityIndicator size="large" color="#DC2626" />
             <Text style={styles.loadingText}>Searching...</Text>
           </View>
         )}
@@ -349,14 +348,14 @@ const styles = StyleSheet.create({
   section: { padding: 16 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-  clearText: { fontSize: 14, color: "#22C55E", fontWeight: "500" },
+  clearText: { fontSize: 14, color: "#DC2626", fontWeight: "500" },
   recentItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   recentText: { flex: 1, fontSize: 14, color: "#1E293B", marginLeft: 12 },
   tabsContainer: { flexDirection: "row", marginHorizontal: 16, marginBottom: 16, borderBottomWidth: 2, borderBottomColor: "#F1F5F9" },
   tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: "#22C55E", marginBottom: -2 },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: "#DC2626", marginBottom: -2 },
   tabText: { fontSize: 14, fontWeight: "500", color: "#94A3B8" },
-  tabTextActive: { color: "#22C55E", fontWeight: "700" },
+  tabTextActive: { color: "#DC2626", fontWeight: "700" },
   productsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", paddingHorizontal: 16 },
   productCard: { width: PRODUCT_CARD_WIDTH, marginBottom: 16, backgroundColor: "#FFFFFF", borderRadius: 12, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
   productImageContainer: { width: "100%", height: 130, position: "relative" },
@@ -367,8 +366,8 @@ const styles = StyleSheet.create({
   productName: { fontSize: 13, fontWeight: "600", color: "#1E293B", marginBottom: 4, minHeight: 32 },
   storeName: { fontSize: 11, color: "#64748B", marginBottom: 8 },
   productFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  productPrice: { fontSize: 15, fontWeight: "700", color: "#22C55E" },
-  addButton: { width: 28, height: 28, borderRadius: 8, backgroundColor: "#22C55E", justifyContent: "center", alignItems: "center" },
+  productPrice: { fontSize: 15, fontWeight: "700", color: "#DC2626" },
+  addButton: { width: 28, height: 28, borderRadius: 8, backgroundColor: "#DC2626", justifyContent: "center", alignItems: "center" },
   storesList: { paddingHorizontal: 16 },
   storeCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, marginBottom: 12 },
   storeImage: { width: 60, height: 60, borderRadius: 8, resizeMode: "cover" },

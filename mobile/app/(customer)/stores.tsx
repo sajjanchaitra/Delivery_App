@@ -66,7 +66,7 @@ export default function StoresScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading stores...</Text>
       </View>
     );
@@ -84,7 +84,7 @@ export default function StoresScreen() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#DC2626"]} />}
       >
         {stores.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -211,8 +211,8 @@ const styles = StyleSheet.create({
 
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  openBadge: { backgroundColor: "#DCFCE7" },
-  closedBadge: { backgroundColor: "#FEE2E2" },
+  openBadge: { backgroundColor: "#FEE2E2" },
+  closedBadge: { backgroundColor: "#F1F5F9" },
   badgeText: { fontSize: 11, fontWeight: "700", color: "#0F172A" },
 
   ratingBadge: { flexDirection: "row", alignItems: "center", gap: 4 },

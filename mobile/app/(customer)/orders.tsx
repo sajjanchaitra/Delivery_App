@@ -80,15 +80,15 @@ export default function OrdersScreen() {
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "delivered": return "#22C55E";
-      case "confirmed": return "#3B82F6";
+      case "delivered": return "#DC2626";
+      case "confirmed": return "#DC2626";
       case "preparing": return "#F59E0B";
-      case "ready": return "#8B5CF6";
+      case "ready": return "#DC2626";
       case "assigned":
       case "picked_up":
-      case "on_the_way": return "#06B6D4";
+      case "on_the_way": return "#DC2626";
       case "cancelled":
-      case "refunded": return "#EF4444";
+      case "refunded": return "#64748B";
       default: return "#94A3B8";
     }
   };
@@ -129,7 +129,7 @@ export default function OrdersScreen() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Loading orders...</Text>
       </View>
     );
@@ -167,7 +167,7 @@ export default function OrdersScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} colors={["#22C55E"]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} colors={["#DC2626"]} />}
       >
         {filteredOrders.map((order) => (
           <TouchableOpacity
@@ -212,7 +212,7 @@ export default function OrdersScreen() {
             <View style={styles.orderFooter}>
               {order.status === "delivered" && (
                 <TouchableOpacity style={styles.reorderButton}>
-                  <Ionicons name="refresh" size={16} color="#22C55E" />
+                  <Ionicons name="refresh" size={16} color="#DC2626" />
                   <Text style={styles.reorderText}>Reorder</Text>
                 </TouchableOpacity>
               )}
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   tabsContainer: { backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   tabs: { paddingHorizontal: 20, paddingVertical: 12, gap: 12 },
   tab: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F8FAFC" },
-  tabActive: { backgroundColor: "#22C55E" },
+  tabActive: { backgroundColor: "#DC2626" },
   tabText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
   tabTextActive: { color: "#FFFFFF" },
   scrollView: { flex: 1 },
@@ -284,15 +284,15 @@ const styles = StyleSheet.create({
   itemCount: { fontSize: 12, color: "#64748B" },
   orderAmount: { alignItems: "flex-end", justifyContent: "center" },
   totalLabel: { fontSize: 11, color: "#94A3B8", marginBottom: 4 },
-  totalAmount: { fontSize: 18, fontWeight: "700", color: "#22C55E" },
+  totalAmount: { fontSize: 18, fontWeight: "700", color: "#DC2626" },
   orderFooter: { flexDirection: "row", gap: 12 },
-  reorderButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F0FDF4", borderRadius: 8, paddingVertical: 10, gap: 6 },
-  reorderText: { fontSize: 14, fontWeight: "600", color: "#22C55E" },
+  reorderButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEE2E2", borderRadius: 8, paddingVertical: 10, gap: 6 },
+  reorderText: { fontSize: 14, fontWeight: "600", color: "#DC2626" },
   detailsButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F8FAFC", borderRadius: 8, paddingVertical: 10, gap: 6 },
   detailsText: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
   emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 80 },
   emptyTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B", marginTop: 16, marginBottom: 8 },
   emptyText: { fontSize: 14, color: "#94A3B8", textAlign: "center" },
-  shopButton: { marginTop: 24, backgroundColor: "#22C55E", paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
+  shopButton: { marginTop: 24, backgroundColor: "#DC2626", paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
   shopButtonText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
 });

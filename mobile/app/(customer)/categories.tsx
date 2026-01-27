@@ -24,7 +24,7 @@ const PRODUCT_CARD_WIDTH = (width - 52) / 2;
 const API_URL = "http://13.203.206.134:5000";
 
 const COLORS = {
-  primary: "#1E5EFF",
+  primary: "#DC2626",
   danger: "#EF4444",
   bg: "#F8FAFC",
   card: "#FFFFFF",
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -8,
     right: -8,
-    backgroundColor: COLORS.danger,
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   toastSuccess: {
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
   },
   toastError: {
     backgroundColor: "#EF4444",

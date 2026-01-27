@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#22C55E",
+    color: "#DC2626",
   },
   originalPrice: {
     fontSize: 12,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   shopButton: {
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,

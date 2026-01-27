@@ -71,7 +71,7 @@ export default function StoreProducts() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color="#DC2626" />
       </View>
     );
   }
@@ -127,7 +127,7 @@ export default function StoreProducts() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#DC2626"]} />
         }
       >
         <Text style={styles.resultText}>
@@ -276,8 +276,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   categoryChipActive: {
-    backgroundColor: "#22C55E",
-    borderColor: "#22C55E",
+    backgroundColor: "#DC2626",
+    borderColor: "#DC2626",
   },
   categoryChipText: {
     fontSize: 14,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#22C55E",
+    color: "#DC2626",
   },
   originalPrice: {
     fontSize: 12,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#DC2626",
     justifyContent: "center",
     alignItems: "center",
   },

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   StatusBar,
   Alert,
 } from "react-native";
@@ -80,6 +79,22 @@ const menuItems: MenuItem[] = [
   },
 ];
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState({
@@ -130,19 +145,13 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.avatarContainer}>
-            <Image 
-              source={{ uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200" }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.editAvatarButton} activeOpacity={0.7}>
-              <Ionicons name="camera" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
+            <Ionicons name="person" size={50} color="#FFFFFF" />
           </View>
           
           <Text style={styles.userName}>{profile.name || 'Guest User'}</Text>
@@ -169,7 +178,7 @@ export default function ProfileScreen() {
               onPress={() => router.push(item.route as any)}
             >
               <View style={styles.menuIconContainer}>
-                <Ionicons name={item.icon as any} size={24} color="#22C55E" />
+                <Ionicons name={item.icon as any} size={24} color={COLORS.primary} />
               </View>
               
               <View style={styles.menuTextContainer}>
@@ -177,7 +186,7 @@ export default function ProfileScreen() {
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
               
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+              <Ionicons name="chevron-forward" size={20} color={COLORS.border} />
             </TouchableOpacity>
           ))}
         </View>
@@ -188,7 +197,7 @@ export default function ProfileScreen() {
           activeOpacity={0.8}
           onPress={handleLogout}
         >
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -204,10 +213,10 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   header: {
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     paddingTop: 50,
     paddingBottom: 30,
     paddingHorizontal: 20,
@@ -216,27 +225,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarContainer: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
-  },
-  editAvatarButton: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#1E293B",
+    backgroundColor: COLORS.secondary,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    marginBottom: 16,
+    borderWidth: 4,
     borderColor: "#FFFFFF",
   },
   userName: {
@@ -261,18 +257,20 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   menuSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     marginHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: COLORS.border,
   },
   menuItemLast: {
     borderBottomWidth: 0,
@@ -281,7 +279,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#F0FDF4",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -292,33 +290,33 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 2,
   },
   menuSubtitle: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: COLORS.textLight,
   },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     marginHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 16,
     gap: 8,
     borderWidth: 1,
-    borderColor: "#FEE2E2",
+    borderColor: COLORS.softPink,
   },
   logoutText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#EF4444",
+    color: COLORS.danger,
   },
   versionText: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: COLORS.textLight,
     textAlign: "center",
     marginTop: 24,
   },
