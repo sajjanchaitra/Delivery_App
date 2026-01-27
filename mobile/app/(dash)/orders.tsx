@@ -20,6 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 interface Order {
   _id: string;
   orderNumber: string;
@@ -151,9 +167,9 @@ export default function AdminOrders() {
       assigned: "#0EA5E9",
       picked_up: "#14B8A6",
       on_the_way: "#10B981",
-      delivered: "#22C55E",
-      cancelled: "#EF4444",
-      refunded: "#EF4444",
+      delivered: COLORS.success,
+      cancelled: COLORS.danger,
+      refunded: COLORS.danger,
     };
     return colors[status] || "#94A3B8";
   };
@@ -199,7 +215,7 @@ export default function AdminOrders() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading orders...</Text>
       </View>
     );
@@ -207,10 +223,10 @@ export default function AdminOrders() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -279,7 +295,7 @@ export default function AdminOrders() {
               setRefreshing(true);
               fetchOrders();
             }}
-            colors={["#22C55E"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -310,22 +326,22 @@ export default function AdminOrders() {
 
               <View style={styles.orderBody}>
                 <View style={styles.orderInfo}>
-                  <Ionicons name="storefront-outline" size={16} color="#64748B" />
+                  <Ionicons name="storefront-outline" size={16} color={COLORS.textLight} />
                   <Text style={styles.orderInfoText}>{order.store?.name || "Store"}</Text>
                 </View>
                 <View style={styles.orderInfo}>
-                  <Ionicons name="person-outline" size={16} color="#64748B" />
+                  <Ionicons name="person-outline" size={16} color={COLORS.textLight} />
                   <Text style={styles.orderInfoText}>{order.customer?.name || "Customer"}</Text>
                 </View>
                 <View style={styles.orderInfo}>
-                  <Ionicons name="cube-outline" size={16} color="#64748B" />
+                  <Ionicons name="cube-outline" size={16} color={COLORS.textLight} />
                   <Text style={styles.orderInfoText}>{order.items?.length || 0} items</Text>
                 </View>
               </View>
 
               <View style={styles.orderFooter}>
                 <View style={styles.paymentInfo}>
-                  <Ionicons name={order.paymentMethod === "cod" ? "cash" : "card"} size={16} color="#64748B" />
+                  <Ionicons name={order.paymentMethod === "cod" ? "cash" : "card"} size={16} color={COLORS.textLight} />
                   <Text style={styles.paymentText}>
                     {order.paymentMethod === "cod" ? "COD" : "Online"} • {order.paymentStatus}
                   </Text>
@@ -346,7 +362,7 @@ export default function AdminOrders() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Order Details</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
 
@@ -420,7 +436,7 @@ export default function AdminOrders() {
                             <Text style={styles.statusButtonText}>Confirm</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={[styles.statusButton, { backgroundColor: "#EF4444" }]}
+                            style={[styles.statusButton, { backgroundColor: COLORS.danger }]}
                             onPress={() => {
                               Alert.alert("Cancel Order", "Are you sure?", [
                                 { text: "No", style: "cancel" },
@@ -453,7 +469,7 @@ export default function AdminOrders() {
                       )}
                       {["ready", "assigned", "picked_up", "on_the_way"].includes(selectedOrder.status) && (
                         <TouchableOpacity
-                          style={[styles.statusButton, { backgroundColor: "#22C55E" }]}
+                          style={[styles.statusButton, { backgroundColor: COLORS.success }]}
                           onPress={() => updateOrderStatus(selectedOrder._id, "delivered")}
                           disabled={updating}
                         >
@@ -473,59 +489,59 @@ export default function AdminOrders() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#64748B" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.bg },
+  loadingText: { marginTop: 12, fontSize: 16, color: COLORS.textLight },
   header: { paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20 },
   headerTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#FFF" },
-  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
-  searchInput: { flex: 1, fontSize: 15, color: "#1E293B" },
-  filtersScroll: { maxHeight: 60, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: COLORS.text },
+  filtersScroll: { maxHeight: 60, backgroundColor: COLORS.card, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   filtersContent: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   filterChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F1F5F9", marginRight: 8, gap: 6 },
-  filterChipActive: { backgroundColor: "#22C55E" },
-  filterText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  filterChipActive: { backgroundColor: COLORS.primary },
+  filterText: { fontSize: 14, fontWeight: "600", color: COLORS.textLight },
   filterTextActive: { color: "#FFF" },
-  filterBadge: { backgroundColor: "#E2E8F0", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  filterBadge: { backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   filterBadgeActive: { backgroundColor: "rgba(255,255,255,0.25)" },
-  filterBadgeText: { fontSize: 12, fontWeight: "700", color: "#64748B" },
+  filterBadgeText: { fontSize: 12, fontWeight: "700", color: COLORS.textLight },
   filterBadgeTextActive: { color: "#FFF" },
   scrollView: { flex: 1, paddingHorizontal: 20, paddingTop: 12 },
   emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
   emptyText: { fontSize: 16, color: "#94A3B8", marginTop: 16 },
-  orderCard: { backgroundColor: "#FFF", borderRadius: 14, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  orderCard: { backgroundColor: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
   orderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
   orderLeft: {},
-  orderNumber: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
+  orderNumber: { fontSize: 15, fontWeight: "700", color: COLORS.text },
   orderTime: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusText: { fontSize: 11, fontWeight: "600", textTransform: "capitalize" },
   orderBody: { gap: 8, marginBottom: 12 },
   orderInfo: { flexDirection: "row", alignItems: "center", gap: 8 },
-  orderInfoText: { fontSize: 13, color: "#64748B" },
+  orderInfoText: { fontSize: 13, color: COLORS.textLight },
   orderFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
   paymentInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
-  paymentText: { fontSize: 12, color: "#64748B", textTransform: "capitalize" },
-  orderTotal: { fontSize: 18, fontWeight: "700", color: "#22C55E" },
+  paymentText: { fontSize: 12, color: COLORS.textLight, textTransform: "capitalize" },
+  orderTotal: { fontSize: 18, fontWeight: "700", color: COLORS.primary },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "85%" },
+  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "85%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text },
   modalBody: { padding: 20 },
   modalOrderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  modalOrderNumber: { fontSize: 18, fontWeight: "700", color: "#22C55E" },
+  modalOrderNumber: { fontSize: 18, fontWeight: "700", color: COLORS.primary },
   modalSection: { marginBottom: 20 },
-  modalSectionTitle: { fontSize: 14, fontWeight: "600", color: "#64748B", marginBottom: 8 },
-  modalText: { fontSize: 14, color: "#1E293B", marginBottom: 4 },
+  modalSectionTitle: { fontSize: 14, fontWeight: "600", color: COLORS.textLight, marginBottom: 8 },
+  modalText: { fontSize: 14, color: COLORS.text, marginBottom: 4 },
   modalTextSmall: { fontSize: 13, color: "#94A3B8" },
   modalItem: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
-  modalItemName: { fontSize: 14, color: "#1E293B" },
-  modalItemPrice: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
+  modalItemName: { fontSize: 14, color: COLORS.text },
+  modalItemPrice: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   modalTotal: { flexDirection: "row", justifyContent: "space-between", paddingTop: 16, borderTopWidth: 1, borderTopColor: "#F1F5F9", marginBottom: 20 },
-  modalTotalLabel: { fontSize: 16, fontWeight: "600", color: "#64748B" },
-  modalTotalAmount: { fontSize: 20, fontWeight: "700", color: "#22C55E" },
+  modalTotalLabel: { fontSize: 16, fontWeight: "600", color: COLORS.textLight },
+  modalTotalAmount: { fontSize: 20, fontWeight: "700", color: COLORS.primary },
   statusButtons: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statusButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
   statusButtonText: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },

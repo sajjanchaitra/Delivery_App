@@ -13,9 +13,26 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
+
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
 
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "assigned" | "picked_up" | "on_the_way" | "delivered";
 
@@ -195,7 +212,7 @@ export default function DeliveryHome() {
       case "ready": return "#3B82F6";
       case "assigned": return "#F59E0B";
       case "picked_up": return "#8B5CF6";
-      case "on_the_way": return "#22C55E";
+      case "on_the_way": return COLORS.success;
       default: return "#94A3B8";
     }
   };
@@ -228,7 +245,7 @@ export default function DeliveryHome() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -236,10 +253,10 @@ export default function DeliveryHome() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.greeting}>Hello, {driverName}!</Text>
@@ -253,13 +270,13 @@ export default function DeliveryHome() {
             <Ionicons name="person-circle-outline" size={36} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
       >
         {/* Active Deliveries */}
@@ -324,7 +341,7 @@ export default function DeliveryHome() {
 
                   <View style={styles.orderFooter}>
                     <View style={styles.customerInfo}>
-                      <Ionicons name="person" size={16} color="#64748B" />
+                      <Ionicons name="person" size={16} color={COLORS.textLight} />
                       <Text style={styles.customerText}>{order.customerName}</Text>
                     </View>
                     <Text style={styles.orderAmount}>₹{order.total}</Text>
@@ -371,15 +388,15 @@ export default function DeliveryHome() {
 
                 <View style={styles.orderInfo}>
                   <View style={styles.infoRow}>
-                    <Ionicons name="storefront" size={16} color="#64748B" />
+                    <Ionicons name="storefront" size={16} color={COLORS.textLight} />
                     <Text style={styles.infoText}>{order.store?.name || "Store"}</Text>
                   </View>
                   <View style={styles.infoRow}>
-                    <Ionicons name="person" size={16} color="#64748B" />
+                    <Ionicons name="person" size={16} color={COLORS.textLight} />
                     <Text style={styles.infoText}>{order.customerName || "Customer"}</Text>
                   </View>
                   <View style={styles.infoRow}>
-                    <Ionicons name="location" size={16} color="#64748B" />
+                    <Ionicons name="location" size={16} color={COLORS.textLight} />
                     <Text style={styles.infoText} numberOfLines={1}>
                       {formatAddress(order.deliveryAddress)}
                     </Text>
@@ -420,7 +437,7 @@ export default function DeliveryHome() {
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Ionicons name="home" size={24} color="#22C55E" />
+          <Ionicons name="home" size={24} color={COLORS.primary} />
           <Text style={[styles.navLabel, styles.navLabelActive]}>Home</Text>
         </TouchableOpacity>
 
@@ -449,21 +466,20 @@ export default function DeliveryHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingScreen: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   header: {
-    backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -504,10 +520,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   badge: {
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -520,10 +536,10 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#22C55E",
+    color: COLORS.primary,
   },
   orderCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -532,10 +548,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   activeOrderCard: {
     borderWidth: 2,
-    borderColor: "#22C55E",
+    borderColor: COLORS.primary,
   },
   orderHeader: {
     flexDirection: "row",
@@ -546,7 +564,7 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -582,17 +600,17 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.success,
     marginTop: 4,
     marginRight: 12,
   },
   routeDotDelivery: {
-    backgroundColor: "#EF4444",
+    backgroundColor: COLORS.danger,
   },
   routeLine: {
     width: 2,
     height: 20,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: COLORS.border,
     marginLeft: 5,
     marginVertical: 4,
   },
@@ -607,7 +625,7 @@ const styles = StyleSheet.create({
   routeText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   orderFooter: {
     flexDirection: "row",
@@ -621,18 +639,18 @@ const styles = StyleSheet.create({
   },
   customerText: {
     fontSize: 13,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   orderAmount: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#22C55E",
+    color: COLORS.primary,
   },
   detailsButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingVertical: 12,
     gap: 8,
@@ -653,7 +671,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: "#64748B",
+    color: COLORS.textLight,
     flex: 1,
   },
   orderActions: {
@@ -667,13 +685,13 @@ const styles = StyleSheet.create({
   earningsText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#22C55E",
+    color: COLORS.success,
   },
   acceptButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
   },
   acceptText: {
     fontSize: 14,
@@ -689,7 +707,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
     marginTop: 16,
     marginBottom: 8,
   },
@@ -704,7 +722,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     paddingTop: 12,
     paddingBottom: 28,
     paddingHorizontal: 24,
@@ -723,7 +741,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
   navLabelActive: {
-    color: "#22C55E",
+    color: COLORS.primary,
     fontWeight: "600",
   },
 });

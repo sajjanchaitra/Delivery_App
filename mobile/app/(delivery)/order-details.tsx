@@ -17,6 +17,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 type OrderStatus = "assigned" | "picked_up" | "on_the_way" | "delivered";
 
 interface OrderDetails {
@@ -202,7 +218,7 @@ export default function DeliveryOrderDetailsScreen() {
     switch (status) {
       case "assigned": return "#F59E0B";
       case "picked_up": return "#8B5CF6";
-      case "on_the_way": return "#22C55E";
+      case "on_the_way": return COLORS.success;
       case "delivered": return "#10B981";
       default: return "#94A3B8";
     }
@@ -226,7 +242,7 @@ export default function DeliveryOrderDetailsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading order details...</Text>
       </View>
     );
@@ -235,7 +251,7 @@ export default function DeliveryOrderDetailsScreen() {
   if (!order) {
     return (
       <View style={styles.loadingContainer}>
-        <Ionicons name="alert-circle" size={64} color="#EF4444" />
+        <Ionicons name="alert-circle" size={64} color={COLORS.danger} />
         <Text style={styles.errorText}>Order not found</Text>
         <TouchableOpacity 
           style={styles.backButton2}
@@ -249,7 +265,7 @@ export default function DeliveryOrderDetailsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -258,7 +274,7 @@ export default function DeliveryOrderDetailsScreen() {
           activeOpacity={0.7}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
         <View style={styles.placeholder} />
@@ -280,7 +296,7 @@ export default function DeliveryOrderDetailsScreen() {
         {/* Earnings Card */}
         <View style={styles.earningsCard}>
           <View style={styles.earningsIcon}>
-            <Ionicons name="wallet" size={24} color="#22C55E" />
+            <Ionicons name="wallet" size={24} color={COLORS.success} />
           </View>
           <View style={styles.earningsInfo}>
             <Text style={styles.earningsLabel}>Your Earnings</Text>
@@ -292,7 +308,7 @@ export default function DeliveryOrderDetailsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleContainer}>
-              <Ionicons name="storefront" size={20} color="#22C55E" />
+              <Ionicons name="storefront" size={20} color={COLORS.success} />
               <Text style={styles.cardTitle}>Pickup from Store</Text>
             </View>
             {order.store.phone && (
@@ -301,7 +317,7 @@ export default function DeliveryOrderDetailsScreen() {
                 activeOpacity={0.7}
                 onPress={() => makeCall(order.store.phone!)}
               >
-                <Ionicons name="call" size={18} color="#22C55E" />
+                <Ionicons name="call" size={18} color={COLORS.success} />
               </TouchableOpacity>
             )}
           </View>
@@ -346,7 +362,7 @@ export default function DeliveryOrderDetailsScreen() {
           {order.items?.map((item, index) => (
             <View key={index} style={styles.itemRow}>
               <View style={styles.itemIcon}>
-                <Ionicons name="bag-handle" size={16} color="#64748B" />
+                <Ionicons name="bag-handle" size={16} color={COLORS.textLight} />
               </View>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
@@ -374,7 +390,7 @@ export default function DeliveryOrderDetailsScreen() {
             <Text style={styles.totalValue}>₹{order.total + order.deliveryFee}</Text>
           </View>
           <View style={styles.paymentMethod}>
-            <Ionicons name="cash" size={16} color="#22C55E" />
+            <Ionicons name="cash" size={16} color={COLORS.success} />
             <Text style={styles.paymentMethodText}>{order.paymentMethod.toUpperCase()}</Text>
           </View>
         </View>
@@ -422,7 +438,7 @@ export default function DeliveryOrderDetailsScreen() {
 
       {updating && (
         <View style={styles.bottomBar}>
-          <ActivityIndicator size="small" color="#22C55E" />
+          <ActivityIndicator size="small" color={COLORS.primary} />
           <Text style={styles.updatingText}>Updating status...</Text>
         </View>
       )}
@@ -433,30 +449,30 @@ export default function DeliveryOrderDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   errorText: {
     marginTop: 16,
     fontSize: 18,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   backButton2: {
     marginTop: 20,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
   },
   backButtonText: {
@@ -471,7 +487,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
@@ -484,7 +500,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   placeholder: {
     width: 40,
@@ -504,7 +520,7 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -549,10 +565,12 @@ const styles = StyleSheet.create({
     color: "#16A34A",
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -568,7 +586,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   callButton: {
     width: 36,
@@ -581,12 +599,12 @@ const styles = StyleSheet.create({
   detailName: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 6,
   },
   detailText: {
     fontSize: 14,
-    color: "#64748B",
+    color: COLORS.textLight,
     lineHeight: 20,
   },
   noteContainer: {
@@ -614,7 +632,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -625,7 +643,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 2,
   },
   itemPrice: {
@@ -635,7 +653,7 @@ const styles = StyleSheet.create({
   itemQuantity: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   paymentRow: {
     flexDirection: "row",
@@ -644,12 +662,12 @@ const styles = StyleSheet.create({
   },
   paymentLabel: {
     fontSize: 14,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   paymentValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   divider: {
     height: 1,
@@ -659,12 +677,12 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#22C55E",
+    color: COLORS.primary,
   },
   paymentMethod: {
     flexDirection: "row",
@@ -678,10 +696,10 @@ const styles = StyleSheet.create({
   paymentMethodText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#22C55E",
+    color: COLORS.success,
   },
   bottomBar: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
@@ -696,7 +714,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
     gap: 8,
@@ -708,6 +726,6 @@ const styles = StyleSheet.create({
   },
   updatingText: {
     fontSize: 14,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
 });

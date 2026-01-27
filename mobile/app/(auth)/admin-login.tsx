@@ -19,6 +19,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import api from "../../services/api";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function AdminLogin() {
   const router = useRouter();
   const params = useLocalSearchParams<{ phone: string; name: string }>();
@@ -84,7 +100,7 @@ export default function AdminLogin() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -102,12 +118,12 @@ export default function AdminLogin() {
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
           </TouchableOpacity>
 
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="shield-checkmark" size={64} color="#1E3A8A" />
+              <Ionicons name="shield-checkmark" size={64} color={COLORS.primary} />
             </View>
 
             <Text style={styles.title}>Admin Login</Text>
@@ -127,7 +143,7 @@ export default function AdminLogin() {
               <Ionicons
                 name="lock-closed"
                 size={20}
-                color="#64748B"
+                color={COLORS.textLight}
                 style={styles.inputIcon}
               />
               <TextInput
@@ -152,7 +168,7 @@ export default function AdminLogin() {
                 <Ionicons
                   name={showPassword ? "eye-off" : "eye"}
                   size={20}
-                  color="#64748B"
+                  color={COLORS.textLight}
                 />
               </TouchableOpacity>
             </View>
@@ -165,7 +181,7 @@ export default function AdminLogin() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={password ? ["#1E3A8A", "#3B82F6"] : ["#CBD5E1", "#CBD5E1"]}
+              colors={password ? [COLORS.primary, "#B91C1C"] : ["#CBD5E1", "#CBD5E1"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}
@@ -196,7 +212,7 @@ export default function AdminLogin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
   },
   keyboardView: {
     flex: 1,
@@ -214,7 +230,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 32,
@@ -228,7 +244,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
@@ -236,17 +252,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1E3A8A",
+    color: COLORS.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: "#64748B",
+    color: COLORS.textLight,
     marginBottom: 16,
     textAlign: "center",
   },
   phoneContainer: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
@@ -255,13 +271,13 @@ const styles = StyleSheet.create({
   adminName: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 4,
   },
   phone: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1E3A8A",
+    color: COLORS.primary,
   },
   inputSection: {
     marginBottom: 24,
@@ -269,22 +285,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E3A8A",
+    color: COLORS.primary,
     marginBottom: 10,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#E2E8F0",
+    borderColor: COLORS.border,
     paddingHorizontal: 16,
     height: 56,
   },
   inputFocused: {
-    borderColor: "#1E3A8A",
-    backgroundColor: "#FFFFFF",
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.card,
   },
   inputIcon: {
     marginRight: 12,
@@ -292,7 +308,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: "#1E293B",
+    color: COLORS.text,
     fontWeight: "500",
   },
   eyeIcon: {

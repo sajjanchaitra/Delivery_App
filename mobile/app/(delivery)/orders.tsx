@@ -17,6 +17,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "assigned" | "picked_up" | "on_the_way" | "delivered";
 
 interface Order {
@@ -199,7 +215,7 @@ export default function DeliveryOrdersScreen() {
 
       <View style={styles.routeContainer}>
         <View style={styles.routePoint}>
-          <View style={[styles.routeDot, { backgroundColor: "#22C55E" }]} />
+          <View style={[styles.routeDot, { backgroundColor: COLORS.success }]} />
           <View style={styles.routeDetails}>
             <Text style={styles.routeLabel}>Pickup from</Text>
             <Text style={styles.routeAddress} numberOfLines={1}>
@@ -211,7 +227,7 @@ export default function DeliveryOrdersScreen() {
         <View style={styles.routeLine} />
 
         <View style={styles.routePoint}>
-          <View style={[styles.routeDot, { backgroundColor: "#EF4444" }]} />
+          <View style={[styles.routeDot, { backgroundColor: COLORS.danger }]} />
           <View style={styles.routeDetails}>
             <Text style={styles.routeLabel}>Deliver to</Text>
             <Text style={styles.routeAddress} numberOfLines={1}>
@@ -223,15 +239,15 @@ export default function DeliveryOrdersScreen() {
 
       <View style={styles.orderMeta}>
         <View style={styles.metaItem}>
-          <Ionicons name="person" size={16} color="#64748B" />
+          <Ionicons name="person" size={16} color={COLORS.textLight} />
           <Text style={styles.metaText}>{item.customerName || item.customer?.name || "Customer"}</Text>
         </View>
         <View style={styles.metaItem}>
-          <Ionicons name="bag-handle" size={16} color="#64748B" />
+          <Ionicons name="bag-handle" size={16} color={COLORS.textLight} />
           <Text style={styles.metaText}>{item.items?.length || 0} items</Text>
         </View>
         <View style={styles.metaItem}>
-          <Ionicons name="cash" size={16} color="#64748B" />
+          <Ionicons name="cash" size={16} color={COLORS.textLight} />
           <Text style={styles.metaText}>₹{item.total}</Text>
         </View>
       </View>
@@ -266,7 +282,7 @@ export default function DeliveryOrdersScreen() {
       case "ready": return "#3B82F6";
       case "assigned": return "#F59E0B";
       case "picked_up": return "#8B5CF6";
-      case "on_the_way": return "#22C55E";
+      case "on_the_way": return COLORS.success;
       case "delivered": return "#10B981";
       default: return "#94A3B8";
     }
@@ -285,7 +301,7 @@ export default function DeliveryOrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -294,7 +310,7 @@ export default function DeliveryOrdersScreen() {
           activeOpacity={0.7}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Orders</Text>
         <View style={styles.placeholder} />
@@ -320,7 +336,7 @@ export default function DeliveryOrdersScreen() {
       {/* Orders List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#22C55E" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading orders...</Text>
         </View>
       ) : (
@@ -331,7 +347,7 @@ export default function DeliveryOrdersScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -355,7 +371,7 @@ export default function DeliveryOrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   header: {
     flexDirection: "row",
@@ -364,7 +380,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
@@ -377,14 +393,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   placeholder: {
     width: 40,
   },
   tabsContainer: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
@@ -402,7 +418,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
   tabTextActive: {
-    color: "#22C55E",
+    color: COLORS.primary,
   },
   tabIndicator: {
     position: "absolute",
@@ -410,7 +426,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
   },
@@ -422,14 +438,14 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   listContent: {
     padding: 20,
     paddingBottom: 100,
   },
   orderCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -438,6 +454,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   orderHeader: {
     flexDirection: "row",
@@ -448,12 +466,12 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 4,
   },
   storeName: {
     fontSize: 13,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   earningsBox: {
     backgroundColor: "#F0FDF4",
@@ -499,12 +517,12 @@ const styles = StyleSheet.create({
   routeAddress: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   routeLine: {
     width: 2,
     height: 20,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: COLORS.border,
     marginLeft: 5,
     marginVertical: 4,
   },
@@ -523,7 +541,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   actionButtons: {
     flexDirection: "row",
@@ -533,7 +551,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     alignItems: "center",
   },
   acceptText: {
@@ -562,7 +580,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
     marginTop: 16,
     marginBottom: 8,
   },

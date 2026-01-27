@@ -20,6 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 interface User {
   _id: string;
   name: string;
@@ -148,17 +164,17 @@ export default function AdminUsers() {
     const colors: Record<string, string> = {
       customer: "#3B82F6",
       vendor: "#8B5CF6",
-      delivery_partner: "#22C55E",
-      admin: "#EF4444",
+      delivery_partner: COLORS.success,
+      admin: COLORS.danger,
     };
-    return colors[role] || "#64748B";
+    return colors[role] || COLORS.textLight;
   };
 
   const getStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
-      active: "#22C55E",
+      active: COLORS.success,
       inactive: "#F59E0B",
-      blocked: "#EF4444",
+      blocked: COLORS.danger,
     };
     return colors[status] || "#94A3B8";
   };
@@ -180,7 +196,7 @@ export default function AdminUsers() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading users...</Text>
       </View>
     );
@@ -188,10 +204,10 @@ export default function AdminUsers() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.backButton}
@@ -269,7 +285,7 @@ export default function AdminUsers() {
               setRefreshing(true);
               fetchUsers();
             }}
-            colors={["#22C55E"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -355,7 +371,7 @@ export default function AdminUsers() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>User Details</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
 
@@ -404,14 +420,14 @@ export default function AdminUsers() {
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>Contact Info</Text>
                   <View style={styles.modalInfoRow}>
-                    <Ionicons name="mail-outline" size={18} color="#64748B" />
+                    <Ionicons name="mail-outline" size={18} color={COLORS.textLight} />
                     <Text style={styles.modalInfoText}>
                       {selectedUser.email}
                     </Text>
                   </View>
                   {selectedUser.phone && (
                     <View style={styles.modalInfoRow}>
-                      <Ionicons name="call-outline" size={18} color="#64748B" />
+                      <Ionicons name="call-outline" size={18} color={COLORS.textLight} />
                       <Text style={styles.modalInfoText}>
                         {selectedUser.phone}
                       </Text>
@@ -425,7 +441,7 @@ export default function AdminUsers() {
                     <Ionicons
                       name={getRoleIcon(selectedUser.role)}
                       size={18}
-                      color="#64748B"
+                      color={COLORS.textLight}
                     />
                     <Text style={styles.modalInfoText}>
                       {selectedUser.role.replace("_", " ").toUpperCase()}
@@ -435,7 +451,7 @@ export default function AdminUsers() {
                     <Ionicons
                       name="calendar-outline"
                       size={18}
-                      color="#64748B"
+                      color={COLORS.textLight}
                     />
                     <Text style={styles.modalInfoText}>
                       Joined {formatDate(selectedUser.createdAt)}
@@ -533,14 +549,14 @@ export default function AdminUsers() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   loadingScreen: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#64748B" },
+  loadingText: { marginTop: 12, fontSize: 16, color: COLORS.textLight },
   header: { paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20 },
   headerTop: {
     flexDirection: "row",
@@ -560,16 +576,16 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     gap: 10,
   },
-  searchInput: { flex: 1, fontSize: 15, color: "#1E293B" },
+  searchInput: { flex: 1, fontSize: 15, color: COLORS.text },
   filtersScroll: {
     maxHeight: 60,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
@@ -581,8 +597,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
     marginRight: 8,
   },
-  filterChipActive: { backgroundColor: "#22C55E" },
-  filterText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  filterChipActive: { backgroundColor: COLORS.primary },
+  filterText: { fontSize: 14, fontWeight: "600", color: COLORS.textLight },
   filterTextActive: { color: "#FFF" },
   scrollView: { flex: 1, paddingHorizontal: 20, paddingTop: 12 },
   emptyContainer: {
@@ -594,7 +610,7 @@ const styles = StyleSheet.create({
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
@@ -603,6 +619,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   userAvatar: {
     width: 48,
@@ -613,8 +631,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   userInfo: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
-  userEmail: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  userName: { fontSize: 15, fontWeight: "700", color: COLORS.text },
+  userEmail: { fontSize: 13, color: COLORS.textLight, marginTop: 2 },
   userPhone: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
   userRight: { alignItems: "flex-end", gap: 6 },
   roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
@@ -635,7 +653,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "85%",
@@ -648,7 +666,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text },
   modalBody: { padding: 20 },
   modalUserHeader: { alignItems: "center", marginBottom: 24 },
   modalAvatar: {
@@ -662,14 +680,14 @@ const styles = StyleSheet.create({
   modalUserName: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 8,
   },
   modalSection: { marginBottom: 20 },
   modalSectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
     marginBottom: 12,
   },
   modalInfoRow: {
@@ -678,8 +696,8 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 8,
   },
-  modalInfoText: { fontSize: 14, color: "#1E293B" },
-  modalText: { fontSize: 14, color: "#1E293B", lineHeight: 20 },
+  modalInfoText: { fontSize: 14, color: COLORS.text },
+  modalText: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
   statRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -687,8 +705,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
-  statLabel: { fontSize: 14, color: "#64748B" },
-  statValue: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
+  statLabel: { fontSize: 14, color: COLORS.textLight },
+  statValue: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   actionButtons: { gap: 10 },
   actionButton: {
     flexDirection: "row",
@@ -698,7 +716,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 8,
   },
-  blockButton: { backgroundColor: "#EF4444" },
-  activateButton: { backgroundColor: "#22C55E" },
+  blockButton: { backgroundColor: COLORS.danger },
+  activateButton: { backgroundColor: COLORS.success },
   actionButtonText: { fontSize: 14, fontWeight: "600", color: "#FFF" },
 });

@@ -20,6 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width } = Dimensions.get("window");
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 interface DashboardStats {
   users: { total: number; customers: number; vendors: number; deliveryPartners: number };
   stores: { total: number; active: number };
@@ -104,8 +120,8 @@ export default function AdminHome() {
       confirmed: "#3B82F6",
       preparing: "#8B5CF6",
       ready: "#06B6D4",
-      delivered: "#22C55E",
-      cancelled: "#EF4444",
+      delivered: COLORS.success,
+      cancelled: COLORS.danger,
     };
     return colors[status] || "#94A3B8";
   };
@@ -113,7 +129,7 @@ export default function AdminHome() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -124,7 +140,7 @@ export default function AdminHome() {
       <StatusBar barStyle="light-content" />
 
       {/* Beautiful Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A", "#15803D"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C", "#991B1B"]} style={styles.header}>
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.greeting}>Welcome back! 👋</Text>
@@ -138,14 +154,14 @@ export default function AdminHome() {
         {/* Today's Revenue Highlight */}
         <View style={styles.heroCard}>
           <View style={styles.heroIcon}>
-            <Ionicons name="cash" size={28} color="#22C55E" />
+            <Ionicons name="cash" size={28} color={COLORS.success} />
           </View>
           <View style={styles.heroContent}>
             <Text style={styles.heroLabel}>Today's Revenue</Text>
             <Text style={styles.heroValue}>{formatCurrency(dashboard?.revenue?.today || 0)}</Text>
           </View>
           <View style={styles.heroBadge}>
-            <Ionicons name="trending-up" size={16} color="#22C55E" />
+            <Ionicons name="trending-up" size={16} color={COLORS.success} />
             <Text style={styles.heroBadgeText}>{dashboard?.orders?.today || 0} orders</Text>
           </View>
         </View>
@@ -156,12 +172,12 @@ export default function AdminHome() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboard(); }} colors={["#22C55E"]} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboard(); }} colors={[COLORS.primary]} />
         }
       >
         {/* Quick Stats Grid */}
         <View style={styles.statsGrid}>
-          <TouchableOpacity style={[styles.statBox, { backgroundColor: "#EFF6FF" }]} onPress={() => router.push("/(dash)/orders" as any)}>
+          <TouchableOpacity style={[styles.statBox, { backgroundColor: COLORS.softBlue }]} onPress={() => router.push("/(dash)/orders" as any)}>
             <View style={[styles.statIcon, { backgroundColor: "#3B82F6" }]}>
               <Ionicons name="receipt" size={20} color="#FFF" />
             </View>
@@ -263,41 +279,41 @@ export default function AdminHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#64748B", fontWeight: "500" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.bg },
+  loadingText: { marginTop: 12, fontSize: 16, color: COLORS.textLight, fontWeight: "500" },
   header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
   greeting: { fontSize: 14, color: "rgba(255,255,255,0.9)", fontWeight: "500" },
   title: { fontSize: 28, fontWeight: "800", color: "#FFF", marginTop: 4 },
   logoutBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(239,68,68,0.25)", justifyContent: "center", alignItems: "center" },
-  heroCard: { flexDirection: "row", backgroundColor: "#FFF", borderRadius: 20, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5 },
+  heroCard: { flexDirection: "row", backgroundColor: COLORS.card, borderRadius: 20, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5 },
   heroIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: "#F0FDF4", justifyContent: "center", alignItems: "center", marginRight: 14 },
   heroContent: { flex: 1 },
-  heroLabel: { fontSize: 13, color: "#64748B", fontWeight: "600" },
-  heroValue: { fontSize: 28, fontWeight: "800", color: "#1E293B", marginTop: 2 },
+  heroLabel: { fontSize: 13, color: COLORS.textLight, fontWeight: "600" },
+  heroValue: { fontSize: 28, fontWeight: "800", color: COLORS.text, marginTop: 2 },
   heroBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#F0FDF4", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, gap: 4 },
-  heroBadgeText: { fontSize: 12, color: "#22C55E", fontWeight: "700" },
+  heroBadgeText: { fontSize: 12, color: COLORS.success, fontWeight: "700" },
   content: { padding: 20 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
   statBox: { width: (width - 52) / 2, borderRadius: 18, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
   statIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 10 },
-  statValue: { fontSize: 26, fontWeight: "800", color: "#1E293B", marginBottom: 2 },
-  statLabel: { fontSize: 12, color: "#64748B", fontWeight: "600" },
+  statValue: { fontSize: 26, fontWeight: "800", color: COLORS.text, marginBottom: 2 },
+  statLabel: { fontSize: 12, color: COLORS.textLight, fontWeight: "600" },
   section: { marginBottom: 24 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#1E293B" },
-  seeAll: { fontSize: 14, fontWeight: "700", color: "#22C55E" },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: COLORS.text },
+  seeAll: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
   actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   actionCard: { width: (width - 52) / 2, borderRadius: 16, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 4 },
   actionGradient: { padding: 20, alignItems: "center", gap: 8 },
   actionText: { fontSize: 13, fontWeight: "700", color: "#FFF" },
-  orderItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#FFF", borderRadius: 14, padding: 16, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
+  orderItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
   orderLeft: { flex: 1 },
-  orderNumber: { fontSize: 15, fontWeight: "700", color: "#1E293B", marginBottom: 4 },
-  orderCustomer: { fontSize: 13, color: "#64748B" },
+  orderNumber: { fontSize: 15, fontWeight: "700", color: COLORS.text, marginBottom: 4 },
+  orderCustomer: { fontSize: 13, color: COLORS.textLight },
   orderRight: { alignItems: "flex-end" },
   orderStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 6 },
   orderStatusText: { fontSize: 11, fontWeight: "700", textTransform: "capitalize" },
-  orderAmount: { fontSize: 16, fontWeight: "800", color: "#22C55E" },
+  orderAmount: { fontSize: 16, fontWeight: "800", color: COLORS.primary },
 });

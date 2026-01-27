@@ -19,6 +19,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 interface Vendor {
   _id: string;
   name: string;
@@ -146,7 +162,7 @@ export default function AdminVendors() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading stores...</Text>
       </View>
     );
@@ -154,9 +170,9 @@ export default function AdminVendors() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -209,7 +225,7 @@ export default function AdminVendors() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); fetchVendors(); }}
-            colors={["#22C55E"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -244,7 +260,7 @@ export default function AdminVendors() {
 
               {vendor.vendor && (
                 <View style={styles.vendorRow}>
-                  <Ionicons name="person-outline" size={16} color="#64748B" />
+                  <Ionicons name="person-outline" size={16} color={COLORS.textLight} />
                   <Text style={styles.vendorText}>{vendor.vendor.name}</Text>
                 </View>
               )}
@@ -263,7 +279,7 @@ export default function AdminVendors() {
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statBox}>
-                  <Ionicons name="cash-outline" size={18} color="#22C55E" />
+                  <Ionicons name="cash-outline" size={18} color={COLORS.success} />
                   <Text style={styles.statValue}>{formatCurrency(vendor.stats?.totalRevenue || 0)}</Text>
                   <Text style={styles.statLabel}>Revenue</Text>
                 </View>
@@ -282,7 +298,7 @@ export default function AdminVendors() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Store Details</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
 
@@ -311,16 +327,16 @@ export default function AdminVendors() {
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionTitle}>Vendor Information</Text>
                     <View style={styles.infoRow}>
-                      <Ionicons name="person" size={18} color="#64748B" />
+                      <Ionicons name="person" size={18} color={COLORS.textLight} />
                       <Text style={styles.infoText}>{selectedVendor.vendor.name}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                      <Ionicons name="mail" size={18} color="#64748B" />
+                      <Ionicons name="mail" size={18} color={COLORS.textLight} />
                       <Text style={styles.infoText}>{selectedVendor.vendor.email}</Text>
                     </View>
                     {selectedVendor.vendor.phone && (
                       <View style={styles.infoRow}>
-                        <Ionicons name="call" size={18} color="#64748B" />
+                        <Ionicons name="call" size={18} color={COLORS.textLight} />
                         <Text style={styles.infoText}>{selectedVendor.vendor.phone}</Text>
                       </View>
                     )}
@@ -331,7 +347,7 @@ export default function AdminVendors() {
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionTitle}>Address</Text>
                     <View style={styles.infoRow}>
-                      <Ionicons name="location" size={18} color="#64748B" />
+                      <Ionicons name="location" size={18} color={COLORS.textLight} />
                       <Text style={styles.infoText}>{formatAddress(selectedVendor.address)}</Text>
                     </View>
                   </View>
@@ -352,7 +368,7 @@ export default function AdminVendors() {
                         <Text style={styles.modalStatLabel}>Products</Text>
                       </View>
                       <View style={styles.modalStatCard}>
-                        <Ionicons name="cash" size={24} color="#22C55E" />
+                        <Ionicons name="cash" size={24} color={COLORS.success} />
                         <Text style={styles.modalStatValue}>{formatCurrency(selectedVendor.stats.totalRevenue || 0)}</Text>
                         <Text style={styles.modalStatLabel}>Revenue</Text>
                       </View>
@@ -363,11 +379,11 @@ export default function AdminVendors() {
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>Other Details</Text>
                   <View style={styles.infoRow}>
-                    <Ionicons name="calendar" size={18} color="#64748B" />
+                    <Ionicons name="calendar" size={18} color={COLORS.textLight} />
                     <Text style={styles.infoText}>Joined {formatDate(selectedVendor.createdAt)}</Text>
                   </View>
                   <View style={styles.infoRow}>
-                    <Ionicons name="finger-print" size={18} color="#64748B" />
+                    <Ionicons name="finger-print" size={18} color={COLORS.textLight} />
                     <Text style={styles.infoText}>ID: {selectedVendor._id}</Text>
                   </View>
                 </View>
@@ -383,56 +399,56 @@ export default function AdminVendors() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#64748B" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.bg },
+  loadingText: { marginTop: 12, fontSize: 16, color: COLORS.textLight },
   header: { paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20 },
   headerTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#FFF" },
-  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
-  searchInput: { flex: 1, fontSize: 15, color: "#1E293B" },
-  filtersScroll: { maxHeight: 60, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: COLORS.text },
+  filtersScroll: { maxHeight: 60, backgroundColor: COLORS.card, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   filtersContent: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F1F5F9", marginRight: 8 },
-  filterChipActive: { backgroundColor: "#22C55E" },
-  filterText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  filterChipActive: { backgroundColor: COLORS.primary },
+  filterText: { fontSize: 14, fontWeight: "600", color: COLORS.textLight },
   filterTextActive: { color: "#FFF" },
   scrollView: { flex: 1, paddingHorizontal: 20, paddingTop: 12 },
   emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
   emptyText: { fontSize: 16, color: "#94A3B8", marginTop: 16, fontWeight: "600" },
   emptyHint: { fontSize: 14, color: "#CBD5E1", marginTop: 8 },
-  vendorCard: { backgroundColor: "#FFF", borderRadius: 16, padding: 18, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
+  vendorCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 18, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: COLORS.border },
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   storeIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: "#F3E8FF", justifyContent: "center", alignItems: "center", marginRight: 14 },
   cardInfo: { flex: 1 },
-  storeName: { fontSize: 17, fontWeight: "700", color: "#1E293B", marginBottom: 6 },
+  storeName: { fontSize: 17, fontWeight: "700", color: COLORS.text, marginBottom: 6 },
   categoryBadge: { backgroundColor: "#DBEAFE", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-start" },
   categoryText: { fontSize: 11, fontWeight: "600", color: "#3B82F6" },
   vendorRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, paddingLeft: 4 },
-  vendorText: { fontSize: 14, color: "#64748B", fontWeight: "500" },
+  vendorText: { fontSize: 14, color: COLORS.textLight, fontWeight: "500" },
   statsRow: { flexDirection: "row", paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
   statBox: { flex: 1, alignItems: "center" },
-  statValue: { fontSize: 16, fontWeight: "800", color: "#1E293B", marginTop: 6, marginBottom: 2 },
+  statValue: { fontSize: 16, fontWeight: "800", color: COLORS.text, marginTop: 6, marginBottom: 2 },
   statLabel: { fontSize: 11, color: "#94A3B8", fontWeight: "600" },
   statDivider: { width: 1, backgroundColor: "#F1F5F9", marginHorizontal: 8 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%" },
+  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text },
   modalBody: { padding: 20 },
   modalStoreHeader: { alignItems: "center", marginBottom: 24 },
   modalStoreIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: "#F3E8FF", justifyContent: "center", alignItems: "center", marginBottom: 14 },
-  modalStoreName: { fontSize: 22, fontWeight: "800", color: "#1E293B", marginBottom: 10, textAlign: "center" },
+  modalStoreName: { fontSize: 22, fontWeight: "800", color: COLORS.text, marginBottom: 10, textAlign: "center" },
   modalCategoryBadge: { backgroundColor: "#DBEAFE", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12 },
   modalCategoryText: { fontSize: 12, fontWeight: "700", color: "#3B82F6" },
   modalSection: { marginBottom: 24 },
-  modalSectionTitle: { fontSize: 15, fontWeight: "700", color: "#64748B", marginBottom: 14 },
-  modalText: { fontSize: 14, color: "#1E293B", lineHeight: 22 },
+  modalSectionTitle: { fontSize: 15, fontWeight: "700", color: COLORS.textLight, marginBottom: 14 },
+  modalText: { fontSize: 14, color: COLORS.text, lineHeight: 22 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10, paddingVertical: 4 },
-  infoText: { fontSize: 14, color: "#1E293B", flex: 1 },
+  infoText: { fontSize: 14, color: COLORS.text, flex: 1 },
   statsGrid: { flexDirection: "row", gap: 12 },
-  modalStatCard: { flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 16, alignItems: "center" },
-  modalStatValue: { fontSize: 20, fontWeight: "800", color: "#1E293B", marginTop: 8, marginBottom: 4 },
-  modalStatLabel: { fontSize: 11, color: "#64748B", fontWeight: "600", textAlign: "center" },
+  modalStatCard: { flex: 1, backgroundColor: COLORS.bg, borderRadius: 14, padding: 16, alignItems: "center" },
+  modalStatValue: { fontSize: 20, fontWeight: "800", color: COLORS.text, marginTop: 8, marginBottom: 4 },
+  modalStatLabel: { fontSize: 11, color: COLORS.textLight, fontWeight: "600", textAlign: "center" },
 });

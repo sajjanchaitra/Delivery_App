@@ -12,9 +12,26 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
+
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
 
 interface DriverProfile {
   _id: string;
@@ -120,7 +137,7 @@ export default function DeliveryProfile() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
@@ -128,18 +145,18 @@ export default function DeliveryProfile() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={48} color="#22C55E" />
+            <Ionicons name="person" size={48} color={COLORS.primary} />
           </View>
 
           <Text style={styles.driverName}>{profile?.name || "Driver"}</Text>
@@ -179,7 +196,7 @@ export default function DeliveryProfile() {
             >
               <View style={styles.menuLeft}>
                 <View style={styles.menuIcon}>
-                  <Ionicons name="person-outline" size={22} color="#1E293B" />
+                  <Ionicons name="person-outline" size={22} color={COLORS.text} />
                 </View>
                 <Text style={styles.menuLabel}>Personal Information</Text>
               </View>
@@ -196,7 +213,7 @@ export default function DeliveryProfile() {
             >
               <View style={styles.menuLeft}>
                 <View style={styles.menuIcon}>
-                  <Ionicons name="document-outline" size={22} color="#1E293B" />
+                  <Ionicons name="document-outline" size={22} color={COLORS.text} />
                 </View>
                 <Text style={styles.menuLabel}>Terms & Conditions</Text>
               </View>
@@ -213,7 +230,7 @@ export default function DeliveryProfile() {
             >
               <View style={styles.menuLeft}>
                 <View style={styles.menuIcon}>
-                  <Ionicons name="lock-closed-outline" size={22} color="#1E293B" />
+                  <Ionicons name="lock-closed-outline" size={22} color={COLORS.text} />
                 </View>
                 <Text style={styles.menuLabel}>Privacy Policy</Text>
               </View>
@@ -224,7 +241,7 @@ export default function DeliveryProfile() {
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -255,7 +272,7 @@ export default function DeliveryProfile() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Ionicons name="person" size={24} color="#22C55E" />
+          <Ionicons name="person" size={24} color={COLORS.primary} />
           <Text style={[styles.navLabel, styles.navLabelActive]}>Profile</Text>
         </TouchableOpacity>
       </View>
@@ -266,21 +283,20 @@ export default function DeliveryProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   header: {
-    backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -295,7 +311,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     margin: 20,
     borderRadius: 16,
     padding: 24,
@@ -305,22 +321,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#F0FDF4",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 4,
-    borderColor: "#22C55E",
+    borderColor: COLORS.primary,
     marginBottom: 16,
   },
   driverName: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 4,
   },
   driverPhone: {
@@ -346,7 +364,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 4,
   },
   statLabel: {
@@ -366,12 +384,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
     marginBottom: 12,
     letterSpacing: 0.5,
   },
   menuCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     overflow: "hidden",
     elevation: 2,
@@ -379,6 +397,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   menuItem: {
     flexDirection: "row",
@@ -396,14 +416,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     justifyContent: "center",
     alignItems: "center",
   },
   menuLabel: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   menuDivider: {
     height: 1,
@@ -414,19 +434,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     marginHorizontal: 20,
     marginTop: 8,
     borderRadius: 12,
     padding: 16,
     gap: 10,
     borderWidth: 1,
-    borderColor: "#FEE2E2",
+    borderColor: COLORS.softPink,
   },
   logoutText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#EF4444",
+    color: COLORS.danger,
   },
   versionText: {
     fontSize: 12,
@@ -440,7 +460,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card,
     paddingTop: 12,
     paddingBottom: 28,
     paddingHorizontal: 24,
@@ -459,7 +479,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
   navLabelActive: {
-    color: "#22C55E",
+    color: COLORS.primary,
     fontWeight: "600",
   },
 });
