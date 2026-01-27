@@ -20,6 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function VendorProfile() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -191,7 +207,7 @@ export default function VendorProfile() {
           { justifyContent: "center", alignItems: "center" },
         ]}
       >
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -208,10 +224,10 @@ export default function VendorProfile() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.backButton}
@@ -291,7 +307,7 @@ export default function VendorProfile() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#22C55E"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -313,7 +329,7 @@ export default function VendorProfile() {
                 <Ionicons
                   name={item.icon}
                   size={22}
-                  color={item.route ? "#22C55E" : "#94A3B8"}
+                  color={item.route ? COLORS.primary : "#94A3B8"}
                 />
               </View>
 
@@ -346,7 +362,7 @@ export default function VendorProfile() {
 
           <View style={styles.settingItem}>
             <View style={styles.settingIcon}>
-              <Ionicons name="notifications" size={22} color="#22C55E" />
+              <Ionicons name="notifications" size={22} color={COLORS.primary} />
             </View>
 
             <View style={styles.settingContent}>
@@ -359,14 +375,14 @@ export default function VendorProfile() {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: "#E2E8F0", true: "#86EFAC" }}
-              thumbColor={notificationsEnabled ? "#22C55E" : "#FFF"}
+              trackColor={{ false: COLORS.border, true: COLORS.secondary }}
+              thumbColor={notificationsEnabled ? COLORS.primary : "#FFF"}
             />
           </View>
 
           <View style={styles.settingItem}>
             <View style={styles.settingIcon}>
-              <Ionicons name="checkmark-done" size={22} color="#22C55E" />
+              <Ionicons name="checkmark-done" size={22} color={COLORS.primary} />
             </View>
 
             <View style={styles.settingContent}>
@@ -379,15 +395,15 @@ export default function VendorProfile() {
             <Switch
               value={autoAcceptOrders}
               onValueChange={setAutoAcceptOrders}
-              trackColor={{ false: "#E2E8F0", true: "#86EFAC" }}
-              thumbColor={autoAcceptOrders ? "#22C55E" : "#FFF"}
+              trackColor={{ false: COLORS.border, true: COLORS.secondary }}
+              thumbColor={autoAcceptOrders ? COLORS.primary : "#FFF"}
             />
           </View>
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out" size={22} color="#EF4444" />
+          <Ionicons name="log-out" size={22} color={COLORS.danger} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -402,7 +418,7 @@ export default function VendorProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   header: {
     paddingTop: 50,
@@ -463,7 +479,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#22C55E",
+    color: COLORS.primary,
   },
   ratingBadge: {
     position: "absolute",
@@ -531,28 +547,30 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   menuSection: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     marginBottom: 20,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: COLORS.border,
   },
   menuIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F0FDF4",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
   },
   menuIconDisabled: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   menuContent: {
     flex: 1,
@@ -561,7 +579,7 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   menuLabelDisabled: {
     color: "#94A3B8",
@@ -588,23 +606,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
     marginBottom: 12,
     marginLeft: 4,
   },
   settingItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     padding: 16,
     borderRadius: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   settingIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F0FDF4",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -615,7 +635,7 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   settingSubtitle: {
     fontSize: 12,
@@ -626,15 +646,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEE2E2",
+    backgroundColor: COLORS.softPink,
     paddingVertical: 16,
     borderRadius: 14,
     gap: 10,
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
   },
   logoutText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#EF4444",
+    color: COLORS.danger,
   },
   versionText: {
     textAlign: "center",

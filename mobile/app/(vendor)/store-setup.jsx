@@ -19,6 +19,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'http://13.203.206.134:5000';
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function StoreSettings() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -192,22 +208,25 @@ export default function StoreSettings() {
     }
   };
 
-  const storeTypes = ['Grocery', 'Restaurant', 'Bakery', 'Pharmacy', 'Electronics', 'Other'];
-
+const STORE_TYPES = [
+  { label: 'General Store', value: 'general' },
+  { label: 'Medical Store', value: 'medical' },
+  { label: 'Restaurant', value: 'restaurant' },
+];
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={['#22C55E', '#16A34A']} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, '#B91C1C']} style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton} 
@@ -304,25 +323,27 @@ export default function StoreSettings() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Store Type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
-              {storeTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeChip,
-                    formData.storeType === type && styles.typeChipActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, storeType: type })}
-                >
-                  <Text
-                    style={[
-                      styles.typeChipText,
-                      formData.storeType === type && styles.typeChipTextActive,
-                    ]}
-                  >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {STORE_TYPES.map((item) => (
+  <TouchableOpacity
+    key={item.value}
+    style={[
+      styles.typeChip,
+      formData.storeType === item.value && styles.typeChipActive,
+    ]}
+    onPress={() =>
+      setFormData({ ...formData, storeType: item.value })
+    }
+  >
+    <Text
+      style={[
+        styles.typeChipText,
+        formData.storeType === item.value && styles.typeChipTextActive,
+      ]}
+    >
+      {item.label}
+    </Text>
+  </TouchableOpacity>
+))}
             </ScrollView>
           </View>
         </View>
@@ -353,7 +374,7 @@ export default function StoreSettings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.bg,
   },
   header: {
     paddingTop: 50,
@@ -390,7 +411,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1E293B',
+    color: COLORS.text,
     marginBottom: 16,
   },
   imageContainer: {
@@ -403,9 +424,9 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.card,
     borderWidth: 4,
-    borderColor: '#FFF',
+    borderColor: COLORS.card,
   },
   placeholderImage: {
     width: 120,
@@ -415,7 +436,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#FFF',
+    borderColor: COLORS.card,
   },
   cameraButton: {
     position: 'absolute',
@@ -424,11 +445,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#22C55E',
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#FFF',
+    borderColor: COLORS.card,
   },
   imageHint: {
     fontSize: 13,
@@ -447,10 +468,10 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
     paddingHorizontal: 14,
   },
   inputIcon: {
@@ -459,7 +480,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#1E293B',
+    color: COLORS.text,
     paddingVertical: 14,
   },
   typeScroll: {
@@ -472,25 +493,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
   },
   typeChipActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#22C55E',
+    backgroundColor: COLORS.softPink,
+    borderColor: COLORS.primary,
   },
   typeChipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: COLORS.textLight,
   },
   typeChipTextActive: {
-    color: '#22C55E',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.softBlue,
     padding: 14,
     borderRadius: 12,
     marginBottom: 24,
@@ -506,7 +527,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#22C55E',
+    backgroundColor: COLORS.primary,
     paddingVertical: 16,
     borderRadius: 14,
     gap: 10,

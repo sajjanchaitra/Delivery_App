@@ -20,6 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width } = Dimensions.get("window");
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function VendorHome() {
   const router = useRouter();
 
@@ -165,7 +181,7 @@ export default function VendorHome() {
   };
 
   const quickActions = [
-    { id: "1", label: "Add Product", icon: "add-circle", color: "#22C55E", route: "/(vendor)/add-product" },
+    { id: "1", label: "Add Product", icon: "add-circle", color: COLORS.primary, route: "/(vendor)/add-product" },
     { id: "2", label: "My Products", icon: "cube", color: "#3B82F6", route: "/(vendor)/products" },
     { id: "3", label: "All Orders", icon: "receipt", color: "#F59E0B", route: "/(vendor)/orders" },
     { id: "4", label: "Store Setup", icon: "storefront", color: "#8B5CF6", route: "/(vendor)/store-setup" },
@@ -174,8 +190,8 @@ export default function VendorHome() {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator size="large" color="#22C55E" />
-        <Text style={{ marginTop: 12, color: "#64748B" }}>Loading...</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: 12, color: COLORS.textLight }}>Loading...</Text>
       </View>
     );
   }
@@ -184,9 +200,9 @@ export default function VendorHome() {
   if (!hasStore) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-        <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+        <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.profileSection}>
               <View style={styles.avatar}>
@@ -212,7 +228,7 @@ export default function VendorHome() {
 
         <View style={styles.emptyStateContainer}>
           <View style={styles.emptyStateIcon}>
-            <Ionicons name="storefront-outline" size={64} color="#22C55E" />
+            <Ionicons name="storefront-outline" size={64} color={COLORS.primary} />
           </View>
 
           <Text style={styles.emptyStateTitle}>Setup Your Store</Text>
@@ -224,7 +240,7 @@ export default function VendorHome() {
             style={styles.setupButton}
             onPress={() => router.push("/(vendor)/store-setup/select-type")}
           >
-            <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.setupButtonGradient}>
+            <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.setupButtonGradient}>
               <Ionicons name="storefront" size={20} color="#FFF" />
               <Text style={styles.setupButtonText}>Setup Store Now</Text>
             </LinearGradient>
@@ -253,10 +269,10 @@ export default function VendorHome() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#16A34A" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.profileSection}>
             {storeImageUrl ? (
@@ -298,7 +314,7 @@ export default function VendorHome() {
             <View
               style={[
                 styles.statusDot,
-                { backgroundColor: storeActive ? "#22C55E" : "#EF4444" },
+                { backgroundColor: storeActive ? COLORS.success : COLORS.danger },
               ]}
             />
             <View>
@@ -338,8 +354,8 @@ export default function VendorHome() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#22C55E"]}
-            tintColor="#22C55E"
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
           />
         }
       >
@@ -347,7 +363,7 @@ export default function VendorHome() {
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
             <View style={[styles.statCard, styles.statCardPrimary]}>
-              <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.statCardGradient}>
+              <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.statCardGradient}>
                 <View style={styles.statIconContainer}>
                   <Ionicons name="cart" size={24} color="#FFF" />
                 </View>
@@ -367,8 +383,8 @@ export default function VendorHome() {
 
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
-              <View style={[styles.statIconContainer, { backgroundColor: "#FEE2E2" }]}>
-                <Ionicons name="time" size={24} color="#EF4444" />
+              <View style={[styles.statIconContainer, { backgroundColor: COLORS.softPink }]}>
+                <Ionicons name="time" size={24} color={COLORS.danger} />
               </View>
               <Text style={styles.statValue}>{stats.pendingOrders}</Text>
               <Text style={styles.statLabel}>Pending</Text>
@@ -399,7 +415,7 @@ export default function VendorHome() {
               </Text>
             </View>
             <View style={styles.earningsBannerIcon}>
-              <Ionicons name="trending-up" size={32} color="#22C55E" />
+              <Ionicons name="trending-up" size={32} color={COLORS.success} />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -431,7 +447,7 @@ export default function VendorHome() {
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <View style={styles.navItemActive}>
-            <Ionicons name="home" size={22} color="#22C55E" />
+            <Ionicons name="home" size={22} color={COLORS.primary} />
           </View>
           <Text style={[styles.navLabel, styles.navLabelActive]}>Home</Text>
         </TouchableOpacity>
@@ -442,7 +458,7 @@ export default function VendorHome() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItemCenter} onPress={() => router.push("/(vendor)/add-product")}>
-          <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.addButtonGradient}>
+          <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.addButtonGradient}>
             <Ionicons name="add" size={28} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>
@@ -462,20 +478,20 @@ export default function VendorHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
   emptyStateContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
   emptyStateIcon: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#F0FDF4",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
   },
-  emptyStateTitle: { fontSize: 24, fontWeight: "700", color: "#1E293B", marginBottom: 12 },
-  emptyStateText: { fontSize: 15, color: "#64748B", textAlign: "center", marginBottom: 32, lineHeight: 22 },
+  emptyStateTitle: { fontSize: 24, fontWeight: "700", color: COLORS.text, marginBottom: 12 },
+  emptyStateText: { fontSize: 15, color: COLORS.textLight, textAlign: "center", marginBottom: 32, lineHeight: 22 },
 
   setupButton: { borderRadius: 14, overflow: "hidden" },
   setupButtonGradient: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingVertical: 16, gap: 8 },
@@ -499,7 +515,7 @@ const styles = StyleSheet.create({
     width: 48, 
     height: 48, 
     borderRadius: 14, 
-    backgroundColor: "#E2E8F0" 
+    backgroundColor: COLORS.border 
   },
   avatarText: { fontSize: 18, fontWeight: "700", color: "#FFF" },
 
@@ -517,7 +533,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#EF4444",
+    backgroundColor: COLORS.danger,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -532,7 +548,7 @@ const styles = StyleSheet.create({
   toggleButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.2)" },
   toggleButtonActive: { backgroundColor: "#FFF" },
   toggleText: { fontSize: 12, fontWeight: "700", color: "#FFF" },
-  toggleTextActive: { color: "#22C55E" },
+  toggleTextActive: { color: COLORS.primary },
 
   ratingBadge: {
     position: "absolute",
@@ -551,8 +567,8 @@ const styles = StyleSheet.create({
     elevation: 4,
     gap: 4,
   },
-  ratingText: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
-  ratingLabel: { fontSize: 12, color: "#64748B", marginLeft: 2 },
+  ratingText: { fontSize: 15, fontWeight: "700", color: COLORS.text },
+  ratingLabel: { fontSize: 12, color: COLORS.textLight, marginLeft: 2 },
 
   scrollView: { flex: 1 },
   scrollContent: { paddingTop: 30, paddingHorizontal: 20 },
@@ -560,15 +576,15 @@ const styles = StyleSheet.create({
   statsContainer: { gap: 12, marginBottom: 20 },
   statsRow: { flexDirection: "row", gap: 12 },
 
-  statCard: { flex: 1, backgroundColor: "#FFF", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  statCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 16, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   statCardPrimary: { padding: 0, overflow: "hidden" },
   statCardGradient: { padding: 16, flex: 1 },
 
   statIconContainer: { width: 44, height: 44, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.25)", justifyContent: "center", alignItems: "center", marginBottom: 12 },
 
-  statValue: { fontSize: 24, fontWeight: "700", color: "#1E293B" },
+  statValue: { fontSize: 24, fontWeight: "700", color: COLORS.text },
   statValueLight: { fontSize: 24, fontWeight: "700", color: "#FFF" },
-  statLabel: { fontSize: 13, color: "#64748B", marginTop: 4 },
+  statLabel: { fontSize: 13, color: COLORS.textLight, marginTop: 4 },
   statLabelLight: { fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 4 },
 
   earningsBanner: { marginBottom: 24, borderRadius: 16, overflow: "hidden" },
@@ -578,18 +594,18 @@ const styles = StyleSheet.create({
   earningsBannerIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: "rgba(34,197,94,0.15)", justifyContent: "center", alignItems: "center" },
 
   section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B", marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text, marginBottom: 16 },
 
   quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  quickActionCard: { width: (width - 52) / 2, backgroundColor: "#FFF", borderRadius: 16, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  quickActionCard: { width: (width - 52) / 2, backgroundColor: COLORS.card, borderRadius: 16, padding: 18, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   quickActionIcon: { width: 52, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  quickActionLabel: { fontSize: 14, fontWeight: "600", color: "#1E293B", textAlign: "center" },
+  quickActionLabel: { fontSize: 14, fontWeight: "600", color: COLORS.text, textAlign: "center" },
 
-  bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: "#FFF", paddingTop: 10, paddingBottom: 28, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: "#F1F5F9", justifyContent: "space-around", alignItems: "center" },
+  bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: COLORS.card, paddingTop: 10, paddingBottom: 28, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: COLORS.border, justifyContent: "space-around", alignItems: "center" },
   navItem: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },
-  navItemActive: { backgroundColor: "#F0FDF4", padding: 8, borderRadius: 12 },
+  navItemActive: { backgroundColor: COLORS.softPink, padding: 8, borderRadius: 12 },
   navItemCenter: { marginTop: -30 },
-  addButtonGradient: { width: 56, height: 56, borderRadius: 16, justifyContent: "center", alignItems: "center", shadowColor: "#22C55E", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6 },
+  addButtonGradient: { width: 56, height: 56, borderRadius: 16, justifyContent: "center", alignItems: "center", shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6 },
   navLabel: { fontSize: 11, fontWeight: "500", color: "#94A3B8", marginTop: 4 },
-  navLabelActive: { color: "#22C55E", fontWeight: "600" },
+  navLabelActive: { color: COLORS.primary, fontWeight: "600" },
 });

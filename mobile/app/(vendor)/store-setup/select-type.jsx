@@ -14,6 +14,22 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 const storeTypes = [
   {
     id: "medical",
@@ -21,9 +37,9 @@ const storeTypes = [
     subtitle: "Pharmacy & Healthcare",
     description: "Medicines, health products, medical equipment",
     icon: "medical",
-    color: "#EF4444",
-    bgColor: "#FEE2E2",
-    gradient: ["#EF4444", "#DC2626"],
+    color: COLORS.primary,
+    bgColor: COLORS.softPink,
+    gradient: [COLORS.primary, "#B91C1C"],
     features: [
       "Prescription management",
       "Medicine inventory with expiry tracking",
@@ -55,9 +71,9 @@ const storeTypes = [
     subtitle: "Grocery & Daily Needs",
     description: "Grocery, vegetables, fruits, dairy, daily essentials",
     icon: "storefront",
-    color: "#22C55E",
+    color: COLORS.success,
     bgColor: "#DCFCE7",
-    gradient: ["#22C55E", "#16A34A"],
+    gradient: [COLORS.success, "#16A34A"],
     features: [
       "Multiple product categories",
       "Weight/quantity variants",
@@ -80,10 +96,10 @@ export default function StoreTypeSelection() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.text} />
 
       {/* Header */}
-      <LinearGradient colors={["#1E293B", "#334155"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.text, "#334155"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -179,7 +195,7 @@ export default function StoreTypeSelection() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   
   header: { 
     paddingTop: 50, 
@@ -211,7 +227,7 @@ const styles = StyleSheet.create({
 
   infoCard: {
     flexDirection: "row",
-    backgroundColor: "#EFF6FF",
+    backgroundColor: COLORS.softBlue,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -224,7 +240,7 @@ const styles = StyleSheet.create({
   infoText: { fontSize: 13, color: "#3B82F6", lineHeight: 18 },
 
   storeCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -233,6 +249,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
 
   cardHeader: {
@@ -248,19 +266,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cardTitleContainer: { flex: 1, marginLeft: 14 },
-  cardTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
-  cardSubtitle: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  cardTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text },
+  cardSubtitle: { fontSize: 13, color: COLORS.textLight, marginTop: 2 },
   arrowContainer: { padding: 4 },
 
   cardDescription: {
     fontSize: 14,
-    color: "#64748B",
+    color: COLORS.textLight,
     lineHeight: 20,
     marginBottom: 16,
   },
 
   featuresContainer: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
@@ -268,7 +286,7 @@ const styles = StyleSheet.create({
   featuresTitle: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
     marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: 0.5,

@@ -24,6 +24,22 @@ import * as DocumentPicker from "expo-document-picker";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 const cuisineTypes = [
   { id: "north_indian", label: "North Indian", icon: "🍛" },
   { id: "south_indian", label: "South Indian", icon: "🥘" },
@@ -291,7 +307,7 @@ export default function RestaurantSetup() {
             <Image source={{ uri: storeImage }} style={styles.uploadedImage} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="restaurant" size={40} color="#F59E0B" />
+              <Ionicons name="restaurant" size={40} color={COLORS.primary} />
               <Text style={styles.imagePlaceholderText}>{"Add Restaurant Photo"}</Text>
             </View>
           )}
@@ -383,8 +399,8 @@ export default function RestaurantSetup() {
         <Text style={styles.sectionTitle}>{"Food Type"}</Text>
         <View style={styles.foodTypeContainer}>
           {[
-            { id: "veg", label: "Pure Veg", icon: "leaf", color: "#22C55E" },
-            { id: "nonveg", label: "Non-Veg", icon: "restaurant", color: "#EF4444" },
+            { id: "veg", label: "Pure Veg", icon: "leaf", color: COLORS.success },
+            { id: "nonveg", label: "Non-Veg", icon: "restaurant", color: COLORS.danger },
             { id: "both", label: "Both", icon: "fast-food", color: "#F59E0B" },
           ].map((type) => (
             <TouchableOpacity
@@ -398,7 +414,7 @@ export default function RestaurantSetup() {
               <Ionicons
                 name={type.icon}
                 size={20}
-                color={formData.foodType === type.id ? type.color : "#64748B"}
+                color={formData.foodType === type.id ? type.color : COLORS.textLight}
               />
               <Text
                 style={[
@@ -500,7 +516,7 @@ export default function RestaurantSetup() {
             onPress={() => updateForm(service.key, !formData[service.key])}
           >
             <View style={styles.toggleInfo}>
-              <Ionicons name={service.icon} size={22} color="#64748B" />
+              <Ionicons name={service.icon} size={22} color={COLORS.textLight} />
               <Text style={styles.toggleLabel}>{service.label}</Text>
             </View>
             <View style={[styles.toggle, formData[service.key] && styles.toggleActive]}>
@@ -527,9 +543,9 @@ export default function RestaurantSetup() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#F59E0B" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-      <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -556,7 +572,7 @@ export default function RestaurantSetup() {
       <View style={styles.footer}>
         {step > 1 && (
           <TouchableOpacity style={styles.prevButton} onPress={() => setStep(step - 1)}>
-            <Ionicons name="arrow-back" size={20} color="#64748B" />
+            <Ionicons name="arrow-back" size={20} color={COLORS.textLight} />
             <Text style={styles.prevButtonText}>{"Back"}</Text>
           </TouchableOpacity>
         )}
@@ -567,7 +583,7 @@ export default function RestaurantSetup() {
           disabled={loading}
         >
           <LinearGradient
-            colors={loading ? ["#94A3B8", "#94A3B8"] : ["#F59E0B", "#D97706"]}
+            colors={loading ? ["#94A3B8", "#94A3B8"] : [COLORS.primary, "#B91C1C"]}
             style={styles.nextButtonGradient}
           >
             {loading ? (
@@ -589,7 +605,7 @@ export default function RestaurantSetup() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{"Add Menu Items"}</Text>
               <TouchableOpacity onPress={() => setShowExcelModal(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
 
@@ -600,7 +616,7 @@ export default function RestaurantSetup() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.uploadButton, { backgroundColor: "#F59E0B" }, uploadingExcel && styles.uploadButtonDisabled]}
+                style={[styles.uploadButton, uploadingExcel && styles.uploadButtonDisabled]}
                 onPress={pickExcelFile}
                 disabled={uploadingExcel}
               >
@@ -644,7 +660,7 @@ export default function RestaurantSetup() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
   header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 },
   headerTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -660,75 +676,75 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20 },
 
   section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B", marginBottom: 4 },
-  sectionSubtitle: { fontSize: 13, color: "#64748B", marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: COLORS.text, marginBottom: 4 },
+  sectionSubtitle: { fontSize: 13, color: COLORS.textLight, marginBottom: 12 },
 
-  label: { fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8, marginTop: 12 },
-  input: { backgroundColor: "#FFF", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: "#1E293B", borderWidth: 1, borderColor: "#E2E8F0" },
+  label: { fontSize: 13, fontWeight: "600", color: COLORS.textLight, marginBottom: 8, marginTop: 12 },
+  input: { backgroundColor: COLORS.card, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border },
   textArea: { height: 80, textAlignVertical: "top" },
 
   row: { flexDirection: "row", gap: 12 },
   halfInput: { flex: 1 },
 
   inputWithSuffix: { flexDirection: "row" },
-  inputSuffix: { backgroundColor: "#F1F5F9", borderWidth: 1, borderLeftWidth: 0, borderColor: "#E2E8F0", borderTopRightRadius: 12, borderBottomRightRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
-  suffixText: { fontSize: 13, color: "#64748B", fontWeight: "500" },
+  inputSuffix: { backgroundColor: "#F1F5F9", borderWidth: 1, borderLeftWidth: 0, borderColor: COLORS.border, borderTopRightRadius: 12, borderBottomRightRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
+  suffixText: { fontSize: 13, color: COLORS.textLight, fontWeight: "500" },
 
-  imageUpload: { height: 160, borderRadius: 16, overflow: "hidden", backgroundColor: "#FFF", borderWidth: 2, borderColor: "#E2E8F0", borderStyle: "dashed" },
+  imageUpload: { height: 160, borderRadius: 16, overflow: "hidden", backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.border, borderStyle: "dashed" },
   imagePlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  imagePlaceholderText: { fontSize: 14, color: "#64748B", marginTop: 8 },
+  imagePlaceholderText: { fontSize: 14, color: COLORS.textLight, marginTop: 8 },
   uploadedImage: { width: "100%", height: "100%", resizeMode: "cover" },
 
   cuisineGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  cuisineChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#E2E8F0", gap: 6 },
-  cuisineChipActive: { backgroundColor: "#FEF3C7", borderColor: "#F59E0B" },
+  cuisineChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, gap: 6 },
+  cuisineChipActive: { backgroundColor: COLORS.softPink, borderColor: COLORS.primary },
   cuisineEmoji: { fontSize: 18 },
-  cuisineLabel: { fontSize: 13, color: "#64748B", fontWeight: "500" },
-  cuisineLabelActive: { color: "#D97706" },
+  cuisineLabel: { fontSize: 13, color: COLORS.textLight, fontWeight: "500" },
+  cuisineLabelActive: { color: COLORS.primary },
 
   foodTypeContainer: { flexDirection: "row", gap: 12 },
-  foodTypeChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 1.5, borderColor: "#E2E8F0", gap: 8 },
-  foodTypeLabel: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  foodTypeChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, borderRadius: 12, backgroundColor: COLORS.card, borderWidth: 1.5, borderColor: COLORS.border, gap: 8 },
+  foodTypeLabel: { fontSize: 13, fontWeight: "600", color: COLORS.textLight },
 
   warningBox: { flexDirection: "row", backgroundColor: "#FEF3C7", borderRadius: 12, padding: 14, marginBottom: 16, gap: 10 },
   warningText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 18 },
 
-  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFF", borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#E2E8F0" },
+  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
   toggleInfo: { flexDirection: "row", alignItems: "center", gap: 12 },
-  toggleLabel: { fontSize: 15, color: "#1E293B", fontWeight: "500" },
-  toggle: { width: 50, height: 28, borderRadius: 14, backgroundColor: "#E2E8F0", justifyContent: "center", padding: 2 },
-  toggleActive: { backgroundColor: "#F59E0B" },
-  toggleCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#FFF" },
+  toggleLabel: { fontSize: 15, color: COLORS.text, fontWeight: "500" },
+  toggle: { width: 50, height: 28, borderRadius: 14, backgroundColor: COLORS.border, justifyContent: "center", padding: 2 },
+  toggleActive: { backgroundColor: COLORS.primary },
+  toggleCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.card },
   toggleCircleActive: { alignSelf: "flex-end" },
 
   bottomSpacer: { height: 120 },
 
-  footer: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: "#FFF", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, borderTopWidth: 1, borderTopColor: "#F1F5F9", gap: 12 },
+  footer: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", backgroundColor: COLORS.card, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, borderTopWidth: 1, borderTopColor: "#F1F5F9", gap: 12 },
   prevButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: "#F1F5F9", gap: 6 },
-  prevButtonText: { fontSize: 15, fontWeight: "600", color: "#64748B" },
+  prevButtonText: { fontSize: 15, fontWeight: "600", color: COLORS.textLight },
   nextButton: { flex: 1, borderRadius: 12, overflow: "hidden" },
   buttonDisabled: { opacity: 0.7 },
   nextButtonGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, gap: 8 },
   nextButtonText: { fontSize: 16, fontWeight: "700", color: "#FFF" },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "80%" },
+  modalContent: { backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "80%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  modalTitle: { fontSize: 20, fontWeight: "700", color: "#1E293B" },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: COLORS.text },
 
   uploadOptions: { gap: 16, marginBottom: 24 },
-  templateButton: { backgroundColor: "#EFF6FF", borderRadius: 16, padding: 20, alignItems: "center", borderWidth: 1, borderColor: "#BFDBFE" },
+  templateButton: { backgroundColor: COLORS.softBlue, borderRadius: 16, padding: 20, alignItems: "center", borderWidth: 1, borderColor: "#BFDBFE" },
   templateButtonText: { fontSize: 15, fontWeight: "600", color: "#3B82F6", marginTop: 8 },
 
-  uploadButton: { borderRadius: 16, padding: 20, alignItems: "center" },
+  uploadButton: { backgroundColor: COLORS.primary, borderRadius: 16, padding: 20, alignItems: "center" },
   uploadButtonDisabled: { backgroundColor: "#94A3B8" },
   uploadButtonText: { fontSize: 15, fontWeight: "600", color: "#FFF", marginTop: 8 },
   uploadingContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
 
-  templateInfo: { backgroundColor: "#F8FAFC", borderRadius: 12, padding: 16, marginBottom: 20 },
-  templateInfoTitle: { fontSize: 13, fontWeight: "600", color: "#1E293B", marginBottom: 8 },
-  templateInfoText: { fontSize: 12, color: "#64748B", marginBottom: 4 },
+  templateInfo: { backgroundColor: COLORS.bg, borderRadius: 12, padding: 16, marginBottom: 20 },
+  templateInfoTitle: { fontSize: 13, fontWeight: "600", color: COLORS.text, marginBottom: 8 },
+  templateInfoText: { fontSize: 12, color: COLORS.textLight, marginBottom: 4 },
 
   skipButton: { alignItems: "center", padding: 16 },
-  skipButtonText: { fontSize: 14, color: "#64748B", fontWeight: "500" },
+  skipButtonText: { fontSize: 14, color: COLORS.textLight, fontWeight: "500" },
 });

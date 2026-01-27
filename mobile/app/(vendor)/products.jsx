@@ -20,6 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function VendorProducts() {
   const router = useRouter();
 
@@ -297,17 +313,17 @@ export default function VendorProducts() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -331,7 +347,7 @@ export default function VendorProducts() {
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color={COLORS.textLight} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
@@ -393,7 +409,7 @@ export default function VendorProducts() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#22C55E"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -503,7 +519,7 @@ export default function VendorProducts() {
                     style={styles.actionButton}
                     onPress={() => deleteProduct(product._id)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -518,12 +534,12 @@ export default function VendorProducts() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
 
   header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 },
@@ -554,13 +570,13 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 48,
   },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 15, color: "#1E293B" },
+  searchInput: { flex: 1, fontSize: 15, color: COLORS.text },
 
   categoriesScroll: { maxHeight: 60 },
   categoriesContent: {
@@ -572,15 +588,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  categoryChipActive: { backgroundColor: "#22C55E" },
-  categoryText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  categoryChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  categoryText: { fontSize: 14, fontWeight: "600", color: COLORS.textLight },
   categoryTextActive: { color: "#FFF" },
 
   countContainer: { paddingHorizontal: 20, paddingVertical: 12 },
-  countText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  countText: { fontSize: 14, fontWeight: "600", color: COLORS.textLight },
 
   scrollView: { flex: 1, paddingHorizontal: 20 },
 
@@ -596,7 +614,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   addFirstButton: {
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -606,7 +624,7 @@ const styles = StyleSheet.create({
   productCard: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
@@ -615,6 +633,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   productLeft: { flexDirection: "row", flex: 1, marginRight: 12 },
 
@@ -622,7 +642,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -631,7 +651,7 @@ const styles = StyleSheet.create({
   productEmoji: { fontSize: 28 },
 
   productInfo: { marginLeft: 12, flex: 1, justifyContent: "center" },
-  productName: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
+  productName: { fontSize: 15, fontWeight: "600", color: COLORS.text },
   productCategory: { fontSize: 12, color: "#94A3B8", marginTop: 4 },
 
   productMeta: { marginTop: 8 },
@@ -642,15 +662,15 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
-  productPrice: { fontSize: 16, fontWeight: "700", color: "#22C55E" },
+  productPrice: { fontSize: 16, fontWeight: "700", color: COLORS.primary },
   productOriginalPrice: {
     fontSize: 13,
     fontWeight: "500",
     color: "#94A3B8",
     textDecorationLine: "line-through",
   },
-  productStock: { fontSize: 12, color: "#64748B" },
-  productMrp: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  productStock: { fontSize: 12, color: COLORS.textLight },
+  productMrp: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
 
   productActions: {
     alignItems: "flex-end",
@@ -659,17 +679,17 @@ const styles = StyleSheet.create({
 
   statusButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   statusButtonActive: { backgroundColor: "#DCFCE7" },
-  statusButtonInactive: { backgroundColor: "#FEE2E2" },
+  statusButtonInactive: { backgroundColor: COLORS.softPink },
   statusButtonText: { fontSize: 11, fontWeight: "600" },
   statusButtonTextActive: { color: "#16A34A" },
-  statusButtonTextInactive: { color: "#DC2626" },
+  statusButtonTextInactive: { color: COLORS.danger },
 
   actionButtons: { flexDirection: "row", gap: 8 },
   actionButton: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -683,10 +703,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   badgeVeg: { backgroundColor: "#DCFCE7" },
-  badgeNonVeg: { backgroundColor: "#FEE2E2" },
+  badgeNonVeg: { backgroundColor: COLORS.softPink },
   badgeText: { fontSize: 11, fontWeight: "700" },
   badgeTextVeg: { color: "#16A34A" },
-  badgeTextNonVeg: { color: "#DC2626" },
+  badgeTextNonVeg: { color: COLORS.danger },
 
   badgeGray: {
     paddingHorizontal: 8,
@@ -708,7 +728,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: "#FEE2E2",
+    backgroundColor: COLORS.softPink,
   },
-  badgeRedText: { fontSize: 11, fontWeight: "700", color: "#DC2626" },
+  badgeRedText: { fontSize: 11, fontWeight: "700", color: COLORS.danger },
 });

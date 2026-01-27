@@ -25,6 +25,22 @@ import * as DocumentPicker from "expo-document-picker";
 
 const API_URL = "http://13.203.206.134:5000";
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
+
 export default function AddProduct() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -479,10 +495,10 @@ export default function AddProduct() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.backButton}
@@ -503,7 +519,7 @@ export default function AddProduct() {
           activeOpacity={1}
         >
           <View style={styles.addTypeIcon}>
-            <Ionicons name="add-circle" size={24} color="#22C55E" />
+            <Ionicons name="add-circle" size={24} color={COLORS.primary} />
           </View>
           <View style={styles.addTypeInfo}>
             <Text style={styles.addTypeTitle}>{"Single Item"}</Text>
@@ -512,7 +528,7 @@ export default function AddProduct() {
             </Text>
           </View>
           <View style={styles.addTypeCheck}>
-            <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
+            <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
           </View>
         </TouchableOpacity>
 
@@ -520,7 +536,7 @@ export default function AddProduct() {
           style={[styles.addTypeButton, styles.addTypeBulk]}
           onPress={() => setShowBulkModal(true)}
         >
-          <View style={[styles.addTypeIcon, { backgroundColor: "#EFF6FF" }]}>
+          <View style={[styles.addTypeIcon, { backgroundColor: COLORS.softBlue }]}>
             <Ionicons name="cloud-upload" size={24} color="#3B82F6" />
           </View>
           <View style={styles.addTypeInfo}>
@@ -542,7 +558,7 @@ export default function AddProduct() {
           >
             {imageLoading ? (
               <View style={styles.imagePlaceholder}>
-                <ActivityIndicator size="large" color="#22C55E" />
+                <ActivityIndicator size="large" color={COLORS.primary} />
                 <Text style={styles.imagePlaceholderText}>{"Uploading..."}</Text>
               </View>
             ) : formData.images.length > 0 ? (
@@ -930,7 +946,7 @@ export default function AddProduct() {
             colors={
               loading || imageLoading
                 ? ["#94A3B8", "#94A3B8"]
-                : ["#22C55E", "#16A34A"]
+                : [COLORS.primary, "#B91C1C"]
             }
             style={styles.submitGradient}
           >
@@ -953,7 +969,7 @@ export default function AddProduct() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{"Bulk Upload"}</Text>
               <TouchableOpacity onPress={() => setShowBulkModal(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
 
@@ -968,7 +984,7 @@ export default function AddProduct() {
                     : "storefront"
                 }
                 size={18}
-                color="#22C55E"
+                color={COLORS.primary}
               />
               <Text style={styles.storeTypeBadgeText}>
                 {storeType === "medical"
@@ -1054,7 +1070,7 @@ export default function AddProduct() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
   header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 },
   headerTop: {
@@ -1077,9 +1093,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 16,
     gap: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: COLORS.border,
   },
   addTypeButton: {
     flex: 1,
@@ -1089,20 +1105,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
   },
-  addTypeSingle: { backgroundColor: "#F0FDF4", borderColor: "#22C55E" },
-  addTypeBulk: { backgroundColor: "#FFF", borderColor: "#E2E8F0" },
+  addTypeSingle: { backgroundColor: COLORS.softPink, borderColor: COLORS.primary },
+  addTypeBulk: { backgroundColor: COLORS.card, borderColor: COLORS.border },
   addTypeIcon: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "#DCFCE7",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
   },
   addTypeInfo: { flex: 1 },
-  addTypeTitle: { fontSize: 13, fontWeight: "600", color: "#1E293B" },
-  addTypeSubtitle: { fontSize: 11, color: "#64748B", marginTop: 2 },
+  addTypeTitle: { fontSize: 13, fontWeight: "600", color: COLORS.text },
+  addTypeSubtitle: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
   addTypeCheck: { marginLeft: 4 },
 
   scrollView: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
@@ -1111,18 +1127,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: "#1E293B",
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: COLORS.border,
   },
   textArea: { height: 100, paddingTop: 14 },
 
@@ -1130,28 +1146,28 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderWidth: 2,
-    borderColor: "#E2E8F0",
+    borderColor: COLORS.border,
     borderStyle: "dashed",
   },
   imagePlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
   imagePlaceholderText: { fontSize: 14, color: "#94A3B8", marginTop: 8 },
   uploadedImage: { width: "100%", height: "100%" },
   removeImageButton: { alignSelf: "center", marginTop: 8, padding: 8 },
-  removeImageText: { fontSize: 14, color: "#EF4444", fontWeight: "600" },
+  removeImageText: { fontSize: 14, color: COLORS.danger, fontWeight: "600" },
 
   categoryGrid: { flexDirection: "row", gap: 8 },
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: COLORS.border,
   },
-  categoryChipActive: { backgroundColor: "#22C55E", borderColor: "#22C55E" },
-  categoryText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  categoryChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  categoryText: { fontSize: 14, fontWeight: "600", color: COLORS.textLight },
   categoryTextActive: { color: "#FFF" },
 
   row: { flexDirection: "row" },
@@ -1161,12 +1177,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: COLORS.border,
   },
-  unitChipActive: { backgroundColor: "#22C55E", borderColor: "#22C55E" },
-  unitText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  unitChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  unitText: { fontSize: 13, fontWeight: "600", color: COLORS.textLight },
   unitTextActive: { color: "#FFF" },
 
   helperText: { fontSize: 12, color: "#94A3B8", marginTop: 6 },
@@ -1176,12 +1192,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 28,
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: COLORS.border,
   },
   submitButton: { borderRadius: 14, overflow: "hidden" },
   submitButtonDisabled: { opacity: 0.7 },
@@ -1201,7 +1217,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -1213,24 +1229,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 20, fontWeight: "700", color: "#1E293B" },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: COLORS.text },
 
   storeTypeBadge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "#F0FDF4",
+    backgroundColor: COLORS.softPink,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     gap: 6,
     marginBottom: 20,
   },
-  storeTypeBadgeText: { fontSize: 13, fontWeight: "600", color: "#22C55E" },
+  storeTypeBadgeText: { fontSize: 13, fontWeight: "600", color: COLORS.primary },
 
   uploadOptions: { gap: 16, marginBottom: 24 },
   templateButton: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: COLORS.softBlue,
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
@@ -1243,15 +1259,15 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     marginTop: 8,
   },
-  templateSubtext: { fontSize: 12, color: "#64748B", marginTop: 4 },
+  templateSubtext: { fontSize: 12, color: COLORS.textLight, marginTop: 4 },
 
   uploadButton: {
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
   },
-  uploadButtonDisabled: { backgroundColor: "#22C55E" },
+  uploadButtonDisabled: { backgroundColor: COLORS.primary },
   uploadButtonText: {
     fontSize: 15,
     fontWeight: "600",
@@ -1275,7 +1291,7 @@ const styles = StyleSheet.create({
   progressFill: { height: "100%", backgroundColor: "#FFF", borderRadius: 2 },
 
   templateInfo: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -1283,11 +1299,11 @@ const styles = StyleSheet.create({
   templateInfoTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 8,
   },
-  templateInfoText: { fontSize: 12, color: "#64748B", marginBottom: 4 },
+  templateInfoText: { fontSize: 12, color: COLORS.textLight, marginBottom: 4 },
 
   skipButton: { alignItems: "center", padding: 16 },
-  skipButtonText: { fontSize: 14, color: "#64748B", fontWeight: "500" },
+  skipButtonText: { fontSize: 14, color: COLORS.textLight, fontWeight: "500" },
 });

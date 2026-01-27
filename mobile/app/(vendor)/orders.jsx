@@ -18,6 +18,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 const API_URL = "http://13.203.206.134:5000"; // Update with your backend URL
 
+const COLORS = {
+  primary: "#DC2626",
+  secondary: "#F87171",
+  danger: "#DC2626",
+  success: "#22C55E",
+  
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#1E293B",
+  textLight: "#64748B",
+  border: "#E2E8F0",
+  
+  softBlue: "#EFF6FF",
+  softPink: "#FEE2E2",
+};
 
 export default function VendorOrders() {
   const router = useRouter();
@@ -113,7 +128,7 @@ export default function VendorOrders() {
       case "delivered":
         return { bg: "#F3F4F6", color: "#6B7280", icon: "checkmark-done" };
       case "cancelled":
-        return { bg: "#FEE2E2", color: "#DC2626", icon: "close-circle" };
+        return { bg: COLORS.softPink, color: COLORS.danger, icon: "close-circle" };
       default:
         return { bg: "#F3F4F6", color: "#6B7280", icon: "help-circle" };
     }
@@ -159,17 +174,17 @@ export default function VendorOrders() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#22C55E" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* Header */}
-      <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, "#B91C1C"]} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.backButton}
@@ -236,7 +251,7 @@ export default function VendorOrders() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#22C55E"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -294,14 +309,14 @@ export default function VendorOrders() {
                 <View style={styles.orderBody}>
                   {order.customer && (
                     <View style={styles.orderInfo}>
-                      <Ionicons name="person-outline" size={16} color="#64748B" />
+                      <Ionicons name="person-outline" size={16} color={COLORS.textLight} />
                       <Text style={styles.orderInfoText}>
                         {order.customer.name}
                       </Text>
                     </View>
                   )}
                   <View style={styles.orderInfo}>
-                    <Ionicons name="cube-outline" size={16} color="#64748B" />
+                    <Ionicons name="cube-outline" size={16} color={COLORS.textLight} />
                     <Text style={styles.orderInfoText}>
                       {order.items?.length || 0} items
                     </Text>
@@ -351,7 +366,7 @@ export default function VendorOrders() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Order Details</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
 
@@ -432,7 +447,7 @@ export default function VendorOrders() {
                     }}
                   >
                     <LinearGradient
-                      colors={["#22C55E", "#16A34A"]}
+                      colors={[COLORS.primary, "#B91C1C"]}
                       style={styles.modalButtonGradient}
                     >
                       <Text style={styles.modalButtonText}>
@@ -479,13 +494,13 @@ export default function VendorOrders() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.bg,
   },
   header: {
     paddingTop: 50,
@@ -524,17 +539,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     marginRight: 8,
     gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   filterChipActive: {
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   filterText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   filterTextActive: {
     color: "#FFF",
@@ -551,7 +569,7 @@ const styles = StyleSheet.create({
   filterBadgeText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   filterBadgeTextActive: {
     color: "#FFF",
@@ -572,7 +590,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   orderCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -581,6 +599,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   orderHeader: {
     flexDirection: "row",
@@ -604,7 +624,7 @@ const styles = StyleSheet.create({
   orderNumber: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   orderTime: {
     fontSize: 12,
@@ -633,7 +653,7 @@ const styles = StyleSheet.create({
   },
   orderInfoText: {
     fontSize: 13,
-    color: "#64748B",
+    color: COLORS.textLight,
     flex: 1,
   },
   orderFooter: {
@@ -647,12 +667,12 @@ const styles = StyleSheet.create({
   orderTotal: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#22C55E",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
@@ -669,7 +689,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "80%",
@@ -685,7 +705,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   modalBody: {
     padding: 20,
@@ -693,7 +713,7 @@ const styles = StyleSheet.create({
   modalOrderNumber: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#22C55E",
+    color: COLORS.primary,
     marginBottom: 20,
   },
   modalSection: {
@@ -702,7 +722,7 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
     marginBottom: 8,
   },
   modalItem: {
@@ -712,16 +732,16 @@ const styles = StyleSheet.create({
   },
   modalItemName: {
     fontSize: 14,
-    color: "#1E293B",
+    color: COLORS.text,
   },
   modalItemPrice: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E293B",
+    color: COLORS.text,
   },
   modalText: {
     fontSize: 14,
-    color: "#1E293B",
+    color: COLORS.text,
     marginBottom: 4,
   },
   modalTotal: {
@@ -734,12 +754,12 @@ const styles = StyleSheet.create({
   modalTotalLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#64748B",
+    color: COLORS.textLight,
   },
   modalTotalAmount: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#22C55E",
+    color: COLORS.primary,
   },
   modalActions: {
     padding: 20,
@@ -761,12 +781,14 @@ const styles = StyleSheet.create({
   modalCancelButton: {
     paddingVertical: 14,
     alignItems: "center",
-    backgroundColor: "#FEE2E2",
+    backgroundColor: COLORS.softPink,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
   },
   modalCancelButtonText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#DC2626",
+    color: COLORS.danger,
   },
 });
