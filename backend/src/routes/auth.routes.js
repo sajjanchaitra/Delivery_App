@@ -138,6 +138,49 @@ router.post("/firebase-login", async (req, res) => {
   }
 });
 
+// ==================== CHECK IF PHONE IS ADMIN ====================
+/**
+ * POST /api/auth/check-admin
+ * Check if phone number belongs to admin
+ */
+router.post("/check-admin", async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone is required",
+      });
+    }
+
+    // Normalize phone number
+    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+    const normalizedPhone = `+91${cleanPhone}`;
+
+    // Check if user exists with admin role
+    const user = await User.findOne({ 
+      $or: [
+        { phone: normalizedPhone, role: "admin" },
+        { phone: cleanPhone, role: "admin" },
+        { phone: `+91${cleanPhone}`, role: "admin" }
+      ]
+    });
+
+    res.json({
+      success: true,
+      isAdmin: !!user,
+      name: user ? user.name : null,
+    });
+  } catch (error) {
+    console.error("❌ Check Admin Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // ==================== TEST LOGIN (FOR DEVELOPMENT) ====================
 router.post("/test-login", async (req, res) => {
   try {
