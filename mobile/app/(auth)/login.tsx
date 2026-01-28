@@ -1,4 +1,6 @@
-// app/(auth)/login.tsx
+// mobile/app/(auth)/login.tsx
+// PRODUCTION VERSION - Real Firebase OTP + Admin Login
+
 import {
   View,
   Text,
@@ -16,9 +18,6 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import firebaseOTPService from "../../services/firebase-otp.service";
-
-// Set to true for testing, false for production
-const ENABLE_TEST_MODE = false;
 
 export default function Login() {
   const router = useRouter();
@@ -43,6 +42,7 @@ export default function Login() {
       const checkResponse: any = await api.checkAdmin(cleanPhone);
       
       if (checkResponse.success && checkResponse.isAdmin) {
+        // Admin detected - redirect to password screen
         console.log("🔐 Admin detected, redirecting to password screen");
         setLoading(false);
         router.push({
@@ -52,28 +52,35 @@ export default function Login() {
         return;
       }
 
-      // Production mode - Send Firebase OTP
-      if (!ENABLE_TEST_MODE) {
-        console.log("📱 Sending Firebase OTP...");
-        
-        const otpResult = await firebaseOTPService.sendOTP(`+91${cleanPhone}`);
-        
-        if (!otpResult.success) {
-          setLoading(false);
-          Alert.alert("Error", otpResult.error || "Failed to send OTP");
-          return;
-        }
-
-        console.log("✅ OTP sent successfully");
+      // Regular user - Send Firebase OTP
+      console.log("📱 Sending Firebase OTP...");
+      
+      // Check if Firebase is available
+      if (!firebaseOTPService.isAvailable()) {
+        setLoading(false);
+        Alert.alert(
+          "Setup Required",
+          "Firebase is not configured. Please contact support."
+        );
+        return;
       }
 
+      const otpResult = await firebaseOTPService.sendOTP(`+91${cleanPhone}`);
+      
+      if (!otpResult.success) {
+        setLoading(false);
+        Alert.alert("Error", otpResult.error || "Failed to send OTP");
+        return;
+      }
+
+      console.log("✅ OTP sent successfully");
+      
       // Navigate to OTP screen
       setLoading(false);
       router.push({
         pathname: "/(auth)/otp",
         params: {
           phone: cleanPhone,
-          testMode: ENABLE_TEST_MODE ? "true" : "false",
         },
       });
     } catch (error: any) {
@@ -99,18 +106,9 @@ export default function Login() {
             Manage your store, track orders, and access everything you need — all in one place.
           </Text>
           <Text style={styles.subtitle}>
-            {ENABLE_TEST_MODE 
-              ? "🧪 Test Mode - Any 6-digit OTP works" 
-              : "We will send you a verification code"}
+            We will send you a verification code
           </Text>
         </View>
-
-        {ENABLE_TEST_MODE && (
-          <View style={styles.testBanner}>
-            <Ionicons name="flask" size={16} color="#F59E0B" />
-            <Text style={styles.testBannerText}>Testing Mode Active</Text>
-          </View>
-        )}
 
         <View style={styles.inputSection}>
           <Text style={styles.label}>Phone Number</Text>
@@ -195,21 +193,6 @@ const styles = StyleSheet.create({
   subtitle: { 
     fontSize: 15, 
     color: "#6B7280" 
-  },
-  testBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 8,
-  },
-  testBannerText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#92400E",
   },
   inputSection: { 
     marginBottom: 24 

@@ -1,39 +1,23 @@
-// app/(auth)/admin-login.tsx
+// mobile/app/(auth)/admin-login.tsx
+// Admin Password Login Screen
+
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
   StatusBar,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from "react-native";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from "expo-linear-gradient";
 import api from "../../services/api";
-
-const COLORS = {
-  primary: "#DC2626",
-  secondary: "#F87171",
-  danger: "#DC2626",
-  success: "#22C55E",
-  
-  bg: "#F8FAFC",
-  card: "#FFFFFF",
-  text: "#1E293B",
-  textLight: "#64748B",
-  border: "#E2E8F0",
-  
-  softBlue: "#EFF6FF",
-  softPink: "#FEE2E2",
-};
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -41,30 +25,26 @@ export default function AdminLogin() {
   const phone = params.phone || "";
   const adminName = params.name || "Admin";
 
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [focused, setFocused] = useState<boolean>(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (): Promise<void> => {
     if (!password) {
-      Alert.alert("Error", "Please enter password");
+      Alert.alert("Error", "Please enter your password");
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log("🔐 Admin Login...");
-      console.log("   Phone:", phone);
+      console.log("🔐 Admin login attempt for:", phone);
 
-      const response = await api.adminLogin(phone, password);
-
-      console.log("📨 Response:", response);
+      const response: any = await api.adminLogin(phone, password);
 
       if (response.success && response.data?.token && response.data?.user) {
-        const token = response.data.token;
-        const user = response.data.user;
+        const { token, user } = response.data;
 
         // Save auth data
         await AsyncStorage.setItem("authToken", token);
@@ -74,136 +54,121 @@ export default function AdminLogin() {
         await AsyncStorage.setItem("user", JSON.stringify(user));
         await AsyncStorage.setItem("isLoggedIn", "true");
 
-        console.log("✅ Admin Login Successful!");
+        console.log("✅ Admin login successful!");
 
         setLoading(false);
 
-        Alert.alert("Welcome Admin! 🎉", `Logged in as ${user.name}`, [
-          {
-            text: "Continue",
-            onPress: () => router.replace("/(dash)/home" as any),
-          },
-        ]);
+        Alert.alert(
+          "Welcome Back! 👋",
+          `Logged in as ${user.name}`,
+          [
+            {
+              text: "Continue",
+              onPress: () => {
+                setTimeout(() => {
+                  router.replace("/(dash)/home" as any);
+                }, 100);
+              },
+            },
+          ]
+        );
       } else {
         setLoading(false);
         Alert.alert("Error", response.error || "Login failed");
       }
     } catch (error: any) {
-      console.error("❌ Admin Login Error:", error);
+      console.error("❌ Admin login error:", error);
       setLoading(false);
       Alert.alert(
         "Login Failed",
-        error.data?.error || error.message || "Invalid credentials"
+        error.message || "Invalid credentials. Please try again."
       );
     }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={0}
+        style={styles.content}
       >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
         >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
+          <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
+        </TouchableOpacity>
 
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="shield-checkmark" size={64} color={COLORS.primary} />
-            </View>
-
-            <Text style={styles.title}>Admin Login</Text>
-            <Text style={styles.subtitle}>Enter your password to continue</Text>
-            <View style={styles.phoneContainer}>
-              <Text style={styles.adminName}>{adminName}</Text>
-              <Text style={styles.phone}>+91 {phone}</Text>
-            </View>
+        <View style={styles.header}>
+          <View style={styles.adminBadge}>
+            <Ionicons name="shield-checkmark" size={24} color="#1E3A8A" />
+            <Text style={styles.adminBadgeText}>Admin Login</Text>
           </View>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>
+            {adminName} • +91 ******{phone.slice(-4)}
+          </Text>
+        </View>
 
-          {/* Password Input */}
-          <View style={styles.inputSection}>
-            <Text style={styles.label}>Password</Text>
-            <View
-              style={[styles.inputContainer, focused && styles.inputFocused]}
+        <View style={styles.inputSection}>
+          <Text style={styles.label}>Password</Text>
+          <View style={[styles.inputContainer, focused && styles.inputFocused]}>
+            <Ionicons name="lock-closed" size={20} color="#6B7280" />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor="#94A3B8"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              onSubmitEditing={handleLogin}
+              returnKeyType="done"
+            />
+
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              activeOpacity={0.7}
             >
               <Ionicons
-                name="lock-closed"
+                name={showPassword ? "eye-off" : "eye"}
                 size={20}
-                color={COLORS.textLight}
-                style={styles.inputIcon}
+                color="#6B7280"
               />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter admin password"
-                placeholderTextColor="#94A3B8"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoFocus
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onSubmitEditing={handleLogin}
-                returnKeyType="done"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeIcon}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={20}
-                  color={COLORS.textLight}
-                />
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Login Button */}
-          <TouchableOpacity
-            onPress={handleLogin}
-            disabled={!password || loading}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={password ? [COLORS.primary, "#B91C1C"] : ["#CBD5E1", "#CBD5E1"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.button}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="log-in" size={20} color="#FFFFFF" />
-                  <Text style={styles.buttonText}>Login as Admin</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, !password && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={!password || loading}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <>
+              <Ionicons name="log-in" size={20} color="#FFF" />
+              <Text style={styles.buttonText}>Login as Admin</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-          <Text style={styles.helpText}>
-            Contact system administrator if you forgot your password
+        <TouchableOpacity
+          style={styles.switchButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.switchButtonText}>
+            Not an admin? <Text style={styles.switchButtonLink}>Login with OTP</Text>
           </Text>
-
-          {/* Extra space for keyboard */}
-          <View style={{ height: 100 }} />
-        </ScrollView>
+        </TouchableOpacity>
       </KeyboardAvoidingView>
     </View>
   );
@@ -212,72 +177,56 @@ export default function AdminLogin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.card,
+    backgroundColor: "#FFFFFF",
   },
-  keyboardView: {
+  content: {
     flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 50,
+    justifyContent: "center",
     paddingBottom: 40,
   },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: COLORS.softPink,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 32,
-    alignSelf: "flex-start",
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.softPink,
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
+    position: "absolute",
+    top: 50,
+    left: 24,
+  },
+  header: {
+    marginBottom: 32,
+    marginTop: 80,
+  },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginBottom: 16,
+  },
+  adminBadgeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E3A8A",
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: COLORS.primary,
+    color: "#1E3A8A",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: COLORS.textLight,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  phoneContainer: {
-    backgroundColor: COLORS.bg,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  adminName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  phone: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.primary,
+    color: "#6B7280",
   },
   inputSection: {
     marginBottom: 24,
@@ -285,53 +234,57 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: COLORS.primary,
+    color: "#1E3A8A",
     marginBottom: 10,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.bg,
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
     paddingHorizontal: 16,
     height: 56,
+    gap: 12,
   },
   inputFocused: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.card,
-  },
-  inputIcon: {
-    marginRight: 12,
+    borderColor: "#1E3A8A",
+    backgroundColor: "#FFFFFF",
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: COLORS.text,
+    color: "#1E3A8A",
     fontWeight: "500",
-  },
-  eyeIcon: {
-    padding: 8,
   },
   button: {
     flexDirection: "row",
+    backgroundColor: "#1E3A8A",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 20,
     gap: 8,
-    marginBottom: 16,
+  },
+  buttonDisabled: {
+    backgroundColor: "#CBD5E1",
   },
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  helpText: {
-    fontSize: 13,
-    color: "#94A3B8",
-    textAlign: "center",
-    lineHeight: 20,
+  switchButton: {
+    alignItems: "center",
+  },
+  switchButtonText: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  switchButtonLink: {
+    color: "#E63946",
+    fontWeight: "600",
   },
 });

@@ -1,22 +1,28 @@
 // app/services/firebase-otp.service.ts
 /**
- * Firebase OTP Service
- * Handles phone authentication with Firebase
+ * Firebase OTP Service for EXPO
+ * Uses Firebase JS SDK (not @react-native-firebase)
  * 
  * INSTALLATION REQUIRED:
- * npm install @react-native-firebase/app @react-native-firebase/auth
+ * npx expo install firebase
  */
 
-// Conditional import to avoid errors if package not installed
-let auth: any;
-let FirebaseAuthTypes: any;
+import { getAuth, signInWithPhoneNumber, ConfirmationResult, RecaptchaVerifier } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
 
-try {
-  auth = require('@react-native-firebase/auth').default;
-  FirebaseAuthTypes = require('@react-native-firebase/auth');
-} catch (error) {
-  console.warn('⚠️ Firebase Auth not installed. Run: npm install @react-native-firebase/auth');
-}
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
 interface OTPSendResult {
   success: boolean;
@@ -30,7 +36,26 @@ interface OTPVerifyResult {
 }
 
 class FirebaseOTPService {
-  private confirmation: any = null;
+  private confirmation: ConfirmationResult | null = null;
+  private recaptchaVerifier: RecaptchaVerifier | null = null;
+
+  /**
+   * Initialize reCAPTCHA verifier (required for web)
+   * For React Native, this is handled automatically by Firebase
+   */
+  initRecaptcha(containerId: string = 'recaptcha-container'): void {
+    if (typeof window !== 'undefined' && !this.recaptchaVerifier) {
+      this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible',
+        callback: () => {
+          console.log('✅ reCAPTCHA verified');
+        },
+        'expired-callback': () => {
+          console.log('⚠️ reCAPTCHA expired');
+        }
+      });
+    }
+  }
 
   /**
    * Send OTP to phone number
@@ -38,12 +63,6 @@ class FirebaseOTPService {
    */
   async sendOTP(phoneNumber: string): Promise<OTPSendResult> {
     try {
-      if (!auth) {
-        return {
-          success: false,
-          error: 'Firebase Auth not installed. Please install @react-native-firebase/auth',
-        };
-      }
       // Ensure phone number is in correct format
       const formattedPhone = phoneNumber.startsWith('+91') 
         ? phoneNumber 
@@ -52,7 +71,11 @@ class FirebaseOTPService {
       console.log('📱 Sending OTP to:', formattedPhone);
 
       // Send verification code
-      this.confirmation = await auth().signInWithPhoneNumber(formattedPhone);
+      this.confirmation = await signInWithPhoneNumber(
+        auth,
+        formattedPhone,
+        this.recaptchaVerifier!
+      );
 
       console.log('✅ OTP sent successfully');
       
@@ -68,6 +91,8 @@ class FirebaseOTPService {
         errorMessage = 'Too many requests. Please try again later';
       } else if (error.code === 'auth/network-request-failed') {
         errorMessage = 'Network error. Please check your connection';
+      } else if (error.code === 'auth/captcha-check-failed') {
+        errorMessage = 'Verification failed. Please try again';
       }
 
       return { success: false, error: errorMessage };
@@ -80,12 +105,6 @@ class FirebaseOTPService {
    */
   async verifyOTP(code: string): Promise<OTPVerifyResult> {
     try {
-      if (!auth) {
-        return {
-          success: false,
-          error: 'Firebase Auth not installed',
-        };
-      }
       if (!this.confirmation) {
         return { 
           success: false, 

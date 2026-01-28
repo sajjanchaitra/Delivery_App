@@ -1,67 +1,58 @@
-// app/services/notification.service.ts
+// services/notification.service.ts
 /**
- * Push Notification Service
- * Handles Firebase Cloud Messaging for push notifications
+ * Push Notification Service for EXPO
+ * Uses Expo Notifications (not @react-native-firebase/messaging)
  * 
  * INSTALLATION REQUIRED:
- * npm install @react-native-firebase/app @react-native-firebase/messaging
+ * npx expo install expo-notifications expo-device expo-constants
  */
 
-// Conditional import to avoid errors if package not installed
-let messaging: any;
-
-try {
-  messaging = require('@react-native-firebase/messaging').default;
-} catch (error) {
-  console.warn('⚠️ Firebase Messaging not installed. Run: npm install @react-native-firebase/messaging');
-}
-
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import api from './api';
 
+// Configure notification behavior - FIX: Added missing properties
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,  // ✅ ADDED
+    shouldShowList: true,    // ✅ ADDED
+  }),
+});
+
 class NotificationService {
+  private notificationListener: Notifications.Subscription | null = null;
+  private responseListener: Notifications.Subscription | null = null;
+
   /**
    * Request notification permissions
    */
   async requestPermission(): Promise<boolean> {
     try {
-      if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not available');
+      if (!Device.isDevice) {
+        console.warn('⚠️ Push notifications only work on physical devices');
         return false;
       }
 
-      if (Platform.OS === 'ios') {
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-        if (enabled) {
-          console.log('✅ iOS notification permission granted');
-        } else {
-          console.log('❌ iOS notification permission denied');
-        }
-
-        return enabled;
-      } else {
-        // Android 13+ requires permission
-        if (Platform.OS === 'android' && typeof Platform.Version === 'number' && Platform.Version >= 33) {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-          );
-
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('✅ Android notification permission granted');
-            return true;
-          } else {
-            console.log('❌ Android notification permission denied');
-            return false;
-          }
-        }
-
-        // Android 12 and below - permission granted by default
-        return true;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
       }
+
+      if (finalStatus !== 'granted') {
+        console.log('❌ Notification permission denied');
+        return false;
+      }
+
+      console.log('✅ Notification permission granted');
+      return true;
     } catch (error) {
       console.error('❌ Permission request error:', error);
       return false;
@@ -69,20 +60,50 @@ class NotificationService {
   }
 
   /**
-   * Get FCM token
+   * Get Expo Push Token (FCM/APNs token)
    */
-  async getFCMToken(): Promise<string | null> {
+  async getExpoPushToken(): Promise<string | null> {
     try {
-      if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not available');
+      if (!Device.isDevice) {
+        console.warn('⚠️ Push tokens only work on physical devices');
         return null;
       }
 
-      const token = await messaging().getToken();
-      console.log('✅ FCM Token:', token);
-      return token;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      
+      if (!projectId) {
+        console.error('❌ Missing Expo project ID in app.json');
+        console.error('   Run: npx eas init');
+        console.error('   Then add projectId to app.json under extra.eas.projectId');
+        return null;
+      }
+
+      const token = await Notifications.getExpoPushTokenAsync({
+        projectId,
+      });
+
+      console.log('✅ Expo Push Token:', token.data);
+      return token.data;
     } catch (error) {
-      console.error('❌ Get FCM Token Error:', error);
+      console.error('❌ Get Push Token Error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get device push token (FCM for Android, APNs for iOS)
+   */
+  async getDevicePushToken(): Promise<string | null> {
+    try {
+      if (!Device.isDevice) {
+        return null;
+      }
+
+      const token = await Notifications.getDevicePushTokenAsync();
+      console.log('✅ Device Push Token:', token.data);
+      return token.data;
+    } catch (error) {
+      console.error('❌ Get Device Token Error:', error);
       return null;
     }
   }
@@ -92,11 +113,6 @@ class NotificationService {
    */
   async initialize(): Promise<void> {
     try {
-      if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not installed - Notifications disabled');
-        return;
-      }
-
       // Request permission
       const hasPermission = await this.requestPermission();
 
@@ -105,44 +121,46 @@ class NotificationService {
         return;
       }
 
-      // Get FCM token
-      const fcmToken = await this.getFCMToken();
+      // Get push token
+      const expoPushToken = await this.getExpoPushToken();
+      const deviceToken = await this.getDevicePushToken();
 
-      if (fcmToken) {
+      if (expoPushToken) {
         // Send token to backend
-        await this.updateFCMToken(fcmToken);
+        await this.updateFCMToken(expoPushToken);
       }
 
-      // Handle token refresh
-      messaging().onTokenRefresh(async (token) => {
-        console.log('🔄 FCM Token refreshed');
-        await this.updateFCMToken(token);
-      });
+      // Configure Android notification channel
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('orders', {
+          name: 'Order Updates',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          sound: 'default',
+        });
 
-      // Handle foreground notifications
-      messaging().onMessage(async (remoteMessage) => {
-        console.log('📬 Foreground notification:', remoteMessage);
-        
-        // Show alert for foreground notifications
-        if (remoteMessage.notification) {
-          Alert.alert(
-            remoteMessage.notification.title || 'Notification',
-            remoteMessage.notification.body || '',
-            [
-              { text: 'Dismiss', style: 'cancel' },
-              {
-                text: 'View',
-                onPress: () => this.handleNotificationPress(remoteMessage),
-              },
-            ]
-          );
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Default',
+          importance: Notifications.AndroidImportance.DEFAULT,
+          sound: 'default',
+        });
+      }
+
+      // Listen for notifications received while app is open
+      this.notificationListener = Notifications.addNotificationReceivedListener(
+        (notification) => {
+          console.log('📬 Notification received:', notification);
         }
-      });
+      );
 
-      // Handle background notifications
-      messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-        console.log('📬 Background notification:', remoteMessage);
-      });
+      // Listen for notification responses (user tapped notification)
+      this.responseListener = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          console.log('👆 Notification tapped:', response);
+          this.handleNotificationPress(response.notification);
+        }
+      );
 
       console.log('✅ Notification service initialized');
     } catch (error) {
@@ -168,70 +186,115 @@ class NotificationService {
   /**
    * Handle notification press
    */
-  handleNotificationPress(remoteMessage: any): void {
-    console.log('👆 Notification pressed:', remoteMessage);
+  handleNotificationPress(notification: Notifications.Notification): void {
+    console.log('👆 Notification pressed:', notification);
     
     // Navigate based on notification type
-    const { type, orderId, screen } = remoteMessage.data || {};
+    const { type, orderId, screen } = notification.request.content.data || {};
 
     // You can use your navigation service here
     // Example: navigationRef.navigate(screen, { orderId });
   }
 
   /**
-   * Get initial notification (app opened from notification)
+   * Schedule a local notification
    */
-  async getInitialNotification(): Promise<any> {
+  async scheduleLocalNotification(
+    title: string,
+    body: string,
+    data?: any,
+    trigger?: Notifications.NotificationTriggerInput
+  ): Promise<string> {
     try {
-      if (!messaging) {
-        return null;
-      }
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data: data || {},
+          sound: 'default',
+        },
+        trigger: trigger || null, // null = show immediately
+      });
 
-      const remoteMessage = await messaging().getInitialNotification();
-      
-      if (remoteMessage) {
-        console.log('🚀 App opened from notification:', remoteMessage);
-        return remoteMessage;
-      }
-
-      return null;
+      console.log('✅ Local notification scheduled:', id);
+      return id;
     } catch (error) {
-      console.error('❌ Get initial notification error:', error);
-      return null;
+      console.error('❌ Schedule notification error:', error);
+      throw error;
     }
   }
 
   /**
-   * Subscribe to topic
+   * Cancel a scheduled notification
    */
-  async subscribeToTopic(topic: string): Promise<void> {
+  async cancelNotification(notificationId: string): Promise<void> {
     try {
-      if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not available');
-        return;
-      }
-
-      await messaging().subscribeToTopic(topic);
-      console.log(`✅ Subscribed to topic: ${topic}`);
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      console.log('✅ Notification cancelled:', notificationId);
     } catch (error) {
-      console.error(`❌ Failed to subscribe to topic ${topic}:`, error);
+      console.error('❌ Cancel notification error:', error);
     }
   }
 
   /**
-   * Unsubscribe from topic
+   * Cancel all scheduled notifications
    */
-  async unsubscribeFromTopic(topic: string): Promise<void> {
+  async cancelAllNotifications(): Promise<void> {
     try {
-      if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not available');
-        return;
-      }
-
-      await messaging().unsubscribeFromTopic(topic);
-      console.log(`✅ Unsubscribed from topic: ${topic}`);
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log('✅ All notifications cancelled');
     } catch (error) {
-      console.error(`❌ Failed to unsubscribe from topic ${topic}:`, error);
+      console.error('❌ Cancel all notifications error:', error);
+    }
+  }
+
+  /**
+   * Clear all delivered notifications
+   */
+  async clearAllNotifications(): Promise<void> {
+    try {
+      await Notifications.dismissAllNotificationsAsync();
+      console.log('✅ All notifications cleared');
+    } catch (error) {
+      console.error('❌ Clear notifications error:', error);
+    }
+  }
+
+  /**
+   * Get badge count
+   */
+  async getBadgeCount(): Promise<number> {
+    try {
+      const count = await Notifications.getBadgeCountAsync();
+      return count;
+    } catch (error) {
+      console.error('❌ Get badge count error:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Set badge count
+   */
+  async setBadgeCount(count: number): Promise<void> {
+    try {
+      await Notifications.setBadgeCountAsync(count);
+      console.log('✅ Badge count set:', count);
+    } catch (error) {
+      console.error('❌ Set badge count error:', error);
+    }
+  }
+
+  /**
+   * Cleanup listeners - FIX: Use correct method
+   */
+  cleanup(): void {
+    // ✅ FIXED: Use remove() method on the subscription itself
+    if (this.notificationListener) {
+      this.notificationListener.remove();
+    }
+    if (this.responseListener) {
+      this.responseListener.remove();
     }
   }
 }
