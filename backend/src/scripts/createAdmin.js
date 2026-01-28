@@ -1,59 +1,78 @@
+// backend/scripts/create-admin.js
+// Run this script to create an admin user in your database
+
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const User = require("../models/User");
 require("dotenv").config();
 
-const ADMIN_PHONE = "9876543210"; // ✅ Set your admin phone number
-const ADMIN_PASSWORD = "Admin@123"; // ✅ Set your admin password
-const ADMIN_NAME = "Super Admin";
-const ADMIN_EMAIL = "admin@quickmart.com";
+// Import User model
+const User = require("../src/models/User");
+
+// Admin credentials - CHANGE THESE!
+const ADMIN_PHONE = "+919876543210";  // ← CHANGE THIS
+const ADMIN_PASSWORD = "Admin@123";    // ← CHANGE THIS
+const ADMIN_NAME = "Admin";
 
 async function createAdmin() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    // Connect to MongoDB
+    const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/quickmart";
+    await mongoose.connect(mongoUri);
     console.log("✅ Connected to MongoDB");
 
     // Check if admin already exists
-    let admin = await User.findOne({ phone: ADMIN_PHONE, role: "admin" });
-
-    if (admin) {
-      console.log("⚠️  Admin already exists!");
-      console.log("📱 Phone:", admin.phone);
-      console.log("👤 Name:", admin.name);
+    const existingAdmin = await User.findOne({ phone: ADMIN_PHONE });
+    
+    if (existingAdmin) {
+      console.log("⚠️  Admin user already exists!");
+      console.log("   Phone:", existingAdmin.phone);
+      console.log("   Name:", existingAdmin.name);
+      console.log("   Role:", existingAdmin.role);
       
-      // Update password
-      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
-      admin.password = hashedPassword;
-      await admin.save();
-      console.log("🔐 Password updated!");
-    } else {
-      // Create new admin
-      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      // Update password if needed
+      const updatePassword = true; // Set to true to update password
+      if (updatePassword) {
+        const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+        existingAdmin.password = hashedPassword;
+        existingAdmin.role = "admin";
+        await existingAdmin.save();
+        console.log("✅ Admin password updated!");
+      }
       
-      admin = new User({
-        phone: ADMIN_PHONE,
-        name: ADMIN_NAME,
-        email: ADMIN_EMAIL,
-        password: hashedPassword,
-        role: "admin",
-        isPhoneVerified: true,
-        isActive: true,
-      });
-
-      await admin.save();
-      console.log("✅ Admin created successfully!");
+      mongoose.disconnect();
+      return;
     }
 
-    console.log("\n📋 Admin Credentials:");
-    console.log("📱 Phone:", ADMIN_PHONE);
-    console.log("🔐 Password:", ADMIN_PASSWORD);
-    console.log("\n⚠️  Please change the password after first login!");
+    // Hash password
+    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
-    process.exit(0);
+    // Create admin user
+    const admin = new User({
+      phone: ADMIN_PHONE,
+      name: ADMIN_NAME,
+      password: hashedPassword,
+      role: "admin",
+      isPhoneVerified: true,
+      isActive: true,
+    });
+
+    await admin.save();
+
+    console.log("✅ Admin user created successfully!");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("📱 Phone:", ADMIN_PHONE);
+    console.log("🔑 Password:", ADMIN_PASSWORD);
+    console.log("👤 Name:", ADMIN_NAME);
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("⚠️  IMPORTANT: Change the password in production!");
+
+    mongoose.disconnect();
+    console.log("✅ Disconnected from MongoDB");
   } catch (error) {
     console.error("❌ Error creating admin:", error);
-    process.exit(1);
+    mongoose.disconnect();
   }
 }
 
+// Run the script
 createAdmin();
