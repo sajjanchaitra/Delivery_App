@@ -18,6 +18,8 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import api from "../../services/api";
+import firebaseOTPService from "../../services/firebase-otp.service";
+import notificationService from "../../services/notification.service";
 
 const OTP_LENGTH = 6;
 
@@ -28,7 +30,6 @@ interface Role {
 }
 
 export default function OTP() {
-
   const router = useRouter();
   const params = useLocalSearchParams<{ phone: string; testMode: string }>();
   const phone = params.phone || "";
@@ -59,7 +60,6 @@ export default function OTP() {
 
     const newOtp = [...otp];
 
-    // Handle paste
     if (value.length > 1) {
       const digits = value.split("").slice(0, OTP_LENGTH);
       digits.forEach((digit, i) => {
@@ -76,11 +76,6 @@ export default function OTP() {
     if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
-
-    // Auto verify when complete
-    // if (newOtp.every((digit) => digit !== "")) {
-    //   setTimeout(() => handleVerifyOtp(newOtp.join("")), 300);
-    // }
   };
 
   const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number): void => {
@@ -112,59 +107,84 @@ export default function OTP() {
   };
 
   const handleVerifyOtp = async (otpCode: string): Promise<void> => {
-  if (otpCode.length !== 6) {
-    Alert.alert("Error", "Please enter a 6-digit OTP");
-    return;
-  }
+    if (otpCode.length !== 6) {
+      Alert.alert("Error", "Please enter a 6-digit OTP");
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    console.log("🔐 Verifying OTP...");
-    console.log("   Phone:", phone);
-    console.log("   Role:", selectedRole);
-    console.log("   Test Mode:", isTestMode);
+    try {
+      let firebaseToken = "";
 
-    const response = await api.testLogin(phone, selectedRole);
-    
-    console.log("📨 Response:", JSON.stringify(response));
+      // Production mode - Verify Firebase OTP
+      if (!isTestMode) {
+        console.log("🔐 Verifying Firebase OTP...");
+        
+        const verifyResult = await firebaseOTPService.verifyOTP(otpCode);
+        
+        if (!verifyResult.success) {
+          setLoading(false);
+          Alert.alert("Error", verifyResult.error || "Invalid OTP");
+          resetOtp();
+          return;
+        }
 
-    // FIX: Access token and user from response.data
-    if (response.success && response.data?.token && response.data?.user) {
-      const token = response.data.token;
-      const user = response.data.user;
+        firebaseToken = verifyResult.idToken || "";
+        console.log("✅ Firebase OTP verified");
+      }
 
-      // Save auth data
-      await AsyncStorage.setItem("authToken", token);
-      await AsyncStorage.setItem("userId", user.id || user._id);
-      await AsyncStorage.setItem("userPhone", user.phone);
-      await AsyncStorage.setItem("userRole", user.role);
-      await AsyncStorage.setItem("user", JSON.stringify(user));
-      await AsyncStorage.setItem("isLoggedIn", "true");
-
-      console.log("✅ Login Successful!");
-      console.log("   User:", user.name);
-      console.log("   Role:", user.role);
-
-      setLoading(false);
+      console.log("📱 Logging in with backend...");
       
-      Alert.alert(
-        "Welcome! 🎉",
-        `Logged in as ${user.name || "User"} (${user.role})`,
-        [{ text: "Continue", onPress: () => navigateToHome(user.role) }]
-      );
-    } else {
+      let response: any;
+      
+      if (isTestMode) {
+        // Test mode - Use test login
+        response = await api.testLogin(phone, selectedRole);
+      } else {
+        // Production mode - Use Firebase token
+        response = await api.firebaseLogin(firebaseToken, phone, selectedRole);
+      }
+
+      console.log("📨 Login Response:", response);
+
+      if (response.success && response.data?.token && response.data?.user) {
+        const { token, user } = response.data;
+
+        // Save auth data
+        await AsyncStorage.setItem("authToken", token);
+        await AsyncStorage.setItem("userId", user.id || user._id);
+        await AsyncStorage.setItem("userPhone", user.phone);
+        await AsyncStorage.setItem("userRole", user.role);
+        await AsyncStorage.setItem("user", JSON.stringify(user));
+        await AsyncStorage.setItem("isLoggedIn", "true");
+
+        console.log("✅ Login Successful!");
+        console.log("   User:", user.name);
+        console.log("   Role:", user.role);
+
+        // Initialize notifications
+        await notificationService.initialize();
+
+        setLoading(false);
+        
+        Alert.alert(
+          "Welcome! 🎉",
+          `Logged in as ${user.name || "User"} (${user.role})`,
+          [{ text: "Continue", onPress: () => navigateToHome(user.role) }]
+        );
+      } else {
+        setLoading(false);
+        Alert.alert("Error", response.error || "Login failed");
+        resetOtp();
+      }
+    } catch (error: any) {
+      console.error("❌ Login Error:", error);
       setLoading(false);
-      Alert.alert("Error", response.error || "Login failed");
+      Alert.alert("Error", error.message || "Login failed. Please try again.");
       resetOtp();
     }
-  } catch (error: any) {
-    console.error("❌ Login Error:", error);
-    setLoading(false);
-    Alert.alert("Error", error.message || "Login failed. Please try again.");
-    resetOtp();
-  }
-};
+  };
 
   const resetOtp = (): void => {
     setOtp(["", "", "", "", "", ""]);
@@ -176,8 +196,21 @@ export default function OTP() {
 
     setLoading(true);
     try {
-      await new Promise<void>(resolve => setTimeout(resolve, 500));
-      Alert.alert("Success", "OTP resent! (Test Mode: Use any 6 digits)");
+      if (isTestMode) {
+        // Test mode
+        await new Promise<void>(resolve => setTimeout(resolve, 500));
+        Alert.alert("Success", "OTP resent! (Test Mode: Use any 6 digits)");
+      } else {
+        // Production mode - Resend Firebase OTP
+        const result = await firebaseOTPService.resendOTP(`+91${phone}`);
+        
+        if (result.success) {
+          Alert.alert("Success", "OTP has been resent to your phone");
+        } else {
+          Alert.alert("Error", result.error || "Failed to resend OTP");
+        }
+      }
+      
       setResendTimer(30);
     } catch (error) {
       Alert.alert("Error", "Failed to resend OTP");
@@ -206,7 +239,10 @@ export default function OTP() {
       >
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            firebaseOTPService.clearConfirmation();
+            router.back();
+          }}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
@@ -224,13 +260,10 @@ export default function OTP() {
         {isTestMode && (
           <View style={styles.testBanner}>
             <Ionicons name="flask" size={16} color="#F59E0B" />
-            <Text style={styles.testBannerText}>
-              Any 6-digit OTP will work
-            </Text>
+            <Text style={styles.testBannerText}>Any 6-digit OTP will work</Text>
           </View>
         )}
 
-        {/* OTP Input */}
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <TextInput
@@ -254,7 +287,6 @@ export default function OTP() {
           ))}
         </View>
 
-        {/* Role Selection */}
         <View style={styles.roleSection}>
           <Text style={styles.roleLabel}>Continue as:</Text>
           <View style={styles.roleContainer}>
@@ -266,31 +298,30 @@ export default function OTP() {
                 style={styles.roleButtonWrapper}
               >
                 <View
-  style={[
-    styles.roleButton,
-    selectedRole === role.id && styles.roleButtonSelected,
-  ]}
->
-  <Ionicons
-    name={role.icon}
-    size={20}
-    color={selectedRole === role.id ? "#1E3A8A" : "#6B7280"}
-  />
-  <Text
-    style={[
-      styles.roleText,
-      selectedRole === role.id && styles.roleTextSelected,
-    ]}
-  >
-    {role.label}
-  </Text>
-</View>
+                  style={[
+                    styles.roleButton,
+                    selectedRole === role.id && styles.roleButtonSelected,
+                  ]}
+                >
+                  <Ionicons
+                    name={role.icon}
+                    size={20}
+                    color={selectedRole === role.id ? "#1E3A8A" : "#6B7280"}
+                  />
+                  <Text
+                    style={[
+                      styles.roleText,
+                      selectedRole === role.id && styles.roleTextSelected,
+                    ]}
+                  >
+                    {role.label}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Resend */}
         <View style={styles.resendContainer}>
           <Text style={styles.resendText}>Didn't receive the code?</Text>
           <TouchableOpacity
@@ -309,7 +340,6 @@ export default function OTP() {
           </TouchableOpacity>
         </View>
 
-        {/* Verify Button */}
         <TouchableOpacity
           onPress={() => handleVerifyOtp(otp.join(""))}
           disabled={!isOtpComplete || loading}
@@ -436,23 +466,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#E2E8F0",
   },
-  roleButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 12,
+  roleButtonSelected: {
+    borderColor: "#1E3A8A",
+    backgroundColor: "#EFF6FF",
   },
   roleText: {
     fontSize: 13,
     fontWeight: "600",
     color: "#6B7280",
   },
-  roleTextActive: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#FFFFFF",
+  roleTextSelected: {
+    color: "#1E3A8A",
   },
   resendContainer: {
     flexDirection: "row",
@@ -485,13 +509,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  roleButtonSelected: {
-  borderColor: "#1E3A8A",
-  backgroundColor: "#EFF6FF",
-},
-
-roleTextSelected: {
-  color: "#1E3A8A",
-},
-
 });
