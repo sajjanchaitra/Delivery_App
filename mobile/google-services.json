@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "766946947318",
+    "project_id": "naimo-83418",
+    "storage_bucket": "naimo-83418.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:766946947318:android:c3ea15fe33e075cd317cd7",
+        "android_client_info": {
+          "package_name": "in.naimo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBc-i38poXptmxmVIQ10Rc1hbaoDoanRtg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

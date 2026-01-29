@@ -1,177 +1,154 @@
-// app/services/firebase-otp.service.ts
-/**
- * Firebase OTP Service for EXPO
- * Uses Firebase JS SDK (not @react-native-firebase)
- * 
- * INSTALLATION REQUIRED:
- * npx expo install firebase
- */
+// mobile/services/firebase-otp.service.ts
+// ✅ Using React Native Firebase - NO reCAPTCHA needed!
 
-import { getAuth, signInWithPhoneNumber, ConfirmationResult, RecaptchaVerifier } from 'firebase/auth';
-import { initializeApp } from 'firebase/app';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-};
+let confirmationResult: FirebaseAuthTypes.ConfirmationResult | null = null;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-interface OTPSendResult {
-  success: boolean;
-  error?: string;
-}
-
-interface OTPVerifyResult {
-  success: boolean;
-  idToken?: string;
-  error?: string;
-}
-
-class FirebaseOTPService {
-  private confirmation: ConfirmationResult | null = null;
-  private recaptchaVerifier: RecaptchaVerifier | null = null;
-
-  /**
-   * Initialize reCAPTCHA verifier (required for web)
-   * For React Native, this is handled automatically by Firebase
-   */
-  initRecaptcha(containerId: string = 'recaptcha-container'): void {
-    if (typeof window !== 'undefined' && !this.recaptchaVerifier) {
-      this.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-        size: 'invisible',
-        callback: () => {
-          console.log('✅ reCAPTCHA verified');
-        },
-        'expired-callback': () => {
-          console.log('⚠️ reCAPTCHA expired');
-        }
-      });
-    }
-  }
-
+const firebaseOTPService = {
   /**
    * Send OTP to phone number
-   * @param phoneNumber - Phone number with country code (+91xxxxxxxxxx)
+   * @param phone - Phone number with country code (e.g., +91XXXXXXXXXX)
    */
-  async sendOTP(phoneNumber: string): Promise<OTPSendResult> {
+  async sendOTP(phone: string): Promise<{ success: boolean; error?: string }> {
     try {
-      // Ensure phone number is in correct format
-      const formattedPhone = phoneNumber.startsWith('+91') 
-        ? phoneNumber 
-        : `+91${phoneNumber}`;
+      console.log("📱 Sending OTP to:", phone);
 
-      console.log('📱 Sending OTP to:', formattedPhone);
+      // Validate phone format
+      if (!phone.startsWith('+')) {
+        phone = `+91${phone.replace(/\D/g, '')}`;
+      }
 
-      // Send verification code
-      this.confirmation = await signInWithPhoneNumber(
-        auth,
-        formattedPhone,
-        this.recaptchaVerifier!
-      );
+      // React Native Firebase - no reCAPTCHA needed!
+      confirmationResult = await auth().signInWithPhoneNumber(phone);
 
-      console.log('✅ OTP sent successfully');
-      
+      console.log("✅ OTP sent successfully");
       return { success: true };
     } catch (error: any) {
-      console.error('❌ OTP Send Error:', error);
-      
-      let errorMessage = 'Failed to send OTP';
-      
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Network error. Please check your connection';
-      } else if (error.code === 'auth/captcha-check-failed') {
-        errorMessage = 'Verification failed. Please try again';
+      console.error("❌ OTP Send Error:", error.code, error.message);
+
+      let errorMessage = "Failed to send OTP";
+
+      switch (error.code) {
+        case 'auth/invalid-phone-number':
+          errorMessage = "Invalid phone number format";
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = "Too many attempts. Please try again later";
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = "Network error. Check your internet connection";
+          break;
+        case 'auth/app-not-authorized':
+          errorMessage = "App not authorized. Check Firebase configuration";
+          break;
+        case 'auth/missing-client-identifier':
+          errorMessage = "Missing SHA-1 fingerprint in Firebase Console";
+          break;
+        default:
+          errorMessage = error.message || "Failed to send OTP";
       }
 
       return { success: false, error: errorMessage };
     }
-  }
+  },
 
   /**
    * Verify OTP code
    * @param code - 6-digit OTP code
    */
-  async verifyOTP(code: string): Promise<OTPVerifyResult> {
+  async verifyOTP(code: string): Promise<{ 
+    success: boolean; 
+    idToken?: string; 
+    user?: FirebaseAuthTypes.User; 
+    error?: string 
+  }> {
     try {
-      if (!this.confirmation) {
-        return { 
-          success: false, 
-          error: 'No OTP sent. Please request OTP first' 
-        };
+      if (!confirmationResult) {
+        return { success: false, error: "OTP session expired. Please request a new OTP" };
       }
 
-      console.log('🔐 Verifying OTP:', code);
+      const cleanCode = code.replace(/\D/g, '');
+      if (cleanCode.length !== 6) {
+        return { success: false, error: "Please enter a valid 6-digit OTP" };
+      }
 
-      // Confirm the code
-      const userCredential = await this.confirmation.confirm(code);
+      console.log("🔐 Verifying OTP...");
 
-      // Get ID token
-      const idToken = await userCredential.user.getIdToken();
+      const result = await confirmationResult.confirm(cleanCode);
 
-      console.log('✅ OTP verified successfully');
-      console.log('📱 Phone:', userCredential.user.phoneNumber);
+      if (!result.user) {
+        return { success: false, error: "Verification failed" };
+      }
 
-      // Clear confirmation
-      this.confirmation = null;
+      const token = await result.user.getIdToken();
 
-      return { 
-        success: true, 
-        idToken 
+      console.log("✅ OTP verified successfully");
+
+      return {
+        success: true,
+        idToken: token,
+        user: result.user,
       };
     } catch (error: any) {
-      console.error('❌ OTP Verification Error:', error);
+      console.error("❌ OTP Verify Error:", error.code, error.message);
 
-      let errorMessage = 'Invalid OTP code';
+      let errorMessage = "Invalid OTP";
 
-      if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid OTP code. Please try again';
-      } else if (error.code === 'auth/code-expired') {
-        errorMessage = 'OTP expired. Please request a new one';
-      } else if (error.code === 'auth/session-expired') {
-        errorMessage = 'Session expired. Please request a new OTP';
+      switch (error.code) {
+        case 'auth/invalid-verification-code':
+          errorMessage = "Invalid OTP code. Please check and try again";
+          break;
+        case 'auth/code-expired':
+        case 'auth/session-expired':
+          errorMessage = "OTP has expired. Please request a new one";
+          break;
+        default:
+          errorMessage = error.message || "Failed to verify OTP";
       }
 
       return { success: false, error: errorMessage };
     }
-  }
+  },
 
   /**
    * Resend OTP
-   * @param phoneNumber - Phone number with country code
    */
-  async resendOTP(phoneNumber: string): Promise<OTPSendResult> {
-    // Reset confirmation
-    this.confirmation = null;
-    
-    // Send new OTP
-    return this.sendOTP(phoneNumber);
-  }
+  async resendOTP(phone: string): Promise<{ success: boolean; error?: string }> {
+    console.log("🔄 Resending OTP to:", phone);
+    confirmationResult = null;
+    return this.sendOTP(phone);
+  },
 
   /**
-   * Clear confirmation state
+   * Clear confirmation
    */
   clearConfirmation(): void {
-    this.confirmation = null;
-  }
+    confirmationResult = null;
+  },
 
   /**
-   * Check if Firebase Auth is available
+   * Get current user
    */
-  isAvailable(): boolean {
-    return !!auth;
-  }
-}
+  getCurrentUser(): FirebaseAuthTypes.User | null {
+    return auth().currentUser;
+  },
 
-export default new FirebaseOTPService();
+  /**
+   * Get ID token
+   */
+  async getIdToken(): Promise<string | null> {
+    const user = auth().currentUser;
+    return user ? await user.getIdToken() : null;
+  },
+
+  /**
+   * Sign out
+   */
+  async signOut(): Promise<void> {
+    await auth().signOut();
+    confirmationResult = null;
+  },
+};
+
+export default firebaseOTPService;

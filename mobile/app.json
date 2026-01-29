@@ -8,9 +8,11 @@
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.mobile",
+      "bundleIdentifier": "in.naimo.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -20,30 +22,30 @@
         "NSPhotoLibraryAddUsageDescription": "This app needs permission to save photos"
       }
     },
+
     "android": {
-      "package": "com.sourabh.deliveryapp",
+      "package": "in.naimo.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE"
       },
-      "manifest": {
-        "application": {
-          "$": {
-            "android:usesCleartextTraffic": "true"
-          }
-        }
-      },
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
+
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+
     "plugins": [
       "expo-router",
-      "./app.plugin.js",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-splash-screen",
         {
@@ -63,18 +65,30 @@
           "cameraPermission": "Allow access to take product photos"
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "minSdkVersion": 23,
+            "newArchEnabled": true
+          }
+        }
+      ],
       "expo-font"
     ],
+
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
+
     "extra": {
       "router": {},
       "eas": {
         "projectId": "28092774-2288-45e9-a85a-d00edebcc0f6"
       }
     },
+
     "owner": "100rav21_21"
   }
 }
