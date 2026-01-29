@@ -70,7 +70,7 @@
         {
           "android": {
             "usesCleartextTraffic": true,
-            "minSdkVersion": 23,
+            "minSdkVersion": 24,
             "newArchEnabled": true
           }
         }
